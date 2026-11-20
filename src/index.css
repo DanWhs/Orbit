@@ -1,0 +1,492 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f4f6fa;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: #ffffff;
+  --fg: #0d111d;
+  --mut: rgba(13, 17, 29, 0.54);
+  --glass: rgba(13, 17, 29, 0.055);
+  --glass2: rgba(13, 17, 29, 0.1);
+  --menu-glass: rgba(255, 255, 255, 0.68);
+  --border-subtle: rgba(13, 17, 29, 0.1);
+  --bot: #ff5e00;
+  --acc: #ff5e00;
+  --acc-rgb: 255, 94, 0;
+  --acc-text: #c2410c;
+  --acc-fg: #ffffff;
+  --eye: #ffffff;
+  --st: 0px;
+  --sb: 0px;
+  --out: cubic-bezier(0.22, 1, 0.36, 1);
+  --soft: cubic-bezier(0.45, 0, 0.2, 1);
+  --ease-liquid: cubic-bezier(0.16, 1, 0.3, 1);
+  --border-sweep-duration: 820ms;
+  --fill-sweep-duration: 620ms;
+}
+
+:root.dark {
+  --bg: #05070c;
+  --surface: rgba(20, 24, 36, 0.72);
+  --surface-solid: #10141f;
+  --fg: #f2f4ff;
+  --mut: rgba(242, 244, 255, 0.52);
+  --glass: rgba(255, 255, 255, 0.08);
+  --glass2: rgba(255, 255, 255, 0.14);
+  --menu-glass: rgba(255, 255, 255, 0.075);
+  --border-subtle: rgba(242, 244, 255, 0.12);
+  --eye: #05070c;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color 0.5s var(--soft), color 0.5s var(--soft);
+}
+
+body {
+  position: fixed;
+  inset: 0;
+}
+
+.font-display {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Subtle atmospheric accent glow + softly masked micro-dot background pattern */
+.orbit-ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(var(--acc-rgb), 0.06) 0%, transparent 46%),
+    radial-gradient(circle at 78% 78%, rgba(var(--acc-rgb), 0.045) 0%, transparent 50%),
+    radial-gradient(ellipse 64% 52% at 50% 44%, rgba(var(--acc-rgb), 0.03) 0%, transparent 68%);
+  transition: background 0.6s var(--soft);
+}
+
+.orbit-ambient-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(13, 17, 29, 0.065) 1px, transparent 1px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 58%, transparent 100%);
+}
+
+:root.dark .orbit-ambient-bg {
+  background:
+    radial-gradient(circle at 22% 20%, rgba(var(--acc-rgb), 0.055) 0%, transparent 46%),
+    radial-gradient(circle at 78% 78%, rgba(var(--acc-rgb), 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 64% 52% at 50% 44%, rgba(var(--acc-rgb), 0.025) 0%, transparent 68%);
+}
+
+:root.dark .orbit-ambient-bg::after {
+  background-image: radial-gradient(circle, rgba(242, 244, 255, 0.055) 1px, transparent 1px);
+}
+
+/* Single crisp fixed orbital ring around the bot sphere (zero glow) */
+.orbit-ring-track {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 126%;
+  height: 126%;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid color-mix(in srgb, var(--acc) 72%, transparent);
+  pointer-events: none;
+  transition: border-color 0.45s var(--soft);
+}
+
+.orbit-satellite-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 126%;
+  height: 126%;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  pointer-events: none;
+  animation: orbitSpin 18s linear infinite;
+}
+
+.orbit-satellite-spinner::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 9999px;
+  background: var(--acc);
+  transition: background-color 0.45s var(--soft);
+}
+
+@keyframes orbitSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Thinking cloud animation */
+#think-bubble .p {
+  transform: scale(0);
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  transition: transform 0.55s var(--out), opacity 0.3s var(--soft);
+}
+
+#think-bubble.on .p {
+  transform: none;
+  opacity: 1;
+}
+
+#think-bubble.on .t1 {
+  transition-delay: 0.1s;
+}
+
+#think-bubble.on .cl {
+  transition-delay: 0.2s;
+}
+
+#think-bubble .cl .d {
+  fill: var(--bg);
+}
+
+#think-bubble.on .d {
+  animation: dotPulse 1.3s ease-in-out infinite;
+}
+
+#think-bubble .d:nth-last-of-type(2) {
+  animation-delay: 0.18s;
+}
+
+#think-bubble .d:last-of-type {
+  animation-delay: 0.36s;
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Holiday hat sway */
+@keyframes hatSway {
+  to {
+    transform: rotate(-9deg);
+  }
+}
+
+.hat-sway {
+  animation: hatSway 5s ease-in-out infinite alternate;
+}
+
+/* Keyboard caret blink for boot splash */
+@keyframes caretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+.animate-caret-blink {
+  animation: caretBlink 0.7s step-end infinite;
+}
+
+/* Elastic pop-in for bot */
+@keyframes botPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.08);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+  84% {
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-bot-pop {
+  animation: botPopIn 0.65s cubic-bezier(0.22, 1.22, 0.36, 1) forwards;
+}
+
+/* Hide native search cancel icon so custom clear button is never duplicated */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+/* Legal search highlight */
+mark.legal-hit {
+  background-color: color-mix(in srgb, var(--acc) 28%, transparent);
+  color: var(--fg);
+  padding: 0;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+/* Custom sleek scrollbar inside menus */
+.orbit-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.orbit-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.orbit-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
+   LIQUID BUBBLE PERIMETER GLOW + CLICK-ONLY FILL & FLASH ENGINE
+   Preserves exact frosted pill design; applies glow strictly along borders
+   with soft feathered fade and dissipated high-contrast text shadow.
+   ========================================================================== */
+.bubble-interactive {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
+  transition: color 0.35s var(--ease-liquid), background-color 0.3s var(--ease-liquid);
+}
+
+.bubble-border-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+  background: transparent;
+}
+
+.bubble-border-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.25px;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.28) 0%,
+    rgba(var(--acc-rgb), 0.68) 52%,
+    rgba(var(--acc-rgb), 0.94) 86%,
+    color-mix(in srgb, var(--acc) 78%, #ffffff) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  clip-path: inset(0 94% 0 0 round 9999px);
+  opacity: 0;
+  will-change: clip-path, opacity;
+  transition:
+    clip-path var(--border-sweep-duration) var(--ease-liquid),
+    opacity 0.45s var(--ease-liquid);
+}
+
+/* True Gaussian inset glow fading seamlessly inward without any mask cutoff edge */
+.bubble-border-aura {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  clip-path: inset(0 94% 0 0 round 9999px);
+  opacity: 0;
+  box-shadow:
+    inset 0 0 7px 0 rgba(var(--acc-rgb), 0.42),
+    inset 0 0 16px 0 rgba(var(--acc-rgb), 0.24),
+    inset 0 0 28px 0 rgba(var(--acc-rgb), 0.09),
+    inset -12px 0 22px -10px rgba(var(--acc-rgb), 0.24);
+  will-change: clip-path, opacity;
+  transition:
+    clip-path var(--border-sweep-duration) var(--ease-liquid),
+    opacity 0.5s var(--ease-liquid);
+}
+
+.bubble-interactive.is-hovered .bubble-border-sweep,
+.bubble-interactive.is-clicked .bubble-border-sweep,
+.bubble-interactive:focus-within .bubble-border-sweep {
+  clip-path: inset(0 0% 0 0 round 9999px);
+  opacity: 0.78;
+}
+
+.bubble-interactive.is-hovered .bubble-border-aura,
+.bubble-interactive.is-clicked .bubble-border-aura,
+.bubble-interactive:focus-within .bubble-border-aura {
+  clip-path: inset(0 0% 0 0 round 9999px);
+  opacity: 1;
+}
+
+.bubble-interactive.is-clicked .bubble-border-aura {
+  opacity: 0.4;
+}
+
+/* Content layer sits cleanly above perimeter glow with zero rectangular shadow clipping */
+.bubble-content {
+  position: relative;
+  z-index: 5;
+  min-width: 0;
+  transition: color 0.35s var(--ease-liquid), text-shadow 0.35s var(--ease-liquid);
+}
+
+.bubble-content .truncate {
+  padding: 4px 6px;
+  margin: -4px -6px;
+}
+
+:root.dark .bubble-interactive.is-hovered .bubble-content,
+:root.dark .bubble-interactive:focus-within .bubble-content,
+:root.dark .bubble-interactive[data-bubble-variant="glass"].is-clicked .bubble-content {
+  text-shadow: 0 1px 2px rgba(5, 7, 12, 0.32);
+}
+
+:root:not(.dark) .bubble-interactive.is-hovered .bubble-content,
+:root:not(.dark) .bubble-interactive:focus-within .bubble-content,
+:root:not(.dark) .bubble-interactive[data-bubble-variant="glass"].is-clicked .bubble-content {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.45);
+}
+
+.bubble-interactive[data-bubble-variant="solid"].is-clicked .bubble-content {
+  color: var(--acc-fg) !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+.bubble-interactive[data-bubble-variant="glass"].is-clicked .bubble-content {
+  color: var(--fg);
+}
+
+/* Interior Accent Wave (Triggered ONLY on Click / Tap) */
+.bubble-interior-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+  clip-path: inset(0 94% 0 0 round 9999px);
+  opacity: 0;
+  will-change: clip-path, opacity;
+  transition:
+    clip-path var(--fill-sweep-duration) var(--ease-liquid),
+    opacity 0.32s var(--ease-liquid);
+}
+
+.bubble-interactive[data-bubble-variant="glass"] .bubble-interior-wave {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.16) 0%,
+    rgba(var(--acc-rgb), 0.28) 72%,
+    rgba(var(--acc-rgb), 0.38) 100%
+  );
+}
+
+.bubble-interactive[data-bubble-variant="solid"] .bubble-interior-wave {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.88) 0%,
+    rgba(var(--acc-rgb), 0.95) 68%,
+    var(--acc) 100%
+  );
+}
+
+.bubble-interactive.is-clicked .bubble-interior-wave {
+  clip-path: inset(0 0% 0 0 round 9999px);
+  opacity: 1;
+}
+
+/* Delicate Internal Accent Flash (Triggered ONLY on Click / Tap) */
+.bubble-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.25) 0%,
+    rgba(255, 255, 255, 0.54) 58%,
+    rgba(var(--acc-rgb), 0.68) 100%
+  );
+  mix-blend-mode: screen;
+  will-change: opacity;
+}
+
+:root:not(.dark) .bubble-flash {
+  mix-blend-mode: plus-lighter;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.18) 0%,
+    rgba(255, 255, 255, 0.84) 62%,
+    rgba(var(--acc-rgb), 0.5) 100%
+  );
+}
+
+@keyframes accentInternalFlash {
+  0% {
+    opacity: 0;
+  }
+  42% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.bubble-interactive.is-flashing .bubble-flash {
+  animation: accentInternalFlash 660ms var(--ease-liquid) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-satellite-spinner,
+  .hat-sway,
+  .animate-caret-blink {
+    animation: none !important;
+  }
+  .bubble-border-sweep,
+  .bubble-border-aura,
+  .bubble-interior-wave {
+    transition-duration: 120ms !important;
+  }
+  .bubble-interactive.is-flashing .bubble-flash {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liquid Bubble Accent — Micro-Interaction System</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Typography: Montserrat & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Montserrat', 'sans-serif'],
+            sans: ['Inter', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* ==========================================================================
+       1. CORE DESIGN TOKENS & DYNAMIC ACCENT SYSTEM
+       ========================================================================== */
+    :root {
+      /* Global Settings Accent Color (Updated dynamically via JS) */
+      --accent-color: #007AFF;
+      --accent-rgb: 0, 122, 255;
+
+      /* Adaptive Surface Tokens (Light Mode Default) */
+      --bg-canvas: #F7F8FB;
+      --bg-surface: rgba(255, 255, 255, 0.78);
+      --bg-control: rgba(255, 255, 255, 0.92);
+      --border-hairline: rgba(0, 0, 0, 0.08);
+      --text-primary: #1D1D1F;
+      --text-secondary: #6E6E73;
+      --shadow-glass: 0 20px 40px -15px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+
+      /* Luxury Deceleration Physics & Timing Curves */
+      --ease-liquid: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-flash: cubic-bezier(0.16, 1, 0.3, 1);
+      --border-sweep-duration: 820ms;
+      --fill-sweep-duration: 620ms;
+      --mobile-nav-delay: 760ms;
+    }
+
+    html.dark {
+      --bg-canvas: #050507;
+      --bg-surface: rgba(18, 18, 22, 0.74);
+      --bg-control: rgba(24, 24, 29, 0.90);
+      --border-hairline: rgba(255, 255, 255, 0.09);
+      --text-primary: #F5F5F7;
+      --text-secondary: #8E8E93;
+      --shadow-glass: 0 24px 48px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      transition: background-color 0.45s var(--ease-liquid), color 0.45s var(--ease-liquid);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient Subtle Accent Glow in Background */
+    .ambient-backdrop {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(var(--accent-rgb), 0.09) 0%, transparent 45%),
+        radial-gradient(circle at 80% 85%, rgba(var(--accent-rgb), 0.07) 0%, transparent 50%);
+      transition: background 0.6s ease;
+    }
+
+    /* Apple-inspired Frosted Glass Card */
+    .glass-panel {
+      background: var(--bg-surface);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border-hairline);
+      box-shadow: var(--shadow-glass);
+      transition: background 0.45s var(--ease-liquid), border-color 0.45s var(--ease-liquid), box-shadow 0.45s var(--ease-liquid);
+    }
+
+    /* ==========================================================================
+       2. BORDER-BOX / PADDING-BOX INNER GLOW SWEEP + CLICK-ONLY FILL ENGINE
+       ========================================================================== */
+    .bubble-interactive {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      background: var(--bg-control);
+      border: 2px solid transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      user-select: none;
+      transform: translateZ(0); /* Force GPU layer */
+      transition: color 0.45s var(--ease-liquid);
+    }
+
+    /* Dual-Layer Background Rim: border-box sweep + padding-box center shield */
+    .bubble-border-mask {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 4;
+      background: transparent;
+    }
+
+    /* Soft feathered inner aura sweeping left -> right through the transparent border */
+    .bubble-border-sweep {
+      position: absolute;
+      top: -22%;
+      bottom: -22%;
+      left: -8%;
+      width: 118%;
+      border-radius: 9999px;
+      background:
+        radial-gradient(
+          ellipse 78% 74% at 50% 50%,
+          transparent 0%,
+          transparent 56%,
+          rgba(var(--accent-rgb), 0.16) 82%,
+          rgba(var(--accent-rgb), 0.34) 100%
+        ) padding-box,
+        linear-gradient(
+          90deg,
+          rgba(var(--accent-rgb), 0.42) 0%,
+          rgba(var(--accent-rgb), 0.86) 52%,
+          var(--accent-color) 84%,
+          rgba(255, 255, 255, 0.96) 100%
+        ) border-box;
+      border: 8px solid transparent;
+      filter: blur(5px) brightness(1.22);
+      transform-origin: left center;
+      transform: scaleX(0.08);
+      opacity: 0;
+      will-change: transform, opacity;
+      transition:
+        transform var(--border-sweep-duration) var(--ease-liquid),
+        opacity 0.42s var(--ease-liquid);
+    }
+
+    /* Hover / Focus State: Soft border-box + inner aura sweeps left -> right */
+    .bubble-interactive.is-hovered .bubble-border-sweep,
+    .bubble-interactive.is-clicked .bubble-border-sweep,
+    .bubble-interactive:focus-within .bubble-border-sweep {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+
+    /* Soft Feather Glow inside the perimeter (Strictly inside the element, zero outer spill) */
+    .bubble-interactive::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      box-shadow:
+        inset 0 0 22px 3px rgba(var(--accent-rgb), 0.42),
+        inset 20px 0 26px -10px rgba(var(--accent-rgb), 0.36);
+      transition:
+        opacity 0.55s var(--ease-liquid),
+        box-shadow 0.55s var(--ease-liquid);
+    }
+
+    .bubble-interactive.is-hovered::after,
+    .bubble-interactive:focus-within::after {
+      opacity: 1;
+    }
+
+    .bubble-interactive.is-clicked::after {
+      opacity: 0;
+    }
+
+    /* Content wrapper sits cleanly above the internal fill & flash layers */
+    .bubble-content {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      width: 100%;
+      height: 100%;
+      transition: color 0.35s var(--ease-liquid), text-shadow 0.35s var(--ease-liquid);
+    }
+
+    /* High-contrast readable text when interior fills with accent color on click */
+    .bubble-interactive[data-bubble-variant="solid"].is-clicked .bubble-content {
+      color: #FFFFFF;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.38);
+    }
+
+    .bubble-interactive[data-bubble-variant="glass"].is-clicked .bubble-content {
+      color: var(--text-primary);
+      text-shadow: 0 0 14px rgba(var(--accent-rgb), 0.28);
+    }
+
+    /* Improve legibility for grey/secondary text & placeholders during active states */
+    .bubble-interactive.is-hovered [style*="color: var(--text-secondary)"],
+    .bubble-interactive.is-clicked [style*="color: var(--text-secondary)"],
+    .bubble-interactive.is-hovered .opacity-40,
+    .bubble-interactive.is-clicked .opacity-40,
+    .bubble-interactive.is-hovered .opacity-60,
+    .bubble-interactive.is-clicked .opacity-60 {
+      color: var(--text-primary);
+      opacity: 0.88;
+    }
+
+    .bubble-interactive[data-bubble-variant="solid"].is-clicked [style*="color: var(--text-secondary)"],
+    .bubble-interactive[data-bubble-variant="solid"].is-clicked .opacity-40,
+    .bubble-interactive[data-bubble-variant="solid"].is-clicked .opacity-60 {
+      color: rgba(255, 255, 255, 0.92);
+      opacity: 0.95;
+    }
+
+    .bubble-interactive.is-hovered .bubble-search-input::placeholder,
+    .bubble-interactive.is-clicked .bubble-search-input::placeholder {
+      color: var(--text-primary);
+      opacity: 0.72;
+    }
+
+    .bubble-interactive.is-clicked .bubble-search-input {
+      color: var(--text-primary);
+    }
+
+    /* Interior Accent Fill Layer (Triggered ONLY on Click / Tap) */
+    .bubble-interior-wave {
+      position: absolute;
+      top: -18%;
+      bottom: -18%;
+      left: -6%;
+      width: 118%;
+      pointer-events: none;
+      z-index: 1;
+      border-radius: 9999px;
+      transform-origin: left center;
+      transform: scaleX(0.08);
+      opacity: 0;
+      will-change: transform, opacity;
+      transition:
+        transform var(--fill-sweep-duration) var(--ease-liquid),
+        opacity 0.32s var(--ease-liquid);
+    }
+
+    /* Variant A: Soft Translucent Accent Interior Fill (Search Bars & Secondary Controls) */
+    .bubble-interactive[data-bubble-variant="glass"] .bubble-interior-wave {
+      background: linear-gradient(
+        90deg,
+        rgba(var(--accent-rgb), 0.22) 0%,
+        rgba(var(--accent-rgb), 0.34) 72%,
+        rgba(var(--accent-rgb), 0.44) 100%
+      );
+    }
+
+    /* Variant B: Rich Solid Accent Interior Fill (Primary Actions & Navigation Links) */
+    .bubble-interactive[data-bubble-variant="solid"] .bubble-interior-wave {
+      background: linear-gradient(
+        90deg,
+        rgba(var(--accent-rgb), 0.88) 0%,
+        rgba(var(--accent-rgb), 0.95) 68%,
+        var(--accent-color) 100%
+      );
+    }
+
+    /* Active Click/Tap Interior Fill State */
+    .bubble-interactive.is-clicked .bubble-interior-wave {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+
+    /* Delicate Internal Accent Flash Layer (Triggered ONLY on Click / Tap) */
+    .bubble-flash {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      border-radius: inherit;
+      background: linear-gradient(
+        90deg,
+        rgba(var(--accent-rgb), 0.25) 0%,
+        rgba(255, 255, 255, 0.58) 58%,
+        rgba(var(--accent-rgb), 0.72) 100%
+      );
+      mix-blend-mode: screen;
+      will-change: opacity;
+    }
+
+    html:not(.dark) .bubble-flash {
+      mix-blend-mode: plus-lighter;
+      background: linear-gradient(
+        90deg,
+        rgba(var(--accent-rgb), 0.18) 0%,
+        rgba(255, 255, 255, 0.88) 62%,
+        rgba(var(--accent-rgb), 0.52) 100%
+      );
+    }
+
+    @keyframes accentInternalFlash {
+      0% {
+        opacity: 0;
+      }
+      42% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+      }
+    }
+
+    .bubble-interactive.is-flashing .bubble-flash {
+      animation: accentInternalFlash 660ms var(--ease-flash) forwards;
+    }
+
+    /* Search Input Reset inside Bubble Container */
+    .bubble-search-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      width: 100%;
+      color: var(--text-primary);
+      font-size: 0.9375rem;
+    }
+
+    .bubble-search-input::placeholder {
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+
+    /* Custom Color Swatch Ring */
+    .swatch-btn {
+      position: relative;
+      transition: transform 0.25s var(--ease-liquid);
+    }
+    .swatch-btn:hover {
+      transform: scale(1.12);
+    }
+    .swatch-btn.active::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 9999px;
+      border: 1.5px solid var(--accent-color);
+      opacity: 0.85;
+    }
+
+    /* Custom Scrollbar for Code Modal */
+    pre::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    pre::-webkit-scrollbar-thumb {
+      background: rgba(142, 142, 147, 0.35);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-blue-500/20">
+
+  <div class="ambient-backdrop"></div>
+
+  <!-- ========================================================================
+       FLOATING SETTINGS PILL (TOP BAR)
+       ======================================================================== -->
+  <header class="sticky top-4 z-40 px-4 sm:px-6 flex justify-center">
+    <div class="glass-panel rounded-full px-3.5 py-2 flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 max-w-full">
+      
+      <!-- Brand / Accent Indicator -->
+      <div class="flex items-center gap-2 pl-1.5">
+        <span id="liveAccentDot" class="w-2.5 h-2.5 rounded-full transition-transform duration-300" style="background-color: var(--accent-color); box-shadow: 0 0 12px var(--accent-color);"></span>
+        <span class="font-display font-semibold text-xs tracking-wide uppercase opacity-80 hidden md:inline">Accent</span>
+      </div>
+
+      <!-- Preset Swatches + Custom Color Input -->
+      <div class="flex items-center gap-2" role="group" aria-label="Seleziona colore di accento">
+        <button type="button" class="swatch-btn active w-5 h-5 rounded-full" style="background:#007AFF" data-color="#007AFF" title="iOS Azure"></button>
+        <button type="button" class="swatch-btn w-5 h-5 rounded-full" style="background:#30D158" data-color="#30D158" title="Emerald Mint"></button>
+        <button type="button" class="swatch-btn w-5 h-5 rounded-full" style="background:#BF5AF2" data-color="#BF5AF2" title="Ultraviolet"></button>
+        <button type="button" class="swatch-btn w-5 h-5 rounded-full" style="background:#FF9F0A" data-color="#FF9F0A" title="Solar Amber"></button>
+        <button type="button" class="swatch-btn w-5 h-5 rounded-full" style="background:#FF375F" data-color="#FF375F" title="Crimson Rose"></button>
+        
+        <!-- Native Custom Color Picker Trigger -->
+        <label class="relative w-5 h-5 rounded-full overflow-hidden cursor-pointer border border-white/25 flex items-center justify-center hover:scale-110 transition-transform" title="Colore personalizzato" style="background: conic-gradient(from 90deg, #ff375f, #ff9f0a, #30d158, #007aff, #bf5af2, #ff375f);">
+          <input type="color" id="customAccentPicker" value="#007AFF" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+        </label>
+      </div>
+
+      <div class="h-4 w-[1px] bg-current opacity-15 hidden sm:block"></div>
+
+      <!-- Mode Switcher: Desktop Hover vs Simulated Mobile Tap -->
+      <div class="flex items-center rounded-full p-0.5 border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-xs font-medium">
+        <button type="button" id="modeAutoBtn" class="px-2.5 py-1 rounded-full transition-all duration-300 bg-white dark:bg-white/15 shadow-sm">
+          Auto Device
+        </button>
+        <button type="button" id="modeMobileSimBtn" class="px-2.5 py-1 rounded-full transition-all duration-300 opacity-70 hover:opacity-100">
+          Simula Mobile Tap
+        </button>
+      </div>
+
+      <div class="h-4 w-[1px] bg-current opacity-15 hidden sm:block"></div>
+
+      <!-- Theme Toggle (Dark / Light) -->
+      <button type="button" id="themeToggleBtn" aria-label="Cambia tema" class="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+        <!-- Sun Icon (shown in dark mode) -->
+        <svg id="iconSun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+        <!-- Moon Icon (shown in light mode) -->
+        <svg id="iconMoon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       MAIN SHOWCASE WORKSPACE
+       ======================================================================== -->
+  <main class="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-10 pb-24 flex flex-col gap-8">
+
+    <!-- Header Copy -->
+    <section class="text-center max-w-2xl mx-auto space-y-3">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border border-black/10 dark:border-white/10 bg-white/40 dark:bg-white/5 backdrop-blur-md">
+        <span class="w-1.5 h-1.5 rounded-full" style="background-color: var(--accent-color)"></span>
+        <span>Border-Only Hover Sweep &middot; Click-Triggered Internal Fill &amp; Flash</span>
+      </div>
+      <h1 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight">
+        Perimeter Liquid Accent &amp; Click Flash
+      </h1>
+      <p class="text-sm sm:text-base leading-relaxed" style="color: var(--text-secondary);">
+        Passando il cursore o selezionando un campo, <strong>solo il bordo</strong> si illumina progressivamente da sinistra verso destra mantenendo l'interno neutro. L'onda interna e il flash del colore di accento si attivano esclusivamente al <strong>click / tap</strong> (completandosi prima di aprire eventuali link).
+      </p>
+    </section>
+
+    <!-- Interactive Playground Grid -->
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 space-y-8">
+      
+      <!-- 1. Search Bars Showcase -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-display font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">01 &middot; Search Bars (Border Sweep on Hover/Focus &middot; Internal Fill on Click)</span>
+          <span class="text-xs font-mono opacity-60">variant="glass"</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Pill Search Bar -->
+          <div class="bubble-interactive rounded-full h-12 px-4" data-bubble data-bubble-variant="glass">
+            <div class="bubble-content justify-start">
+              <svg class="w-4 h-4 shrink-0 transition-colors duration-300" style="color: var(--accent-color);" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+              <input type="search" class="bubble-search-input" placeholder="Cerca impostazioni, componenti..." aria-label="Cerca impostazioni" />
+              <kbd class="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border border-current opacity-40">⌘K</kbd>
+            </div>
+          </div>
+
+          <!-- Rounded Soft Search Bar with Action Trigger -->
+          <div class="bubble-interactive rounded-2xl h-12 pl-4 pr-1.5" data-bubble data-bubble-variant="glass" data-bubble-scope="self">
+            <div class="bubble-content justify-between">
+              <input type="text" class="bubble-search-input" placeholder="Esplora destinazione..." aria-label="Esplora destinazione" />
+              <button type="button" data-bubble data-bubble-variant="solid" data-nav-target="/esplora" class="bubble-interactive rounded-xl h-9 px-3.5 text-xs font-medium shrink-0">
+                <span class="bubble-content">Vai</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-[1px] w-full bg-current opacity-10"></div>
+
+      <!-- 2. Action Buttons & Navigation Links -->
+      <div class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="text-xs font-display font-semibold uppercase tracking-wider" style="color: var(--text-secondary);">02 &middot; Buttons &amp; Pre-Navigation Links</span>
+          <span id="interactionHintBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/5" style="color: var(--text-secondary);">
+            Modalità attiva: Desktop Hover + Click Delay su Link
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Primary Solid Fill Button -->
+          <a href="#destination-settings" data-bubble data-bubble-variant="solid" data-nav-target="Impostazioni Sistema" class="bubble-interactive rounded-full h-12 px-6 font-medium text-sm">
+            <span class="bubble-content">
+              <span>Apri Impostazioni</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+            </span>
+          </a>
+
+          <!-- Glass Translucent Fill Button -->
+          <a href="#destination-analytics" data-bubble data-bubble-variant="glass" data-nav-target="Dashboard Analitica" class="bubble-interactive rounded-full h-12 px-6 font-medium text-sm">
+            <span class="bubble-content">
+              <span class="w-2 h-2 rounded-full" style="background-color: var(--accent-color);"></span>
+              <span>Panoramica Dati</span>
+            </span>
+          </a>
+
+          <!-- Squircle Card Action Button -->
+          <a href="#destination-profile" data-bubble data-bubble-variant="solid" data-nav-target="Profilo Utente" class="bubble-interactive rounded-2xl h-12 px-6 font-medium text-sm">
+            <span class="bubble-content">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+              </svg>
+              <span>Account</span>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Simulated Navigation Feedback Banner -->
+      <div id="navFeedbackBar" class="rounded-2xl px-4 py-3 border border-dashed border-current/15 flex items-center justify-between text-xs transition-all duration-300" style="color: var(--text-secondary);">
+        <div class="flex items-center gap-2.5">
+          <span id="navStatusDot" class="w-2 h-2 rounded-full bg-current opacity-40"></span>
+          <span id="navStatusText">Passa sopra per illuminare i bordi; clicca o tocca per riempire l'interno con il flash e navigare.</span>
+        </div>
+        <span id="navTimingBadge" class="font-mono opacity-60 hidden sm:inline">760ms delay</span>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================
+         READY-TO-USE MODULAR SNIPPET PANEL
+         ====================================================================== -->
+    <section class="glass-panel rounded-3xl p-6 sm:p-8 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="font-display font-semibold text-base">Codice Modulare Pronto all'Uso</h2>
+          <p class="text-xs mt-0.5" style="color: var(--text-secondary);">CSS + Vanilla JS leggero, zero dipendenze esterne, sincronizzato con <code class="font-mono">--accent-color</code>.</p>
+        </div>
+        
+        <button type="button" id="copyCodeBtn" data-bubble data-bubble-variant="solid" class="bubble-interactive rounded-full h-9 px-4 text-xs font-medium">
+          <span class="bubble-content">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span id="copyBtnLabel">Copia Snippet</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="relative rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-black/40">
+        <pre id="codeBlock" class="p-4 text-xs font-mono leading-relaxed overflow-x-auto max-h-72" style="color: var(--text-primary);"></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /**
+     * ==========================================================================
+     * PERIMETER LIQUID BORDER + CLICK-ONLY INTERNAL ACCENT FILL & FLASH ENGINE
+     * - Hover / Focus: Progressively illuminates ONLY the 1.5px border contour
+     *   from left to right (800ms silky deceleration), interior stays neutral.
+     * - Click / Tap: Fills the interior from left to right with --accent-color
+     *   and triggers the internal accent flash before opening target links.
+     * ==========================================================================
+     */
+    class LiquidBubbleController {
+      constructor(options = {}) {
+        this.navDelay = options.navDelay || 760; // ms before opening target page
+        this.forceMobileSim = false;
+        this.isTouchDevice = () =>
+          this.forceMobileSim || window.matchMedia('(pointer: coarse)').matches;
+
+        this.initElements();
+      }
+
+      initElements() {
+        const targets = document.querySelectorAll('[data-bubble]');
+        targets.forEach((el) => this.attach(el));
+      }
+
+      attach(el) {
+        if (el.dataset.bubbleInitialized) return;
+        el.dataset.bubbleInitialized = 'true';
+
+        if (!el.dataset.bubbleVariant) {
+          el.dataset.bubbleVariant = 'glass';
+        }
+
+        // 1. Masked Border Perimeter Layer (Hover / Focus Left-to-Right Sweep)
+        const borderMask = document.createElement('span');
+        borderMask.className = 'bubble-border-mask';
+        borderMask.setAttribute('aria-hidden', 'true');
+
+        const borderSweep = document.createElement('span');
+        borderSweep.className = 'bubble-border-sweep';
+        borderMask.appendChild(borderSweep);
+
+        // 2. Interior Wave & Flash Layers (Click / Tap Only)
+        const interiorWave = document.createElement('span');
+        interiorWave.className = 'bubble-interior-wave';
+        interiorWave.setAttribute('aria-hidden', 'true');
+
+        const flash = document.createElement('span');
+        flash.className = 'bubble-flash';
+        flash.setAttribute('aria-hidden', 'true');
+
+        el.prepend(borderMask);
+        el.prepend(flash);
+        el.prepend(interiorWave);
+
+        const triggerClickEffect = () => {
+          clearTimeout(el._flashTimer);
+          clearTimeout(el._clickRetractTimer);
+
+          el.classList.remove('is-clicked', 'is-flashing');
+          void el.offsetWidth;
+          el.classList.add('is-clicked');
+
+          el._flashTimer = setTimeout(() => {
+            void el.offsetWidth;
+            el.classList.add('is-flashing');
+          }, 90);
+        };
+
+        // DESKTOP HOVER: Illuminates ONLY the border contour from left to right
+        el.addEventListener('pointerenter', (e) => {
+          if (this.isTouchDevice() || e.pointerType === 'touch') return;
+          if (el.dataset.bubbleScope === 'self' && e.target.closest('[data-bubble]') !== el) return;
+          el.classList.add('is-hovered');
+        });
+
+        el.addEventListener('pointerleave', (e) => {
+          if (this.isTouchDevice() || e.pointerType === 'touch') return;
+          if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') {
+            return;
+          }
+          el.classList.remove('is-hovered', 'is-clicked', 'is-flashing');
+        });
+
+        // SEARCH BAR FOCUS / BLUR SUPPORT (Border only on focus; click triggers fill)
+        const innerInput = el.querySelector('input');
+        if (innerInput) {
+          innerInput.addEventListener('focus', () => {
+            el.classList.add('is-hovered');
+          });
+
+          innerInput.addEventListener('blur', () => {
+            el.classList.remove('is-hovered', 'is-clicked', 'is-flashing');
+          });
+        }
+
+        // CLICK / TAP HANDLER: Triggers interior accent fill + flash (and delays navigation)
+        el.addEventListener('click', (e) => {
+          const clickedNestedBubble = e.target.closest('[data-bubble]');
+          if (clickedNestedBubble && clickedNestedBubble !== el) return;
+
+          const navTarget = el.dataset.navTarget;
+          const href = el.getAttribute('href');
+          const isNavigationElement = Boolean(navTarget || (href && href !== '#'));
+          const isMobile = this.isTouchDevice() || e.pointerType === 'touch';
+
+          if (isNavigationElement) {
+            e.preventDefault();
+          }
+
+          // Trigger interior accent wave + flash strictly on click/tap
+          triggerClickEffect();
+
+          if (isNavigationElement || isMobile) {
+            clearTimeout(el._navTimer);
+            el._navTimer = setTimeout(() => {
+              if (navTarget) {
+                triggerSimulatedNavigation(navTarget, href);
+              } else if (href && href !== '#') {
+                window.location.href = href;
+              }
+
+              // Smoothly retract interior fill & border glow after completion
+              el.classList.remove('is-clicked', 'is-flashing');
+              if (isMobile && (!innerInput || document.activeElement !== innerInput)) {
+                el.classList.remove('is-hovered');
+              }
+            }, this.navDelay);
+          } else {
+            // For non-navigation desktop clicks (e.g., search input or action button),
+            // gently settle the interior fill back after the flash completes
+            el._clickRetractTimer = setTimeout(() => {
+              el.classList.remove('is-clicked', 'is-flashing');
+            }, 950);
+          }
+        });
+      }
+    }
+
+    // Initialize Controller with 760ms pre-navigation timing
+    const bubbleEngine = new LiquidBubbleController({ navDelay: 760 });
+
+    /**
+     * ==========================================================================
+     * GLOBAL ACCENT COLOR SYNCHRONIZATION
+     * ==========================================================================
+     */
+    function hexToRgb(hex) {
+      const clean = hex.replace('#', '');
+      const bigint = parseInt(clean, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `${r}, ${g}, ${b}`;
+    }
+
+    function setGlobalAccentColor(hex) {
+      const root = document.documentElement;
+      root.style.setProperty('--accent-color', hex);
+      root.style.setProperty('--accent-rgb', hexToRgb(hex));
+
+      // Update active swatch indicator
+      document.querySelectorAll('.swatch-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.color.toLowerCase() === hex.toLowerCase());
+      });
+
+      const picker = document.getElementById('customAccentPicker');
+      if (picker) picker.value = hex;
+    }
+
+    document.querySelectorAll('.swatch-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setGlobalAccentColor(btn.dataset.color));
+    });
+
+    document.getElementById('customAccentPicker').addEventListener('input', (e) => {
+      setGlobalAccentColor(e.target.value);
+    });
+
+    /**
+     * ==========================================================================
+     * DEVICE SIMULATION & THEME CONTROLS
+     * ==========================================================================
+     */
+    const modeAutoBtn = document.getElementById('modeAutoBtn');
+    const modeMobileSimBtn = document.getElementById('modeMobileSimBtn');
+    const hintBadge = document.getElementById('interactionHintBadge');
+
+    function updateModeUI(isSimMobile) {
+      bubbleEngine.forceMobileSim = isSimMobile;
+      if (isSimMobile) {
+        modeMobileSimBtn.classList.add('bg-white', 'dark:bg-white/15', 'shadow-sm');
+        modeMobileSimBtn.classList.remove('opacity-70');
+        modeAutoBtn.classList.remove('bg-white', 'dark:bg-white/15', 'shadow-sm');
+        modeAutoBtn.classList.add('opacity-70');
+        hintBadge.textContent = 'Simulazione Mobile: Hover disattivato — Tap attiva bolla + flash prima di aprire';
+      } else {
+        modeAutoBtn.classList.add('bg-white', 'dark:bg-white/15', 'shadow-sm');
+        modeAutoBtn.classList.remove('opacity-70');
+        modeMobileSimBtn.classList.remove('bg-white', 'dark:bg-white/15', 'shadow-sm');
+        modeMobileSimBtn.classList.add('opacity-70');
+        hintBadge.textContent = 'Modalità attiva: Desktop Hover + Click Delay su Link';
+      }
+    }
+
+    modeAutoBtn.addEventListener('click', () => updateModeUI(false));
+    modeMobileSimBtn.addEventListener('click', () => updateModeUI(true));
+
+    // Light / Dark Theme Toggle
+    document.getElementById('themeToggleBtn').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+
+    // Simulated Navigation Toast inside Demo Card
+    function triggerSimulatedNavigation(targetName) {
+      const statusText = document.getElementById('navStatusText');
+      const statusDot = document.getElementById('navStatusDot');
+      const feedbackBar = document.getElementById('navFeedbackBar');
+
+      if (!statusText || !statusDot || !feedbackBar) return;
+
+      statusDot.style.backgroundColor = 'var(--accent-color)';
+      statusDot.style.opacity = '1';
+      statusText.textContent = `Apertura completata per "${targetName}" dopo animazione interna e flash.`;
+      feedbackBar.style.borderColor = 'rgba(var(--accent-rgb), 0.45)';
+    }
+
+    const exportSnippet = `/* 1. CSS — Gradiente perimetrale sui bordi + centro normale + Fill & Flash al Click */
+:root {
+  --accent-color: #007AFF;
+  --accent-rgb: 0, 122, 255;
+  --surface-bg: #18181d;
+  --ease-liquid: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bubble-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--surface-bg);
+  border: 2px solid transparent;
+  transition: color .35s var(--ease-liquid);
+}
+
+.bubble-content {
+  position: relative;
+  z-index: 5;
+}
+
+.bubble-btn.is-clicked .bubble-content {
+  color: #FFFFFF;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.38);
+}
+
+/* Gradiente radiale morbido verso il centro per evitare stacchi netti */
+.bubble-border-sweep {
+  position: absolute;
+  top: -22%; bottom: -22%; left: -8%;
+  width: 118%;
+  border-radius: 9999px;
+  border: 8px solid transparent;
+  background:
+    radial-gradient(ellipse 78% 74% at 50% 50%, transparent 0%, transparent 56%, rgba(var(--accent-rgb), .16) 82%, rgba(var(--accent-rgb), .34) 100%) padding-box,
+    linear-gradient(90deg, rgba(var(--accent-rgb), .42), rgba(var(--accent-rgb), .86) 52%, var(--accent-color) 84%, rgba(255,255,255,.96)) border-box;
+  filter: blur(5px) brightness(1.22);
+  pointer-events: none;
+  z-index: 4;
+  transform-origin: left center;
+  transform: scaleX(0.08);
+  opacity: 0;
+  transition: transform 780ms var(--ease-liquid), opacity 420ms var(--ease-liquid);
+}
+.bubble-btn.is-hovered .bubble-border-sweep,
+.bubble-btn.is-clicked .bubble-border-sweep,
+.bubble-btn:focus-within .bubble-border-sweep {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.bubble-btn.is-hovered::after,
+.bubble-btn:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 22px 3px rgba(var(--accent-rgb), .42), inset 20px 0 26px -10px rgba(var(--accent-rgb), .36);
+}
+
+/* Riempimento interno + Flash (Attivi SOLO al Click / Tap) */
+.bubble-interior-wave {
+  position: absolute;
+  top: -18%; bottom: -18%; left: -6%;
+  width: 118%;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), .88), var(--accent-color));
+  transform-origin: left center;
+  transform: scaleX(0.08);
+  opacity: 0;
+  transition: transform 580ms var(--ease-liquid), opacity 320ms var(--ease-liquid);
+}
+.bubble-btn.is-clicked .bubble-interior-wave {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.bubble-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), .25), rgba(255,255,255,.58) 58%, rgba(var(--accent-rgb), .72));
+  mix-blend-mode: screen;
+}
+.bubble-btn.is-flashing .bubble-flash {
+  animation: accentFlash 660ms var(--ease-liquid) forwards;
+}
+@keyframes accentFlash {
+  0% { opacity: 0; } 42% { opacity: 1; } 100% { opacity: 0; }
+}
+
+/* 2. JS — Hover illumina solo il bordo; Click/Tap attiva interno + flash prima di aprire */
+document.querySelectorAll('.bubble-btn').forEach(el => {
+  const sweep = Object.assign(document.createElement('span'), { className: 'bubble-border-sweep' });
+  const wave = Object.assign(document.createElement('span'), { className: 'bubble-interior-wave' });
+  const flash = Object.assign(document.createElement('span'), { className: 'bubble-flash' });
+  el.prepend(wave, flash, sweep);
+
+  el.addEventListener('pointerenter', e => {
+    if (e.pointerType !== 'touch') el.classList.add('is-hovered');
+  });
+  el.addEventListener('pointerleave', e => {
+    if (e.pointerType !== 'touch') el.classList.remove('is-hovered', 'is-clicked', 'is-flashing');
+  });
+
+  el.addEventListener('click', e => {
+    const href = el.getAttribute('href');
+    if (href && href !== '#') e.preventDefault();
+
+    el.classList.remove('is-clicked', 'is-flashing');
+    void el.offsetWidth;
+    el.classList.add('is-clicked');
+    setTimeout(() => el.classList.add('is-flashing'), 90);
+
+    setTimeout(() => {
+      if (href && href !== '#') window.location.href = href;
+      el.classList.remove('is-clicked', 'is-flashing', 'is-hovered');
+    }, 720);
+  });
+});`;
+
+    document.getElementById('codeBlock').textContent = exportSnippet;
+
+    document.getElementById('copyCodeBtn').addEventListener('click', () => {
+      const textarea = document.createElement('textarea');
+      textarea.value = exportSnippet;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+
+      const label = document.getElementById('copyBtnLabel');
+      label.textContent = 'Copiato!';
+      setTimeout(() => {
+        label.textContent = 'Copia Snippet';
+      }, 1800);
+    });
+  </script>
+</body>
+</html>
