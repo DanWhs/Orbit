@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Globe } from 'lucide-react';
 import { LOCALE_REGION_OPTIONS, UiDictionary } from '../i18n/translations';
 import { LocaleRegionOption } from '../types/orbit';
@@ -10,7 +11,7 @@ interface FooterBarProps {
   onSelectLocaleRegion: (optionId: string) => void;
 }
 
-export function FooterBar({
+export const FooterBar = memo(function FooterBar({
   visible,
   localeOption,
   dict,
@@ -64,4 +65,4 @@ export function FooterBar({
       </div>
     </footer>
   );
-}
+});

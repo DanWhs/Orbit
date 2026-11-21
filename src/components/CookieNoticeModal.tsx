@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { UiDictionary } from '../i18n/translations';
@@ -14,7 +14,7 @@ interface CookieNoticeModalProps {
   onUserModify?: () => void;
 }
 
-export function CookieNoticeModal({
+export const CookieNoticeModal = memo(function CookieNoticeModal({
   open,
   dict,
   consent,
@@ -55,15 +55,17 @@ export function CookieNoticeModal({
             aria-modal="true"
             aria-labelledby="cookie-notice-title"
             data-testid="cookie-notice-modal"
-            initial={{ opacity: 0, x: 24, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 20, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 pointer-events-auto w-full max-w-[460px] max-h-[64vh] md:max-h-[84vh] flex flex-col rounded-[28px] overflow-hidden backdrop-blur-2xl"
+            initial={{ opacity: 0, x: 16, y: 12 }}
+            animate={{ opacity: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, x: 14, y: 10 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 pointer-events-auto w-full max-w-[460px] max-h-[64vh] md:max-h-[84vh] flex flex-col rounded-[28px] overflow-hidden"
             style={{
-              backgroundColor: 'var(--menu-glass)',
+              backgroundColor: 'color-mix(in srgb, var(--bg) 74%, var(--menu-glass))',
               color: 'var(--fg)',
               boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+              willChange: 'transform, opacity',
+              contain: 'layout style paint',
             }}
           >
             <div className="p-5 sm:p-6 overflow-y-auto orbit-scroll space-y-4">
@@ -214,4 +216,4 @@ export function CookieNoticeModal({
       )}
     </AnimatePresence>
   );
-}
+});

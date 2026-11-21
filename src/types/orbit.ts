@@ -1,12 +1,16 @@
 export type ThemeMode = 'dark' | 'light';
 
 export type AccentId =
+  | 'neon-orange'
   | 'neon-green'
   | 'electric-cyan'
   | 'neon-magenta'
   | 'fluo-yellow'
-  | 'neon-orange'
-  | 'fluo-purple';
+  | 'fluo-purple'
+  | 'cobalt-blue'
+  | 'laser-coral'
+  | 'hyper-mint'
+  | 'solar-gold';
 
 export interface AccentPreset {
   id: AccentId;

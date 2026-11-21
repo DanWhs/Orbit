@@ -258,8 +258,7 @@ export function BubbleAnchor({
         onBlur?.(e);
       }}
       onClick={(e) => {
-        const shouldDelay = !rest.target || rest.target === '_self';
-        bubble.handleClick(e, shouldDelay ? { href } : undefined);
+        bubble.handleClick(e);
         onClick?.(e);
       }}
       {...rest}

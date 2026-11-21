@@ -71,11 +71,12 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
   if (!keyboardActive) {
     // IDLE / CENTERED STATE (Desktop & Mobile):
     // Center the entire group [bot + gap + searchBar + quickLinks] vertically within the viewport.
-    // On desktop when focused, reserve room cleanly if suggestions appear, without shifting wildly.
-    const activeSugCount = !isMobile && isFocused ? Math.min(2, suggestionCount) : 0;
+    // On desktop, reserve space consistently for available suggestions so focusing/blurring never jumps the stage.
+    const reservedSugCount = !isMobile ? Math.min(2, suggestionCount) : 0;
+    const activeSugCount = !isMobile && isFocused ? reservedSugCount : 0;
     const sugH =
-      activeSugCount > 0
-        ? SUGGESTION_TOP_GAP + activeSugCount * SUGGESTION_ROW_HEIGHT + (activeSugCount - 1) * SUGGESTION_GAP
+      reservedSugCount > 0
+        ? SUGGESTION_TOP_GAP + reservedSugCount * SUGGESTION_ROW_HEIGHT + (reservedSugCount - 1) * SUGGESTION_GAP
         : 0;
     const underBarH = Math.max(quickH, sugH);
 

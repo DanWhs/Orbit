@@ -1,5 +1,5 @@
 import { LanguageCode, SearchSuggestion } from '../types/orbit';
-import { readStorage, STORAGE_KEYS, writeStorage } from './storage';
+import { readStorage, removeStorage, STORAGE_KEYS, writeStorage } from './storage';
 
 export interface SearchEngineInfo {
   name: string;
@@ -48,7 +48,9 @@ function hashString(s: string): number {
 }
 
 export function getSearchHistory(): string[] {
-  return readStorage<string[]>(STORAGE_KEYS.history, []);
+  const raw = readStorage<unknown>(STORAGE_KEYS.history, []);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
 export function saveSearchHistory(query: string): void {
@@ -59,7 +61,11 @@ export function saveSearchHistory(query: string): void {
 }
 
 export function clearSearchHistory(): void {
-  writeStorage(STORAGE_KEYS.history, []);
+  removeStorage(STORAGE_KEYS.history);
+  removeStorage('orbit_history');
+  removeStorage('bs_h');
+  removeStorage('search_history');
+  suggestionCache.clear();
 }
 
 export function getHistorySuggestions(): SearchSuggestion[] {

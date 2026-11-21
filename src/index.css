@@ -114,40 +114,6 @@ body {
   transition: border-color 0.45s var(--soft);
 }
 
-.orbit-satellite-spinner {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 126%;
-  height: 126%;
-  border-radius: 9999px;
-  transform: translate(-50%, -50%) rotate(0deg);
-  pointer-events: none;
-  animation: orbitSpin 18s linear infinite;
-}
-
-.orbit-satellite-spinner::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 9999px;
-  background: var(--acc);
-  transition: background-color 0.45s var(--soft);
-}
-
-@keyframes orbitSpin {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
 /* Thinking cloud animation */
 #think-bubble .p {
   transform: scale(0);
@@ -284,9 +250,15 @@ mark.legal-hit {
 .bubble-interactive {
   position: relative;
   overflow: hidden;
+  transition: color 0.35s var(--ease-liquid), background-color 0.3s var(--ease-liquid);
+}
+
+.bubble-interactive.is-hovered,
+.bubble-interactive.is-clicked,
+.bubble-interactive.is-flashing,
+.bubble-interactive:focus-within {
   isolation: isolate;
   transform: translateZ(0);
-  transition: color 0.35s var(--ease-liquid), background-color 0.3s var(--ease-liquid);
 }
 
 .bubble-border-mask {
@@ -317,7 +289,6 @@ mark.legal-hit {
   mask-composite: exclude;
   clip-path: inset(0 94% 0 0 round 9999px);
   opacity: 0;
-  will-change: clip-path, opacity;
   transition:
     clip-path var(--border-sweep-duration) var(--ease-liquid),
     opacity 0.45s var(--ease-liquid);
@@ -335,7 +306,6 @@ mark.legal-hit {
     inset 0 0 16px 0 rgba(var(--acc-rgb), 0.24),
     inset 0 0 28px 0 rgba(var(--acc-rgb), 0.09),
     inset -12px 0 22px -10px rgba(var(--acc-rgb), 0.24);
-  will-change: clip-path, opacity;
   transition:
     clip-path var(--border-sweep-duration) var(--ease-liquid),
     opacity 0.5s var(--ease-liquid);
@@ -346,6 +316,7 @@ mark.legal-hit {
 .bubble-interactive:focus-within .bubble-border-sweep {
   clip-path: inset(0 0% 0 0 round 9999px);
   opacity: 0.78;
+  will-change: clip-path, opacity;
 }
 
 .bubble-interactive.is-hovered .bubble-border-aura,
@@ -353,6 +324,7 @@ mark.legal-hit {
 .bubble-interactive:focus-within .bubble-border-aura {
   clip-path: inset(0 0% 0 0 round 9999px);
   opacity: 1;
+  will-change: clip-path, opacity;
 }
 
 .bubble-interactive.is-clicked .bubble-border-aura {
@@ -402,7 +374,6 @@ mark.legal-hit {
   border-radius: inherit;
   clip-path: inset(0 94% 0 0 round 9999px);
   opacity: 0;
-  will-change: clip-path, opacity;
   transition:
     clip-path var(--fill-sweep-duration) var(--ease-liquid),
     opacity 0.32s var(--ease-liquid);
@@ -429,10 +400,12 @@ mark.legal-hit {
 .bubble-interactive.is-clicked .bubble-interior-wave {
   clip-path: inset(0 0% 0 0 round 9999px);
   opacity: 1;
+  will-change: clip-path, opacity;
 }
 
 /* Delicate Internal Accent Flash (Triggered ONLY on Click / Tap) */
 .bubble-flash {
+  display: none;
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -446,7 +419,6 @@ mark.legal-hit {
     rgba(var(--acc-rgb), 0.68) 100%
   );
   mix-blend-mode: screen;
-  will-change: opacity;
 }
 
 :root:not(.dark) .bubble-flash {
@@ -472,13 +444,46 @@ mark.legal-hit {
 }
 
 .bubble-interactive.is-flashing .bubble-flash {
+  display: block;
+  will-change: opacity;
   animation: accentInternalFlash 660ms var(--ease-liquid) forwards;
 }
 
+@keyframes orbSleepZ {
+  0% {
+    opacity: 0;
+    transform: translate3d(0px, 6px, 0) scale(0.55) rotate(-8deg);
+  }
+  22% {
+    opacity: 0.92;
+  }
+  75% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(20px, -34px, 0) scale(1.08) rotate(8deg);
+  }
+}
+
+.orb-sleep-z-1 {
+  animation: orbSleepZ 2.6s ease-out infinite;
+}
+
+.orb-sleep-z-2 {
+  animation: orbSleepZ 2.6s ease-out 0.85s infinite;
+}
+
+.orb-sleep-z-3 {
+  animation: orbSleepZ 2.6s ease-out 1.7s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .orbit-satellite-spinner,
   .hat-sway,
-  .animate-caret-blink {
+  .animate-caret-blink,
+  .orb-sleep-z-1,
+  .orb-sleep-z-2,
+  .orb-sleep-z-3 {
     animation: none !important;
   }
   .bubble-border-sweep,

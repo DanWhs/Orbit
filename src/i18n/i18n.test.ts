@@ -30,22 +30,35 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.cookieNoticeBody.length > 0, `Missing cookieNoticeBody for ${lang}`);
     assert.ok(d.settingsCookieTitle.length > 0, `Missing settingsCookieTitle for ${lang}`);
     assert.ok(d.clearHistoryLabel.length > 0, `Missing clearHistoryLabel for ${lang}`);
-    assert.ok(d.settingsSupportButton.length > 0, `Missing settingsSupportButton for ${lang}`);
-    assert.ok(d.supportModalTitle.length > 0, `Missing supportModalTitle for ${lang}`);
-    assert.ok(d.supportDonateCta.length > 0, `Missing supportDonateCta for ${lang}`);
   }
 });
 
-test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, and accurate keyword filtering', () => {
+test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, accurate private open-source attribution, and keyword filtering', () => {
+  for (const [lang, jur] of [
+    ['it', 'IT'],
+    ['en', 'EU'],
+    ['fr', 'EU'],
+    ['de', 'EU'],
+    ['es', 'EU'],
+  ] as const) {
+    const sections = getLegalSections(lang, jur);
+    assert.equal(sections.length, 10);
+    const joined = sections.map((s) => `${s.title} ${s.body}`).join(' ');
+    assert.ok(joined.includes('Daniele Mastrorilli'), `Expected Daniele Mastrorilli in ${lang}`);
+    assert.ok(joined.includes('GitHub'), `Expected GitHub in ${lang}`);
+    assert.ok(!joined.includes('Orbit Digital S.r.l.'), `Unexpected S.r.l. in ${lang}`);
+    assert.ok(!joined.includes('IT12345678901'), `Unexpected fake VAT in ${lang}`);
+    assert.ok(!joined.includes('orbitdigital@pec.it'), `Unexpected fake PEC in ${lang}`);
+  }
+
   const itSections = getLegalSections('it', 'IT');
-  assert.equal(itSections.length, 10);
   for (const sec of itSections) {
     assert.ok(!sec.body.includes('•'), `Bullet character found in ${sec.id}`);
     assert.ok(!/^\s*[-*]\s+/m.test(sec.body), `Markdown bullet list found in ${sec.id}`);
   }
 
-  const pecMatches = filterLegalSections(itSections, 'PEC');
-  assert.ok(pecMatches.some((s) => s.id === 'contatti-diretti'));
+  const githubMatches = filterLegalSections(itSections, 'GitHub');
+  assert.ok(githubMatches.some((s) => s.id === 'contatti-diretti'));
 
   const aiMatches = filterLegalSections(itSections, 'AI Act');
   assert.ok(aiMatches.some((s) => s.id === 'trasparenza-ai'));

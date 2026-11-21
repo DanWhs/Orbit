@@ -1,10 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeStageLayout } from './layoutMath';
-import { isValidQuickLinkInput, normalizeUrl, sanitizeQuickLinks } from './storage';
-import { hexToRgb } from '../constants/accents';
-import { clearSearchHistory, getSearchHistory, saveSearchHistory } from './searchEngine';
-import { buildBuyMeACoffeeUrl } from '../constants/support';
+import {
+  isValidQuickLinkInput,
+  normalizeUrl,
+  sanitizeQuickLinks,
+  STORAGE_KEYS,
+} from './storage';
+import { ACCENT_PRESETS, hexToRgb } from '../constants/accents';
+import { clearSearchHistory, getHistorySuggestions, getSearchHistory, saveSearchHistory } from './searchEngine';
+import {
+  AWAY_BORED_TO_SLEEP_MS,
+  evaluatePresenceState,
+  TOUCH_INACTIVITY_MS,
+  WAKE_HAPPY_DURATION_MS,
+} from './idleSleepState';
+import {
+  computeAwaySeriousMotion,
+  computeSleepingMotion,
+  computeWakingHappyMotion,
+} from './orbMotionMath';
+import {
+  playPresenceSound,
+  playReactionSound,
+  playUiSound,
+  unlockOrbitAudio,
+} from './orbSounds';
 
 test('desktop idle layout centers the entire bot+bar+links group vertically', () => {
   const layout = computeStageLayout({
@@ -106,7 +127,21 @@ test('hexToRgb converts 6-digit hex accents to comma-separated RGB channels', ()
   assert.equal(hexToRgb('invalid'), '255, 106, 0');
 });
 
-test('clearSearchHistory wipes persisted search history cleanly', () => {
+test('all 10 fluo accent presets include valid dark/light hex colors and 5-language labels', () => {
+  assert.equal(ACCENT_PRESETS.length, 10);
+  const hexRe = /^#[0-9A-Fa-f]{6}$/;
+  const langs = ['it', 'en', 'fr', 'de', 'es'] as const;
+  for (const preset of ACCENT_PRESETS) {
+    assert.match(preset.hex, hexRe, `Invalid hex on ${preset.id}`);
+    assert.match(preset.lightTextHex, hexRe, `Invalid lightTextHex on ${preset.id}`);
+    assert.ok(preset.fgOnAccent === '#07090F' || preset.fgOnAccent === '#FFFFFF');
+    for (const lang of langs) {
+      assert.ok(preset.labels[lang].trim().length > 0, `Missing ${lang} label on ${preset.id}`);
+    }
+  }
+});
+
+test('clearSearchHistory removes persisted history keys and keeps new sessions empty', () => {
   const store = new Map<string, string>();
   (globalThis as unknown as { localStorage: Storage }).localStorage = {
     getItem: (k: string) => store.get(k) ?? null,
@@ -121,11 +156,218 @@ test('clearSearchHistory wipes persisted search history cleanly', () => {
 
   saveSearchHistory('orbit');
   saveSearchHistory('typescript');
+  store.set('bs_h', JSON.stringify(['legacy']));
   assert.deepEqual(getSearchHistory(), ['typescript', 'orbit']);
   clearSearchHistory();
   assert.deepEqual(getSearchHistory(), []);
+  assert.deepEqual(getHistorySuggestions(), []);
+  assert.equal(store.get(STORAGE_KEYS.history), undefined);
+  assert.equal(store.get('bs_h'), undefined);
 });
 
-test('Buy Me a Coffee URL builder returns the official donation form URL', () => {
-  assert.equal(buildBuyMeACoffeeUrl(), 'https://www.buymeacoffee.com/');
+test('presence state machine transitions away-serious -> sleeping -> waking-happy -> awake on desktop and touch', () => {
+  // Desktop: pointer leaves frame -> immediately away-serious ("seriously?")
+  const r1 = evaluatePresenceState({
+    currentState: 'awake',
+    stateEnteredAt: 1000,
+    now: 2000,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    lastActivityAt: 1500,
+  });
+  assert.equal(r1.nextState, 'away-serious');
+  assert.equal(r1.stopAllAnimations, true);
+
+  // Desktop: still outside after AWAY_BORED_TO_SLEEP_MS -> sleeping
+  const r2 = evaluatePresenceState({
+    currentState: 'away-serious',
+    stateEnteredAt: 2000,
+    now: 2000 + AWAY_BORED_TO_SLEEP_MS,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    lastActivityAt: 1500,
+  });
+  assert.equal(r2.nextState, 'sleeping');
+  assert.equal(r2.stopAllAnimations, true);
+
+  // Desktop: pointer re-enters frame -> waking-happy -> awake
+  const r3 = evaluatePresenceState({
+    currentState: 'sleeping',
+    stateEnteredAt: 6200,
+    now: 9000,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    lastActivityAt: 9000,
+  });
+  assert.equal(r3.nextState, 'waking-happy');
+  assert.equal(r3.stopAllAnimations, false);
+
+  const r4 = evaluatePresenceState({
+    currentState: 'waking-happy',
+    stateEnteredAt: 9000,
+    now: 9000 + WAKE_HAPPY_DURATION_MS,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    lastActivityAt: 9000,
+  });
+  assert.equal(r4.nextState, 'awake');
+
+  // Mobile/Touch: stays awake before TOUCH_INACTIVITY_MS (2.5m), then triggers away-serious -> sleeping
+  const t1 = evaluatePresenceState({
+    currentState: 'awake',
+    stateEnteredAt: 0,
+    now: TOUCH_INACTIVITY_MS - 1000,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: true,
+    pointerOutside: false,
+    lastActivityAt: 0,
+  });
+  assert.equal(t1.nextState, 'awake');
+
+  const t2 = evaluatePresenceState({
+    currentState: 'awake',
+    stateEnteredAt: 0,
+    now: TOUCH_INACTIVITY_MS,
+    bootReady: true,
+    menuOpen: false,
+    hasQuery: false,
+    isTouchMode: true,
+    pointerOutside: false,
+    lastActivityAt: 0,
+  });
+  assert.equal(t2.nextState, 'away-serious');
+  assert.equal(t2.stopAllAnimations, true);
+});
+
+test('desktop stage layout remains identical when blurring search input on compact viewports with suggestions', () => {
+  const focused = computeStageLayout({
+    viewportWidth: 1280,
+    viewportHeight: 540,
+    fullHeight: 540,
+    safeTop: 0,
+    safeBottom: 0,
+    isMobile: false,
+    isFocused: true,
+    hasQuickLinks: true,
+    suggestionCount: 2,
+  });
+  const blurred = computeStageLayout({
+    viewportWidth: 1280,
+    viewportHeight: 540,
+    fullHeight: 540,
+    safeTop: 0,
+    safeBottom: 0,
+    isMobile: false,
+    isFocused: false,
+    hasQuickLinks: true,
+    suggestionCount: 2,
+  });
+
+  assert.equal(blurred.botSize, focused.botSize);
+  assert.equal(blurred.botCenterY, focused.botCenterY);
+  assert.equal(blurred.uiTopY, focused.uiTopY);
+});
+
+test('away-serious, sleeping, and waking-happy eye/body motions stay organically alive over time', () => {
+  const a1 = computeAwaySeriousMotion(1200, 1000, 180);
+  const a2 = computeAwaySeriousMotion(2100, 1000, 180);
+  assert.ok(Math.abs(a1.dx - a2.dx) > 0.05, 'away-serious must subtly scan eyes rather than freeze');
+  assert.ok(Math.abs(a1.bobY - a2.bobY) > 0.05, 'away-serious must retain subtle living breath');
+
+  const s1 = computeSleepingMotion(1000, 180);
+  const s2 = computeSleepingMotion(3000, 180);
+  const s3 = computeSleepingMotion(5000, 180);
+  assert.ok(s1.lidHeightMul < 0.2 && s2.lidHeightMul < 0.2, 'sleeping lids remain closed');
+  assert.ok(Math.abs(s1.breath - s2.breath) > 0.5, 'sleeping must breathe rhythmically');
+  assert.ok(Math.abs(s1.dx - s3.dx) > 0.02, 'sleeping eyes must have subtle dream drift');
+
+  const w1 = computeWakingHappyMotion(1150, 1000, WAKE_HAPPY_DURATION_MS, 180);
+  const w2 = computeWakingHappyMotion(1550, 1000, WAKE_HAPPY_DURATION_MS, 180);
+  assert.ok(Math.abs(w1.rotOffset - w2.rotOffset) > 0.2, 'waking-happy must have playful head motion');
+});
+
+test('orbSounds plays tones cleanly for all reactions, presence states, and UI interactions', () => {
+  // Should be a no-op without throwing in pure Node (no window)
+  assert.doesNotThrow(() => {
+    unlockOrbitAudio();
+    playReactionSound('wink');
+    playReactionSound('curious', true);
+    playPresenceSound('away-serious');
+    playPresenceSound('sleeping');
+    playPresenceSound('waking-happy');
+    playPresenceSound('awake');
+    playUiSound('menu-open');
+    playUiSound('menu-close');
+    playUiSound('clear-history');
+    playUiSound('quicklink-tap');
+  });
+
+  // With a mock browser window + AudioContext, verify tones are scheduled for each cue
+  let oscillatorsStarted = 0;
+  class MockAudioContext {
+    state = 'running';
+    currentTime = 1.0;
+    destination = {};
+    resume() {
+      return Promise.resolve();
+    }
+    createOscillator() {
+      return {
+        type: 'sine',
+        frequency: {
+          setValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+        connect: () => {},
+        start: () => {
+          oscillatorsStarted += 1;
+        },
+        stop: () => {},
+      };
+    }
+    createGain() {
+      return {
+        gain: {
+          setValueAtTime: () => {},
+          linearRampToValueAtTime: () => {},
+          exponentialRampToValueAtTime: () => {},
+        },
+        connect: () => {},
+      };
+    }
+  }
+
+  const prevWindow = (globalThis as unknown as { window?: unknown }).window;
+  (globalThis as unknown as { window: unknown }).window = {
+    AudioContext: MockAudioContext,
+  };
+  try {
+    unlockOrbitAudio();
+    playPresenceSound('away-serious');
+    playPresenceSound('sleeping');
+    playPresenceSound('waking-happy');
+    playUiSound('menu-open');
+    playUiSound('menu-close');
+    playUiSound('clear-history');
+    playUiSound('quicklink-tap');
+    playReactionSound('peek', true);
+    playReactionSound('happy');
+    assert.ok(oscillatorsStarted >= 13, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
+  } finally {
+    (globalThis as unknown as { window?: unknown }).window = prevWindow;
+  }
 });

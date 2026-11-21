@@ -9,7 +9,6 @@ import { BubbleButton } from './components/LiquidBubble';
 import { BotReactionType, OrbitBot } from './components/OrbitBot';
 import { SearchBlock } from './components/SearchBlock';
 import { SettingsModal } from './components/SettingsModal';
-import { SupportModal } from './components/SupportModal';
 import { getAccentPreset, hexToRgb } from './constants/accents';
 import {
   getCachedDictionary,
@@ -26,7 +25,8 @@ import {
   SearchSuggestion,
   ThemeMode,
 } from './types/orbit';
-import { computeStageLayout, damp, StageLayoutResult } from './utils/layoutMath';
+import { computeStageLayout } from './utils/layoutMath';
+import { playUiSound, unlockOrbitAudio } from './utils/orbSounds';
 import {
   buildSuggestions,
   clearSearchHistory,
@@ -75,26 +75,43 @@ export default function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
-  const [supportOpen, setSupportOpen] = useState(false);
 
-  const [vvTopOffset, setVvTopOffset] = useState(0);
-  const [vvHeight, setVvHeight] = useState(() =>
-    typeof window !== 'undefined' ? Math.round(window.visualViewport?.height ?? window.innerHeight) : 900
-  );
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1440
-  );
+  const [viewportMetrics, setViewportMetrics] = useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
+    const h = typeof window !== 'undefined' ? Math.round(window.visualViewport?.height ?? window.innerHeight) : 900;
+    const top = typeof window !== 'undefined' ? Math.round(window.visualViewport?.offsetTop ?? 0) : 0;
+    const mob =
+      typeof window !== 'undefined'
+        ? window.matchMedia('(max-width:700px),(pointer:coarse)').matches
+        : false;
+    return {
+      width: w,
+      height: h,
+      topOffset: top,
+      fullHeight: h,
+      safeTop: 0,
+      safeBottom: 0,
+      isMobile: mob,
+    };
+  });
+  const [animateStageTransition, setAnimateStageTransition] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const rulerRef = useRef<HTMLSpanElement>(null);
   const probeRef = useRef<HTMLDivElement>(null);
   const modifyParityRef = useRef(0);
+  const pointerInSearchRef = useRef(false);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blurAtRef = useRef(0);
+  const fullHeightRef = useRef(viewportMetrics.fullHeight);
+  const isFocusedRef = useRef(isFocused);
+  isFocusedRef.current = isFocused;
   const searchEngine = useMemo(() => detectSearchEngine(), []);
 
   const cookieNoticeOpen =
-    bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen && !supportOpen;
-  const isMenuOpen = settingsOpen || legalOpen || supportOpen || cookieNoticeOpen;
-  const isDesktop = viewportWidth >= 768;
+    bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen;
+  const isMenuOpen = settingsOpen || legalOpen || cookieNoticeOpen;
+  const isDesktop = viewportMetrics.width >= 768;
 
   // Trigger judging or perplexed face whenever user modifies settings or preferences
   const triggerModifyReaction = useCallback(() => {
@@ -148,54 +165,25 @@ export default function App() {
     };
   }, []);
 
-  // Make search bar immediately active as soon as ready
+  // Enable smooth CSS GPU compositor stage transitions right after initial paint
   useEffect(() => {
-    if (bootPhase === 'ready' && !isMenuOpen) {
-      const raf = requestAnimationFrame(() => {
-        inputRef.current?.focus({ preventScroll: true });
-      });
-      return () => cancelAnimationFrame(raf);
+    const raf = requestAnimationFrame(() => setAnimateStageTransition(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Make search bar active once after initial boot on desktop only (avoid mobile/menu-close jumps)
+  const initialFocusDoneRef = useRef(false);
+  useEffect(() => {
+    if (bootPhase === 'ready' && !isMenuOpen && !initialFocusDoneRef.current) {
+      initialFocusDoneRef.current = true;
+      if (!viewportMetrics.isMobile) {
+        const raf = requestAnimationFrame(() => {
+          inputRef.current?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(raf);
+      }
     }
-  }, [bootPhase, isMenuOpen]);
-
-  // Track visualViewport & window dimensions for responsive centering and virtual keyboard adaptation
-  const viewportStateRef = useRef({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1440,
-    height: typeof window !== 'undefined' ? Math.round(window.visualViewport?.height ?? window.innerHeight) : 900,
-    fullHeight: typeof window !== 'undefined' ? Math.round(window.visualViewport?.height ?? window.innerHeight) : 900,
-    safeTop: 0,
-    safeBottom: 0,
-    isMobile: false,
-    isFocused: false,
-    hasQuickLinks: quickLinks.length > 0,
-    suggestionCount: suggestions.length,
-    isMenuOpen: false,
-    cookieNoticeOpen: false,
-    blurAt: 0,
-  });
-
-  viewportStateRef.current.isFocused = isFocused && !isMenuOpen;
-  viewportStateRef.current.hasQuickLinks = quickLinks.length > 0;
-  viewportStateRef.current.suggestionCount = suggestions.length;
-  viewportStateRef.current.isMenuOpen = isMenuOpen;
-  viewportStateRef.current.cookieNoticeOpen = cookieNoticeOpen;
-
-  const [animatedLayout, setAnimatedLayout] = useState<StageLayoutResult>(() => {
-    const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
-    const h = typeof window !== 'undefined' ? Math.round(window.visualViewport?.height ?? window.innerHeight) : 900;
-    const mob = typeof window !== 'undefined' ? window.matchMedia('(max-width:700px),(pointer:coarse)').matches : false;
-    return computeStageLayout({
-      viewportWidth: w,
-      viewportHeight: h,
-      fullHeight: h,
-      safeTop: 0,
-      safeBottom: 0,
-      isMobile: mob,
-      isFocused: false,
-      hasQuickLinks: quickLinks.length > 0,
-      suggestionCount: 0,
-    });
-  });
+  }, [bootPhase, isMenuOpen, viewportMetrics.isMobile]);
 
   useEffect(() => {
     const syncViewport = () => {
@@ -216,25 +204,38 @@ export default function App() {
       document.documentElement.style.setProperty('--st', `${st}px`);
       document.documentElement.style.setProperty('--sb', `${sb}px`);
 
-      const vs = viewportStateRef.current;
-      vs.width = w;
-      vs.height = h;
-      vs.safeTop = st;
-      vs.safeBottom = sb;
-      vs.isMobile = mob;
-
-      if (h >= vs.fullHeight || (!vs.isFocused && performance.now() - vs.blurAt > 450)) {
-        vs.fullHeight = h;
+      if (h >= fullHeightRef.current || (!isFocusedRef.current && performance.now() - blurAtRef.current > 450)) {
+        fullHeightRef.current = h;
       }
+      const nextFullH = fullHeightRef.current;
 
-      setViewportWidth(w);
-      setVvHeight(h);
-      setVvTopOffset(top);
+      setViewportMetrics((prev) => {
+        if (
+          prev.width === w &&
+          prev.height === h &&
+          prev.topOffset === top &&
+          prev.fullHeight === nextFullH &&
+          prev.safeTop === st &&
+          prev.safeBottom === sb &&
+          prev.isMobile === mob
+        ) {
+          return prev;
+        }
+        return {
+          width: w,
+          height: h,
+          topOffset: top,
+          fullHeight: nextFullH,
+          safeTop: st,
+          safeBottom: sb,
+          isMobile: mob,
+        };
+      });
     };
 
     syncViewport();
     const onOrientation = () => {
-      viewportStateRef.current.fullHeight = 0;
+      fullHeightRef.current = 0;
       setTimeout(syncViewport, 250);
     };
 
@@ -251,81 +252,46 @@ export default function App() {
     };
   }, []);
 
-  // Damped smooth layout spring animation loop
-  useEffect(() => {
-    let rafId = 0;
-    let last = performance.now();
-    const initialTarget = computeStageLayout({
-      viewportWidth: viewportStateRef.current.width,
-      viewportHeight: viewportStateRef.current.height,
-      fullHeight: viewportStateRef.current.fullHeight,
-      safeTop: viewportStateRef.current.safeTop,
-      safeBottom: viewportStateRef.current.safeBottom,
-      isMobile: viewportStateRef.current.isMobile,
-      isFocused: viewportStateRef.current.isFocused,
-      hasQuickLinks: viewportStateRef.current.hasQuickLinks,
-      suggestionCount: viewportStateRef.current.suggestionCount,
+  const stageLayout = useMemo(() => {
+    const layout = computeStageLayout({
+      viewportWidth: viewportMetrics.width,
+      viewportHeight: viewportMetrics.height,
+      fullHeight: viewportMetrics.fullHeight,
+      safeTop: viewportMetrics.safeTop,
+      safeBottom: viewportMetrics.safeBottom,
+      isMobile: viewportMetrics.isMobile,
+      isFocused: isFocused && !isMenuOpen,
+      hasQuickLinks: quickLinks.length > 0,
+      suggestionCount: suggestions.length,
     });
 
-    const botSizeState = { p: initialTarget.botSize, v: 0 };
-    const botCenterState = { p: initialTarget.botCenterY, v: 0 };
-    const uiTopState = { p: initialTarget.uiTopY, v: 0 };
-    let lastSig = '';
+    // On desktop when side menu or cookie notice is open, center Orb vertically on the left stage.
+    // On mobile when cookie notice is open, sit Orb cleanly in the upper stage above the bottom card.
+    const desiredBotSize =
+      cookieNoticeOpen && viewportMetrics.width < 768
+        ? Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.15))
+        : layout.botSize;
+    const desiredBotCenterY =
+      isMenuOpen && viewportMetrics.width >= 768
+        ? viewportMetrics.height * 0.5
+        : cookieNoticeOpen && viewportMetrics.width < 768
+          ? Math.max(90, viewportMetrics.safeTop + Math.min(132, viewportMetrics.height * 0.175))
+          : layout.botCenterY;
 
-    const frame = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-
-      const vs = viewportStateRef.current;
-      const target = computeStageLayout({
-        viewportWidth: vs.width,
-        viewportHeight: vs.height,
-        fullHeight: vs.fullHeight,
-        safeTop: vs.safeTop,
-        safeBottom: vs.safeBottom,
-        isMobile: vs.isMobile,
-        isFocused: vs.isFocused,
-        hasQuickLinks: vs.hasQuickLinks,
-        suggestionCount: vs.suggestionCount,
-      });
-
-      // On desktop when side menu or cookie notice is open, center Orb vertically on the left stage.
-      // On mobile when cookie notice is open, sit Orb cleanly in the upper stage above the bottom card.
-      const desiredBotSize =
-        vs.cookieNoticeOpen && vs.width < 768
-          ? Math.min(target.botSize, Math.max(82, vs.height * 0.15))
-          : target.botSize;
-      const desiredBotCenterY =
-        vs.isMenuOpen && vs.width >= 768
-          ? vs.height * 0.5
-          : vs.cookieNoticeOpen && vs.width < 768
-            ? Math.max(90, vs.safeTop + Math.min(132, vs.height * 0.175))
-            : target.botCenterY;
-
-      const bSize = damp(botSizeState, desiredBotSize, 0.28, dt);
-      const bCenter = damp(botCenterState, desiredBotCenterY, 0.28, dt);
-      const uTop = damp(uiTopState, target.uiTopY, 0.28, dt);
-
-      const sig = `${bSize.toFixed(1)}|${bCenter.toFixed(1)}|${uTop.toFixed(1)}|${target.visibleSuggestions}|${target.keyboardActive}`;
-      if (sig !== lastSig) {
-        lastSig = sig;
-        setAnimatedLayout({
-          botSize: bSize,
-          botCenterY: bCenter,
-          uiTopY: uTop,
-          scale: bSize / Math.max(1, target.baseBotSize),
-          baseBotSize: target.baseBotSize,
-          visibleSuggestions: target.visibleSuggestions,
-          keyboardActive: target.keyboardActive,
-        });
-      }
-
-      rafId = requestAnimationFrame(frame);
+    return {
+      ...layout,
+      botSize: desiredBotSize,
+      botCenterY: desiredBotCenterY,
+      scale: desiredBotSize / Math.max(1, layout.baseBotSize),
     };
-
-    rafId = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
+  }, [
+    viewportMetrics,
+    isFocused,
+    isMenuOpen,
+    cookieNoticeOpen,
+    quickLinks.length,
+    suggestions.length,
+  ]);
 
   // Live privacy-compliant search suggestions
   const reqIdRef = useRef(0);
@@ -351,6 +317,28 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [query, localeOption.lang, consent.functionalExternal]);
 
+  // Keep history suggestions synced across tabs, new sessions, and iOS/Safari bfcache restores
+  useEffect(() => {
+    const syncHistoryFromStorage = () => {
+      const trimmed = query.trim();
+      setSuggestions(trimmed ? buildSuggestions(trimmed, [], localeOption.lang) : getHistorySuggestions());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === STORAGE_KEYS.history) {
+        syncHistoryFromStorage();
+      }
+    };
+    const onPageShow = () => {
+      syncHistoryFromStorage();
+    };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [query, localeOption.lang]);
+
   const measureCaret = useCallback(() => {
     const input = inputRef.current;
     const ruler = rulerRef.current;
@@ -366,53 +354,112 @@ export default function App() {
     setCaretRatio(ratio);
   }, []);
 
-  const handleSubmit = (overrideVal?: string) => {
-    const finalQuery = (overrideVal ?? query).trim();
-    if (!finalQuery) return;
-    saveSearchHistory(finalQuery);
-    setQuery(finalQuery);
-    setReactionSignal({ type: 'happy', nonce: Date.now() });
-    inputRef.current?.blur();
+  const handleSubmit = useCallback(
+    (overrideVal?: string) => {
+      const finalQuery = (overrideVal ?? query).trim();
+      if (!finalQuery) return;
+      saveSearchHistory(finalQuery);
+      setQuery(finalQuery);
+      setReactionSignal({ type: 'happy', nonce: Date.now() });
+      inputRef.current?.blur();
 
-    const dest = resolveDestinationUrl(finalQuery, searchEngine);
-    setTimeout(() => {
+      // Navigate synchronously inside the user submit/tap gesture so iOS Safari does not trigger app/redirect popups
+      const dest = resolveDestinationUrl(finalQuery, searchEngine);
       try {
         window.location.assign(dest);
       } catch {
         // Fallback if navigation is restricted in sandboxed preview
       }
-    }, 420);
-  };
+    },
+    [query, searchEngine]
+  );
 
-  const handleQuickLinksChange = (next: QuickLink[]) => {
+  const handleQuickLinksChange = useCallback((next: QuickLink[]) => {
     const clean = sanitizeQuickLinks(next);
     setQuickLinks(clean);
     writeStorage(STORAGE_KEYS.quickLinks, clean);
-  };
+  }, []);
 
-  const handleLocaleChange = (optionId: string) => {
-    const found = LOCALE_REGION_OPTIONS.find((opt) => opt.id === optionId);
-    if (!found) return;
-    setLocaleOption(found);
-    writeStorage(STORAGE_KEYS.localeRegion, found.id);
-    if (isMenuOpen) triggerModifyReaction();
-  };
+  const handleLocaleChange = useCallback(
+    (optionId: string) => {
+      const found = LOCALE_REGION_OPTIONS.find((opt) => opt.id === optionId);
+      if (!found) return;
+      setLocaleOption(found);
+      writeStorage(STORAGE_KEYS.localeRegion, found.id);
+      if (isMenuOpen) triggerModifyReaction();
+    },
+    [isMenuOpen, triggerModifyReaction]
+  );
 
-  const handleUpdateConsent = (next: ConsentState) => {
+  const handleUpdateConsent = useCallback((next: ConsentState) => {
     setConsent(next);
     writeStorage(STORAGE_KEYS.consent, next);
-  };
+  }, []);
 
-  const handleAcceptCookieNotice = (next: ConsentState) => {
-    handleUpdateConsent(next);
-    setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
-  };
+  const handleAcceptCookieNotice = useCallback(
+    (next: ConsentState) => {
+      handleUpdateConsent(next);
+      setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
+    },
+    [handleUpdateConsent]
+  );
 
-  const handleClearHistory = () => {
+  const handleClearHistory = useCallback(() => {
     clearSearchHistory();
+    playUiSound('clear-history');
     const trimmed = query.trim();
     setSuggestions(trimmed ? buildSuggestions(trimmed, [], localeOption.lang) : []);
-  };
+  }, [query, localeOption.lang]);
+
+  const handleOpenSettings = useCallback(() => {
+    inputRef.current?.blur();
+    playUiSound('menu-open');
+    setSettingsOpen(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    playUiSound('menu-close');
+    setSettingsOpen(false);
+  }, []);
+  const handleCloseLegal = useCallback(() => {
+    playUiSound('menu-close');
+    setLegalOpen(false);
+  }, []);
+  const handleOpenLegalFromFooter = useCallback(() => {
+    inputRef.current?.blur();
+    playUiSound('menu-open');
+    setLegalOpen(true);
+  }, []);
+  const handleOpenLegalFromNotice = useCallback(() => {
+    playUiSound('menu-open');
+    setLegalOpen(true);
+  }, []);
+  const handleOpenLegalFromSettings = useCallback(() => {
+    setSettingsOpen(false);
+    setLegalOpen(true);
+  }, []);
+
+  const handleSearchFocus = useCallback(() => {
+    if (blurTimerRef.current) {
+      clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
+    setIsFocused(true);
+    measureCaret();
+  }, [measureCaret]);
+
+  const handleSearchBlur = useCallback(() => {
+    blurAtRef.current = performance.now();
+    if (pointerInSearchRef.current) {
+      blurTimerRef.current = setTimeout(() => {
+        if (document.activeElement !== inputRef.current) {
+          setIsFocused(false);
+        }
+      }, 160);
+      return;
+    }
+    setIsFocused(false);
+  }, []);
 
   const isUiReady = bootPhase === 'ready';
   const botHorizontalPercent = isMenuOpen && isDesktop ? 24 : 50;
@@ -422,18 +469,26 @@ export default function App() {
       data-testid="orbit-app"
       data-boot-phase={bootPhase}
       data-theme={theme}
-      data-keyboard-active={animatedLayout.keyboardActive ? 'true' : 'false'}
+      data-keyboard-active={stageLayout.keyboardActive ? 'true' : 'false'}
       data-menu-open={isMenuOpen ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
       className="fixed left-0 top-0 w-full overflow-hidden select-none"
       style={{
-        height: `${vvHeight}px`,
-        transform: `translate3d(0, ${vvTopOffset}px, 0)`,
+        height: `${viewportMetrics.height}px`,
+        transform: `translate3d(0, ${viewportMetrics.topOffset}px, 0)`,
       }}
       onPointerDown={(e) => {
-        if (isFocused && !isMenuOpen && !(e.target as HTMLElement).closest('#search-ui')) {
+        unlockOrbitAudio();
+        const insideSearch = Boolean((e.target as HTMLElement).closest('#search-ui'));
+        pointerInSearchRef.current = insideSearch;
+        if (isFocused && !isMenuOpen && !insideSearch) {
           inputRef.current?.blur();
         }
+      }}
+      onPointerUp={() => {
+        setTimeout(() => {
+          pointerInSearchRef.current = false;
+        }, 180);
       }}
     >
       {/* Subtle atmospheric glow + micro-dot background pattern */}
@@ -459,21 +514,18 @@ export default function App() {
 
       {/* Top-Right Settings Gear Button (hidden cleanly when menu or mobile keyboard active) */}
       <header
-        className="fixed left-0 right-0 top-0 z-30 flex justify-end px-4 pt-[calc(var(--st)+14px)] pointer-events-none transition-opacity duration-300"
+        className="fixed left-0 right-0 top-0 z-30 flex justify-end px-4 pt-[calc(var(--st)+14px)] pointer-events-none transition-opacity duration-250"
         style={{
-          opacity: isUiReady && !animatedLayout.keyboardActive && !isMenuOpen ? 1 : 0,
+          opacity: isUiReady && !stageLayout.keyboardActive && !isMenuOpen ? 1 : 0,
         }}
       >
         <BubbleButton
           variant="glass"
           data-testid="settings-btn"
           aria-label={dict.settingsAria}
-          onClick={() => {
-            inputRef.current?.blur();
-            setSettingsOpen(true);
-          }}
+          onClick={handleOpenSettings}
           contentClassName="grid place-items-center w-full h-full"
-          className="pointer-events-auto w-11 h-11 rounded-full backdrop-blur-2xl cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+          className="pointer-events-auto w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
           style={{
             backgroundColor: 'var(--glass)',
             color: 'var(--fg)',
@@ -492,10 +544,11 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-0 z-30 backdrop-blur-md pointer-events-none"
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-30 backdrop-blur-[8px] pointer-events-none"
             style={{
               backgroundColor: theme === 'dark' ? 'rgba(5, 7, 12, 0.36)' : 'rgba(244, 246, 250, 0.42)',
+              willChange: 'opacity',
             }}
             aria-hidden="true"
           />
@@ -503,18 +556,21 @@ export default function App() {
       </AnimatePresence>
 
       {/* Boot Splash Sequence */}
-      <BootSplash phase={bootPhase} centerY={animatedLayout.botCenterY} />
+      <BootSplash phase={bootPhase} centerY={stageLayout.botCenterY} />
 
       {/* Central Mascot with Single Crisp Orbital Ring (stays z-40 above backdrop blur on PC) */}
       <main>
         <OrbitBot
           bootPhase={bootPhase}
-          botSize={animatedLayout.botSize}
-          botCenterY={animatedLayout.botCenterY}
+          botSize={stageLayout.botSize}
+          botCenterY={stageLayout.botCenterY}
           horizontalPercent={botHorizontalPercent}
+          viewportWidth={viewportMetrics.width}
+          scale={stageLayout.scale}
+          animateStageTransition={animateStageTransition}
           menuOpen={isMenuOpen}
-          scale={animatedLayout.scale}
           isFocused={isFocused && !isMenuOpen}
+          hasQuery={query.trim().length > 0}
           caretRatio={caretRatio}
           reactionSignal={reactionSignal}
           ariaLabel={dict.botAriaLabel}
@@ -523,23 +579,18 @@ export default function App() {
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
           visible={isUiReady}
-          uiTopY={animatedLayout.uiTopY}
+          uiTopY={stageLayout.uiTopY}
+          animateStageTransition={animateStageTransition}
           query={query}
           isFocused={isFocused && !isMenuOpen}
           quickLinks={quickLinks}
           suggestions={suggestions}
-          visibleSuggestions={animatedLayout.visibleSuggestions}
+          visibleSuggestions={stageLayout.visibleSuggestions}
           dict={dict}
           inputRef={inputRef}
           onQueryChange={setQuery}
-          onFocus={() => {
-            setIsFocused(true);
-            measureCaret();
-          }}
-          onBlur={() => {
-            viewportStateRef.current.blurAt = performance.now();
-            setIsFocused(false);
-          }}
+          onFocus={handleSearchFocus}
+          onBlur={handleSearchBlur}
           onSubmit={handleSubmit}
           onCaretMove={measureCaret}
           onClearHistory={handleClearHistory}
@@ -548,13 +599,10 @@ export default function App() {
 
       {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
       <FooterBar
-        visible={isUiReady && !animatedLayout.keyboardActive}
+        visible={isUiReady && !stageLayout.keyboardActive}
         localeOption={localeOption}
         dict={dict}
-        onOpenLegal={() => {
-          inputRef.current?.blur();
-          setLegalOpen(true);
-        }}
+        onOpenLegal={handleOpenLegalFromFooter}
         onSelectLocaleRegion={handleLocaleChange}
       />
 
@@ -564,7 +612,7 @@ export default function App() {
         dict={dict}
         consent={consent}
         onAcceptConsent={handleAcceptCookieNotice}
-        onOpenLegal={() => setLegalOpen(true)}
+        onOpenLegal={handleOpenLegalFromNotice}
         onUserModify={triggerModifyReaction}
       />
 
@@ -577,30 +625,13 @@ export default function App() {
         lang={localeOption.lang}
         dict={dict}
         consent={consent}
-        onClose={() => setSettingsOpen(false)}
+        onClose={handleCloseSettings}
         onThemeChange={setTheme}
         onAccentChange={setAccentId}
         onQuickLinksChange={handleQuickLinksChange}
         onUpdateConsent={handleUpdateConsent}
-        onOpenLegal={() => {
-          setSettingsOpen(false);
-          setLegalOpen(true);
-        }}
-        onOpenSupport={() => {
-          setSettingsOpen(false);
-          setSupportOpen(true);
-        }}
+        onOpenLegal={handleOpenLegalFromSettings}
         onUserModify={triggerModifyReaction}
-      />
-
-      {/* Buy Me a Coffee Support / Donation Popup */}
-      <SupportModal
-        open={supportOpen}
-        dict={dict}
-        onClose={() => setSupportOpen(false)}
-        onCelebrate={() => {
-          setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
-        }}
       />
 
       {/* Legal & Privacy 2026 Interactive Drawer / Modal */}
@@ -611,7 +642,7 @@ export default function App() {
         jurisdictionLabel={localeOption.fullLabel}
         dict={dict}
         consent={consent}
-        onClose={() => setLegalOpen(false)}
+        onClose={handleCloseLegal}
         onUpdateConsent={handleUpdateConsent}
         onUserModify={triggerModifyReaction}
       />

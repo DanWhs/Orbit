@@ -57,14 +57,6 @@ export interface UiDictionary {
   cookieNoticeOpenPolicy: string;
   settingsCookieTitle: string;
   settingsCookieSubtitle: string;
-  settingsSupportTitle: string;
-  settingsSupportSubtitle: string;
-  settingsSupportButton: string;
-  supportModalBadge: string;
-  supportModalTitle: string;
-  supportModalBody: string;
-  supportDonateCta: string;
-  supportThankYouNote: string;
   botAriaLabel: string;
 }
 
@@ -109,7 +101,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     regionSelectorAria: 'Seleziona lingua e giurisdizione legale',
     legalModalTitle: 'Note Legali, Privacy e Conformità 2026',
     legalJurisdictionBadge: 'Giurisdizione attiva',
-    legalSearchPlaceholder: 'Cerca nel documento (es. cookie, PEC, recesso, AI, CCPA)...',
+    legalSearchPlaceholder: 'Cerca nel documento (es. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Pulisci ricerca',
     legalSearchResultsCount: 'sezioni corrispondenti',
     legalNoMatches: 'Nessuna sezione corrisponde alla parola chiave cercata.',
@@ -136,14 +128,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieNoticeOpenPolicy: 'Leggi informativa completa',
     settingsCookieTitle: 'Preferenze Cookie e Privacy',
     settingsCookieSubtitle: 'Modifica in qualsiasi momento le scelte sui cookie salvate localmente.',
-    settingsSupportTitle: 'Supporta Orbit',
-    settingsSupportSubtitle: 'Ti piace Orbit e Orb? Puoi contribuire allo sviluppo offrendo un caffè.',
-    settingsSupportButton: 'Buy Me a Coffee',
-    supportModalBadge: 'Buy Me a Coffee',
-    supportModalTitle: 'Offri un caffè a Orbit',
-    supportModalBody: 'Orbit è veloce, pulito e senza pubblicità. Se ti aiuta ogni giorno, puoi sostenere gli aggiornamenti su Buy Me a Coffee.',
-    supportDonateCta: 'Vai su Buy Me a Coffee',
-    supportThankYouNote: 'Grazie di cuore per il supporto! Orb è felicissimo.',
     botAriaLabel: 'Assistente Orbit interattivo, clicca per una reazione',
   },
   en: {
@@ -175,7 +159,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     regionSelectorAria: 'Select language and legal jurisdiction',
     legalModalTitle: 'Legal Notice, Privacy & 2026 Compliance',
     legalJurisdictionBadge: 'Active Jurisdiction',
-    legalSearchPlaceholder: 'Search document (e.g. cookie, PEC, withdrawal, AI, CCPA)...',
+    legalSearchPlaceholder: 'Search document (e.g. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Clear search',
     legalSearchResultsCount: 'matching sections',
     legalNoMatches: 'No legal sections match your search query.',
@@ -202,14 +186,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieNoticeOpenPolicy: 'Read full privacy policy',
     settingsCookieTitle: 'Cookie & Privacy Preferences',
     settingsCookieSubtitle: 'Update your locally saved cookie preferences at any time.',
-    settingsSupportTitle: 'Support Orbit',
-    settingsSupportSubtitle: 'Enjoying Orbit and Orb? Help keep development going by buying a coffee.',
-    settingsSupportButton: 'Buy Me a Coffee',
-    supportModalBadge: 'Buy Me a Coffee',
-    supportModalTitle: 'Support Orbit with a coffee',
-    supportModalBody: 'Orbit stays fast, clean, and ad-free. If it brightens your daily browsing, you can support ongoing updates on Buy Me a Coffee.',
-    supportDonateCta: 'Open Buy Me a Coffee',
-    supportThankYouNote: 'Thank you so much for your support! Orb is thrilled.',
     botAriaLabel: 'Interactive Orbit mascot, click for a reaction',
   },
   fr: {
@@ -241,7 +217,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     regionSelectorAria: 'Sélectionner la langue et la juridiction',
     legalModalTitle: 'Mentions Légales, Confidentialité et Conformité 2026',
     legalJurisdictionBadge: 'Juridiction active',
-    legalSearchPlaceholder: 'Rechercher (ex. cookie, PEC, rétractation, IA, CCPA)...',
+    legalSearchPlaceholder: 'Rechercher (ex. cookie, GitHub, open-source, IA, CCPA)...',
     legalSearchClear: 'Effacer',
     legalSearchResultsCount: 'sections correspondantes',
     legalNoMatches: 'Aucune section ne correspond à votre recherche.',
@@ -268,14 +244,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieNoticeOpenPolicy: 'Lire la politique complète',
     settingsCookieTitle: 'Préférences Cookies & Confidentialité',
     settingsCookieSubtitle: 'Modifiez à tout moment vos choix enregistrés localement.',
-    settingsSupportTitle: 'Soutenir Orbit',
-    settingsSupportSubtitle: 'Vous aimez Orbit et Orb ? Vous pouvez soutenir le projet en offrant un café.',
-    settingsSupportButton: 'Buy Me a Coffee',
-    supportModalBadge: 'Buy Me a Coffee',
-    supportModalTitle: 'Offrir un café à Orbit',
-    supportModalBody: 'Orbit reste rapide, épuré et sans publicité. Si vous l’appréciez au quotidien, vous pouvez soutenir le projet sur Buy Me a Coffee.',
-    supportDonateCta: 'Ouvrir Buy Me a Coffee',
-    supportThankYouNote: 'Merci beaucoup pour votre soutien ! Orb est ravi.',
     botAriaLabel: 'Mascotte Orbit interactive, cliquer pour une réaction',
   },
   de: {
@@ -307,7 +275,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     regionSelectorAria: 'Sprache und Rechtsraum wählen',
     legalModalTitle: 'Rechtliche Hinweise, Datenschutz & Compliance 2026',
     legalJurisdictionBadge: 'Aktiver Rechtsraum',
-    legalSearchPlaceholder: 'Dokument durchsuchen (z. B. Cookie, PEC, Widerruf, KI, CCPA)...',
+    legalSearchPlaceholder: 'Dokument durchsuchen (z. B. Cookie, GitHub, Open-Source, KI, CCPA)...',
     legalSearchClear: 'Suche löschen',
     legalSearchResultsCount: 'passende Abschnitte',
     legalNoMatches: 'Keine Abschnitte für diesen Suchbegriff gefunden.',
@@ -334,14 +302,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieNoticeOpenPolicy: 'Vollständige Hinweise lesen',
     settingsCookieTitle: 'Cookie- & Datenschutzeinstellungen',
     settingsCookieSubtitle: 'Passe deine lokal gespeicherte Einwilligung jederzeit an.',
-    settingsSupportTitle: 'Orbit unterstützen',
-    settingsSupportSubtitle: 'Gefällt dir Orbit und Orb? Unterstütze die Weiterentwicklung mit einem Kaffee.',
-    settingsSupportButton: 'Buy Me a Coffee',
-    supportModalBadge: 'Buy Me a Coffee',
-    supportModalTitle: 'Orbit einen Kaffee spendieren',
-    supportModalBody: 'Orbit bleibt schnell, klar und werbefrei. Wenn dir die Startseite gefällt, kannst du weitere Updates auf Buy Me a Coffee unterstützen.',
-    supportDonateCta: 'Zu Buy Me a Coffee',
-    supportThankYouNote: 'Vielen Dank für deine Unterstützung! Orb freut sich riesig.',
     botAriaLabel: 'Interaktives Orbit-Maskottchen, klicken für eine Reaktion',
   },
   es: {
@@ -373,7 +333,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     regionSelectorAria: 'Seleccionar idioma y jurisdicción legal',
     legalModalTitle: 'Notas Legales, Privacidad y Cumplimiento 2026',
     legalJurisdictionBadge: 'Jurisdicción activa',
-    legalSearchPlaceholder: 'Buscar en el documento (ej. cookie, PEC, desistimiento, IA, CCPA)...',
+    legalSearchPlaceholder: 'Buscar en el documento (ej. cookie, GitHub, código abierto, IA, CCPA)...',
     legalSearchClear: 'Limpiar',
     legalSearchResultsCount: 'secciones coincidentes',
     legalNoMatches: 'Ninguna sección coincide con tu búsqueda.',
@@ -400,14 +360,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieNoticeOpenPolicy: 'Leer política completa',
     settingsCookieTitle: 'Preferencias de Cookies y Privacidad',
     settingsCookieSubtitle: 'Modifica en cualquier momento tus preferencias guardadas localmente.',
-    settingsSupportTitle: 'Apoya a Orbit',
-    settingsSupportSubtitle: '¿Te gustan Orbit y Orb? Puedes apoyar el desarrollo invitando un café.',
-    settingsSupportButton: 'Buy Me a Coffee',
-    supportModalBadge: 'Buy Me a Coffee',
-    supportModalTitle: 'Invita un café a Orbit',
-    supportModalBody: 'Orbit sigue siendo rápido, limpio y sin anuncios. Si te resulta útil cada día, puedes apoyar el proyecto en Buy Me a Coffee.',
-    supportDonateCta: 'Ir a Buy Me a Coffee',
-    supportThankYouNote: '¡Muchas gracias por tu apoyo! Orb está encantado.',
     botAriaLabel: 'Mascota interactiva Orbit, haz clic para ver una reacción',
   },
 };
@@ -466,7 +418,7 @@ export function getInitialLocaleOption(): LocaleRegionOption {
 }
 
 export function getCachedDictionary(lang: LanguageCode, jurisdiction: JurisdictionCode): UiDictionary {
-  const cacheKey = `${lang}:${jurisdiction}:v1`;
+  const cacheKey = `${lang}:${jurisdiction}:v4`;
   const memHit = memoryCache.get(cacheKey);
   if (memHit) return memHit;
 
@@ -486,7 +438,7 @@ export function getCachedDictionary(lang: LanguageCode, jurisdiction: Jurisdicti
 export function prewarmTranslationCache(): void {
   const bundle: Record<string, UiDictionary> = {};
   for (const opt of LOCALE_REGION_OPTIONS) {
-    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v1`;
+    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v4`;
     const dict = DICTIONARIES[opt.lang] ?? DICTIONARIES.en;
     memoryCache.set(cacheKey, dict);
     bundle[cacheKey] = dict;

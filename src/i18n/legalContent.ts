@@ -17,18 +17,18 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       body: jurisdictionNotice,
     },
     {
-      id: 'dati-societari',
+      id: 'titolare-progetto',
       number: '1',
-      title: 'Dati Societari e Fiscali',
+      title: 'Titolare del Progetto e Natura Open-Source',
       body:
-        'Ai sensi dell’art. 2250 c.c., dell’art. 35 D.P.R. 633/1972 e della normativa europea sulle comunicazioni digitali trasparenti 2026: (1) Ragione sociale: Orbit Digital S.r.l.; (2) Sede legale: Via dell’Innovazione 42, 20121 Milano (MI), Italia; (3) Partita IVA: IT12345678901; (4) Codice Fiscale e numero di iscrizione al Registro delle Imprese di Milano-Monza-Brianza-Lodi: 12345678901; (5) Numero REA: MI-2684910; (6) Capitale sociale interamente versato: Euro 50.000,00 i.v.; (7) Stato della società: società attiva, non in stato di liquidazione né sottoposta a procedure concorsuali.',
+        'Orbit è un progetto web personale, gratuito, non commerciale e open-source ideato e mantenuto da un privato cittadino (Daniele Mastrorilli). (1) Assenza di forma societaria: Orbit non fa capo ad alcuna S.r.l., società di capitali, impresa commerciale né soggetto dotato di Partita IVA, REA o capitale sociale; (2) Progetto open-source su GitHub: il codice sorgente è pubblicato pubblicamente su GitHub così da consentire a chiunque di ispezionare in totale trasparenza il funzionamento lato client e l’assenza di tracciamento remoto; (3) Finalità non commerciale: la pagina è offerta gratuitamente alla community senza pubblicità, abbonamenti né vendite.',
     },
     {
       id: 'contatti-diretti',
       number: '2',
-      title: 'Contatti Diretti (Email Ordinaria e PEC)',
+      title: 'Contatti Diretti e Canale GitHub',
       body:
-        'Per comunicazioni legali, richieste esercizio diritti GDPR/CCPA/UK GDPR, segnalazioni di accessibilità o supporto tecnico sono disponibili i seguenti canali ufficiali diretti: (1) Posta elettronica ordinaria e supporto privacy: privacy@orbit-start.example e info@orbit-start.example; (2) Posta Elettronica Certificata (PEC) con valore legale per notifiche e comunicazioni formali: orbitdigital@pec.it; (3) Tempo medio di riscontro alle istanze degli interessati: entro 30 giorni dalla ricezione ai sensi dell’art. 12 par. 3 GDPR.',
+        'Trattandosi di un progetto privato open-source gestito da Daniele Mastrorilli, non è prevista una casella PEC aziendale né un ufficio commerciale. Per richieste relative alla privacy (GDPR, UK GDPR, CCPA/CPRA, LGPD, PIPEDA), segnalazioni di bug, feedback sull’accessibilità o comunicazioni formali puoi contattare direttamente lo sviluppatore tramite la repository pubblica del progetto su GitHub (sezione Issues / Discussions o profilo del maintainer Daniele Mastrorilli). Le segnalazioni ricevute vengono prese in carico nel minor tempo possibile e comunque entro i termini di legge applicabili.',
     },
     {
       id: 'cookie-policy',
@@ -41,16 +41,16 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
     {
       id: 'termini-condizioni',
       number: '4',
-      title: 'Termini e Condizioni d’Uso e Clausole E-Commerce & Consumatori',
+      title: 'Termini e Condizioni d’Uso e Licenza Open-Source',
       body:
-        'L’accesso e l’utilizzo dell’interfaccia Orbit sono disciplinati dalle presenti condizioni generali: (1) Regole d’uso: Orbit è fornito gratuitamente come pagina iniziale interattiva di ricerca e navigazione rapida per uso personale o professionale lecito, con divieto di utilizzo automatizzato abusivo o alterazione malevola del codice; (2) Proprietà intellettuale: il marchio Orbit, l’animazione di avvio, il design dell’assistente orbitale, il codice sorgente e i testi legali appartengono ai rispettivi titolari e non possono essere riprodotti commercialmente senza autorizzazione scritta; (3) Limitazione di responsabilità: i collegamenti rapidi personalizzati dall’utente e i risultati dei motori di ricerca esterni appartengono a siti terzi sui quali Orbit non esercita alcun controllo né assume responsabilità editoriale o di disponibilità; (4) Clausole di trasparenza E-Commerce ex Direttiva Omnibus e Codice del Consumo (D.Lgs. 206/2005): sebbene l’attuale pagina Orbit Start sia interamente gratuita e non effettui vendite online né pagamenti elettronici, per qualunque eventuale servizio digitale a pagamento o modulo e-commerce integrato futuro si applicano la chiara indicazione anticipata del prezzo totale comprensivo di imposte e spese di spedizione prima dell’ordine, i tempi certi di consegna digitale o fisica, il diritto di recesso gratuito entro 14 giorni dalla conclusione del contratto o dalla consegna del bene salvo eccezioni di legge per contenuti digitali già avviati su consenso espresso, e la garanzia legale di conformità di 24 mesi a carico del venditore.',
+        'L’accesso e l’utilizzo dell’interfaccia Orbit sono disciplinati dalle presenti condizioni d’uso: (1) Utilizzo gratuito e lecito: Orbit è reso disponibile gratuitamente da Daniele Mastrorilli come pagina iniziale interattiva di ricerca e navigazione rapida per uso personale o professionale lecito; (2) Codice sorgente open-source su GitHub: il codice sorgente e le modalità di riutilizzo, modifica e distribuzione seguono la licenza open-source indicata nella repository ufficiale su GitHub; (3) Assenza di attività e-commerce: la pagina non effettua vendite online, non gestisce pagamenti né raccoglie dati di fatturazione; (4) Limitazione di responsabilità: i collegamenti rapidi configurati dall’utente e i risultati dei motori di ricerca esterni appartengono a siti terzi indipendenti sui quali l’autore del progetto non esercita alcun controllo editoriale né garanzia di disponibilità.',
     },
     {
       id: 'accessibilita',
       number: '5',
       title: 'Accessibilità (WCAG 2.1 / 2.2 AA ed European Accessibility Act)',
       body:
-        'In conformità all’European Accessibility Act (Direttiva UE 2019/882, recepita dal D.Lgs. 82/2022) e agli standard internazionali WCAG 2.1 e 2.2 livello AA: (1) Contrasto e leggibilità: ogni combinazione cromatico-fluo dei temi Chiaro e Scuro applica testi e icone ad alto contrasto verificato con soglia minima 4.5:1; (2) Navigazione da tastiera e lettori di schermo: tutti i controlli interattivi utilizzano elementi HTML nativi semantici, anelli di messa a fuoco visibili (focus-visible), attributi ARIA descrittivi e chiusura modale tramite tasto Esc; (3) Rispetto delle preferenze motorie: l’interfaccia rileva la media query prefers-reduced-motion riducendo le animazioni orbitali continue; (4) Dichiarazione di Accessibilità e feedback: eventuali barriere riscontrate possono essere segnalate a privacy@orbit-start.example per la risoluzione prioritaria.',
+        'In conformità all’European Accessibility Act (Direttiva UE 2019/882, recepita dal D.Lgs. 82/2022) e agli standard internazionali WCAG 2.1 e 2.2 livello AA: (1) Contrasto e leggibilità: ogni combinazione cromatico-fluo dei temi Chiaro e Scuro applica testi e icone ad alto contrasto verificato con soglia minima 4.5:1; (2) Navigazione da tastiera e lettori di schermo: tutti i controlli interattivi utilizzano elementi HTML nativi semantici, anelli di messa a fuoco visibili (focus-visible), attributi ARIA descrittivi e chiusura modale tramite tasto Esc; (3) Rispetto delle preferenze motorie: l’interfaccia rileva la media query prefers-reduced-motion riducendo le animazioni continue; (4) Segnalazioni di Accessibilità: eventuali barriere riscontrate possono essere segnalate direttamente nella repository GitHub del progetto curato da Daniele Mastrorilli.',
     },
     {
       id: 'trasparenza-ai',
@@ -101,18 +101,18 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       body: `${jurisdictionLead[jurisdiction]} (1) Real application data audit: Orbit runs entirely in your browser without user registration, remote analytics trackers, or e-commerce payment forms; (2) Local storage items are limited to theme mode, neon accent selection, custom quick links (max 4), locale/jurisdiction choice, translation cache, local search history, and cookie consent status; (3) External destinations are only contacted when you actively submit a search or explicitly opt in to third-party autocomplete suggestions.`,
     },
     {
-      id: 'dati-societari',
+      id: 'titolare-progetto',
       number: '1',
-      title: 'Corporate & Fiscal Identification Details',
+      title: 'Project Ownership & Open-Source Attribution',
       body:
-        'In accordance with 2026 European & international digital corporate transparency rules: (1) Legal Entity Name: Orbit Digital S.r.l.; (2) Registered Office: Via dell’Innovazione 42, 20121 Milan (MI), Italy; (3) VAT Number: IT12345678901; (4) Tax Code & Business Register ID: 12345678901; (5) Economic Administrative Index (REA): MI-2684910; (6) Paid-in Share Capital: EUR 50,000.00 fully paid in; (7) Liquidation Status: active operating company, not in liquidation or insolvency proceedings.',
+        'Orbit is a free, non-commercial, open-source personal web project created and maintained privately by an individual developer (Daniele Mastrorilli). (1) No Corporate Entity: Orbit is NOT operated by an S.r.l., limited liability company, commercial firm, or VAT-registered business; (2) Open-Source on GitHub: the project source code is openly published on GitHub so anyone can verify its client-side architecture and local-only privacy behavior; (3) Non-Commercial Purpose: Orbit runs ad-free with zero paid subscriptions, purchases, or tracking databases.',
     },
     {
       id: 'contatti-diretti',
       number: '2',
-      title: 'Direct Contact Channels (Standard Email & Certified PEC)',
+      title: 'Direct Contact & GitHub Repository',
       body:
-        'For privacy rights requests (GDPR, UK GDPR, CCPA/CPRA, LGPD, PIPEDA), accessibility inquiries, or legal notices: (1) Standard Contact & Data Protection Email: privacy@orbit-start.example and info@orbit-start.example; (2) Certified Electronic Mail (PEC — legally equivalent to registered mail in Italy/EU): orbitdigital@pec.it; (3) Standard response timeframe: within 30 calendar days of verified receipt.',
+        'Because Orbit is an independent open-source project maintained by Daniele Mastrorilli rather than a commercial company, there is no corporate PEC address or sales office. For privacy inquiries (GDPR, UK GDPR, CCPA/CPRA, LGPD, PIPEDA), accessibility feedback, bug reports, or legal notices, please reach the maintainer Daniele Mastrorilli directly through the public GitHub repository (Issues, Discussions, or maintainer profile). Verified requests are addressed promptly within applicable statutory response timeframes.',
     },
     {
       id: 'cookie-policy',
@@ -125,16 +125,16 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
     {
       id: 'termini-condizioni',
       number: '4',
-      title: 'Terms & Conditions (Usage, IP, Liability & E-Commerce Clauses)',
+      title: 'Terms & Conditions and Open-Source License',
       body:
-        'Access to and use of Orbit is governed by the following terms: (1) Permitted Use: Orbit is provided free of charge as an interactive startpage and search launcher for lawful personal or professional browsing, prohibiting automated scraping or malicious tampering; (2) Intellectual Property: the Orbit wordmark, boot sequence, orbital mascot geometry, source code, and documentation are protected by copyright and trademark law; (3) Limitation of Liability: external websites reached via quick links or search engines are operated independently by third parties without warranty or editorial endorsement by Orbit; (4) E-Commerce & Consumer Protection Clauses (EU Omnibus Directive & Consumer Rights): while this startpage currently processes zero paid transactions or physical deliveries, any future commercial offering or integrated marketplace module will display full tax-inclusive pricing and delivery fees upfront prior to checkout, provide clear shipping timelines, honor the statutory 14-day right of withdrawal (subject to statutory digital-performance exceptions), and guarantee the mandatory 24-month legal conformity warranty.',
+        'Access to and use of Orbit is governed by these terms: (1) Permitted Use: Orbit is provided free of charge by Daniele Mastrorilli as an interactive startpage and search launcher for lawful personal or professional browsing; (2) Open-Source License on GitHub: the source code and permissions to inspect, fork, modify, or redistribute are governed by the open-source license published in the official GitHub repository; (3) No E-Commerce Activity: Orbit processes zero paid transactions, online sales, or billing data; (4) Limitation of Liability: third-party websites reached via quick links or external search engines operate independently with no warranty or editorial control from the maintainer.',
     },
     {
       id: 'accessibilita',
       number: '5',
       title: 'Accessibility Statement (WCAG 2.1 / 2.2 AA & European Accessibility Act)',
       body:
-        'Aligned with the European Accessibility Act (Directive (EU) 2019/882) and W3C WCAG 2.1 / 2.2 Level AA: (1) Contrast & Typography: light and dark palettes and all 6 fluo accents pair foreground text with verified contrast ratios of at least 4.5:1; (2) Keyboard & Assistive Tech: every control uses semantic native HTML elements, visible focus indicators, descriptive ARIA labels, and Escape key modal dismissal; (3) Motion Safety: continuous orbital animations automatically respect prefers-reduced-motion; (4) Accessibility Feedback: report any barrier to privacy@orbit-start.example for prompt remediation.',
+        'Aligned with the European Accessibility Act (Directive (EU) 2019/882) and W3C WCAG 2.1 / 2.2 Level AA: (1) Contrast & Typography: light and dark palettes and all fluo accents pair foreground text with verified contrast ratios of at least 4.5:1; (2) Keyboard & Assistive Tech: every control uses semantic native HTML elements, visible focus indicators, descriptive ARIA labels, and Escape key modal dismissal; (3) Motion Safety: idle animations automatically respect prefers-reduced-motion; (4) Accessibility Feedback: please report any barrier in the public GitHub repository maintained by Daniele Mastrorilli for prompt remediation.',
     },
     {
       id: 'trasparenza-ai',
@@ -176,10 +176,10 @@ function buildLocalizedSummaryLegalSections(
   if (lang === 'fr') {
     const titles = [
       `Politique de Confidentialité par Juridiction (${jurisdiction})`,
-      '1. Mentions Sociétaires et Fiscales',
-      '2. Contacts Directs (Email et PEC)',
+      '1. Propriétaire du Projet et Nature Open-Source (GitHub)',
+      '2. Contact Direct et Dépôt GitHub',
       '3. Politique Cookies, Blocage Préventif et Consentement (2026)',
-      '4. Conditions Générales, E-Commerce et Droit de Rétractation',
+      '4. Conditions d’Utilisation et Licence Open-Source',
       '5. Accessibilité (WCAG 2.1/2.2 AA & European Accessibility Act)',
       '6. Transparence IA (EU AI Act 2024/1689)',
       '7. Sécurité (HTTPS/TLS)',
@@ -192,18 +192,22 @@ function buildLocalizedSummaryLegalSections(
       body:
         idx === 0
           ? `Conformité RGPD (UE) 2016/679 : (1) Orbit fonctionne entièrement côté client via localStorage sans base de données de profilage ; (2) Aucune requête externe non essentielle n’est envoyée sans consentement explicite ; (3) Vous disposez des droits d’accès, de rectification et d’effacement.`
-          : idx === 3
-            ? `Architecture sans dark pattern conforme 2026 : (1) Blocage préventif des API de suggestions tierces avant consentement ; (2) Boutons Accepter, Refuser et Personnaliser de visibilité strictement égale ; (3) Modification possible à tout moment ci-dessous.`
-            : sec.body,
+          : idx === 1
+            ? `Orbit est un projet personnel gratuit, non commercial et open-source créé et maintenu à titre privé par Daniele Mastrorilli (aucune société ou S.r.l.), avec code source public hébergé sur GitHub.`
+            : idx === 2
+              ? `Pour toute question relative à la confidentialité, à l’accessibilité ou au projet open-source, vous pouvez contacter directement Daniele Mastrorilli via le dépôt public sur GitHub.`
+              : idx === 3
+                ? `Architecture sans dark pattern conforme 2026 : (1) Blocage préventif des API de suggestions tierces avant consentement ; (2) Boutons Accepter, Refuser et Personnaliser de visibilité strictement égale ; (3) Modification possible à tout moment ci-dessous.`
+                : sec.body,
     }));
   }
   if (lang === 'de') {
     const titles = [
       `Datenschutzhinweise nach Rechtsraum (${jurisdiction})`,
-      '1. Unternehmens- und Steuerdaten',
-      '2. Direkte Kontakte (E-Mail & PEC)',
+      '1. Projektinhaber & Open-Source-Status (GitHub)',
+      '2. Direkter Kontakt über GitHub',
       '3. Cookie-Richtlinie, Präventives Blockieren & Einwilligung (2026)',
-      '4. Nutzungsbedingungen, E-Commerce & 14-Tage-Widerrufsrecht',
+      '4. Nutzungsbedingungen & Open-Source-Lizenz',
       '5. Barrierefreiheit (WCAG 2.1/2.2 AA & European Accessibility Act)',
       '6. KI-Transparenz (EU AI Act 2024/1689)',
       '7. Sicherheit (HTTPS/TLS)',
@@ -216,17 +220,21 @@ function buildLocalizedSummaryLegalSections(
       body:
         idx === 0
           ? `DSGVO-Konformität (EU) 2016/679: (1) Orbit speichert Einstellungen ausschließlich lokal im Browser (localStorage) ohne zentrales Tracking; (2) Externe Suchvorschläge werden präventiv blockiert, bis Sie zustimmen; (3) Auskunfts-, Berichtigungs- und Löschrechte gemäß Art. 15–22 DSGVO bleiben jederzeit gewahrt.`
-          : idx === 3
-            ? `Cookie- und Einwilligungsmanagement ohne Dark Patterns (2026): (1) Präventive Blockierung nicht notwendiger externer Anfragen; (2) Gleichwertige Schaltflächen für Akzeptieren, Ablehnen und Anpassen; (3) Jederzeitige Widerrufsmöglichkeit unten.`
-            : sec.body,
+          : idx === 1
+            ? `Orbit ist ein privates, kostenloses, nicht-kommerzielles Open-Source-Projekt von Daniele Mastrorilli (keine S.r.l. oder Firma), dessen Quellcode öffentlich auf GitHub verfügbar ist.`
+            : idx === 2
+              ? `Für Datenschutzanfragen, Barrierefreiheits-Feedback oder Fehlerberichte wenden Sie sich bitte direkt über das öffentliche GitHub-Repository an Daniele Mastrorilli.`
+              : idx === 3
+                ? `Cookie- und Einwilligungsmanagement ohne Dark Patterns (2026): (1) Präventive Blockierung nicht notwendiger externer Anfragen; (2) Gleichwertige Schaltflächen für Akzeptieren, Ablehnen und Anpassen; (3) Jederzeitige Widerrufsmöglichkeit unten.`
+                : sec.body,
     }));
   }
   const titles = [
     `Política de Privacidad por Jurisdicción (${jurisdiction})`,
-    '1. Datos Societarios y Fiscales',
-    '2. Contactos Directos (Email y PEC)',
+    '1. Titular del Proyecto y Naturaleza Open-Source (GitHub)',
+    '2. Contacto Directo y Repositorio GitHub',
     '3. Política de Cookies, Bloqueo Preventivo y Consentimiento (2026)',
-    '4. Términos y Condiciones, Comercio Electrónico y Desistimiento',
+    '4. Términos de Uso y Licencia de Código Abierto',
     '5. Accesibilidad (WCAG 2.1/2.2 AA y European Accessibility Act)',
     '6. Transparencia de IA (EU AI Act 2024/1689)',
     '7. Seguridad (HTTPS/TLS)',
@@ -239,14 +247,18 @@ function buildLocalizedSummaryLegalSections(
     body:
       idx === 0
         ? `Cumplimiento RGPD (UE) 2016/679: (1) Orbit guarda tus preferencias localmente en localStorage sin bases de datos de perfilado; (2) Las sugerencias externas quedan bloqueadas preventivamente hasta obtener consentimiento expreso; (3) Puedes ejercer tus derechos de acceso, rectificación y supresión en cualquier momento.`
-        : idx === 3
-          ? `Gestión de consentimiento sin patrones oscuros (2026): (1) Bloqueo preventivo de APIs externas no esenciales; (2) Botones de igual visibilidad para Aceptar, Rechazar y Personalizar; (3) Modificación disponible en cualquier instante abajo.`
-          : sec.body,
+        : idx === 1
+          ? `Orbit es un proyecto personal gratuito, sin fines de lucro y de código abierto desarrollado de forma privada por Daniele Mastrorilli (sin entidad empresarial ni S.r.l.), con su código publicado en GitHub.`
+          : idx === 2
+            ? `Para consultas de privacidad, accesibilidad o avisos sobre el proyecto open-source, puedes contactar directamente con Daniele Mastrorilli a través del repositorio público en GitHub.`
+            : idx === 3
+              ? `Gestión de consentimiento sin patrones oscuros (2026): (1) Bloqueo preventivo de APIs externas no esenciales; (2) Botones de igual visibilidad para Aceptar, Rechazar y Personalizar; (3) Modificación disponible en cualquier instante abajo.`
+              : sec.body,
   }));
 }
 
 export function getLegalSections(lang: LanguageCode, jurisdiction: JurisdictionCode): LegalSection[] {
-  const key = `legal:${lang}:${jurisdiction}:v2`;
+  const key = `legal:${lang}:${jurisdiction}:v3`;
   const mem = legalMemoryCache.get(key);
   if (mem) return mem;
 

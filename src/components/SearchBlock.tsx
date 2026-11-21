@@ -1,6 +1,8 @@
+import { memo } from 'react';
 import { ArrowRight, Clock, Globe, Search, Trash2 } from 'lucide-react';
 import { QuickLink, SearchSuggestion } from '../types/orbit';
 import { UiDictionary } from '../i18n/translations';
+import { playUiSound } from '../utils/orbSounds';
 import {
   BubbleAnchor,
   BubbleButton,
@@ -11,6 +13,7 @@ import {
 interface SearchBlockProps {
   visible: boolean;
   uiTopY: number;
+  animateStageTransition: boolean;
   query: string;
   isFocused: boolean;
   quickLinks: QuickLink[];
@@ -26,9 +29,10 @@ interface SearchBlockProps {
   onClearHistory: () => void;
 }
 
-export function SearchBlock({
+export const SearchBlock = memo(function SearchBlock({
   visible,
   uiTopY,
+  animateStageTransition,
   query,
   isFocused,
   quickLinks,
@@ -63,7 +67,9 @@ export function SearchBlock({
         transform: `translate3d(-50%, ${uiTopY.toFixed(2)}px, 0)`,
         opacity: visible ? 1 : 0,
         pointerEvents: visible ? 'auto' : 'none',
-        transition: 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)',
+        transition: animateStageTransition
+          ? 'transform 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)'
+          : 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       {/* Search Bar (preserves exact frosted glass design, adds perimeter glow + click pulse) */}
@@ -78,7 +84,7 @@ export function SearchBlock({
           e.preventDefault();
           onSubmit();
         }}
-        className={`${searchBarBubble.stateClass} h-[58px] pl-5 pr-2 rounded-full backdrop-blur-2xl`}
+        className={`${searchBarBubble.stateClass} h-[58px] pl-5 pr-2 rounded-full backdrop-blur-lg`}
         style={{
           backgroundColor: isFocused ? 'var(--glass2)' : 'var(--glass)',
           boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
@@ -155,8 +161,9 @@ export function SearchBlock({
               key={link.id}
               variant="solid"
               href={link.url}
+              onClick={() => playUiSound('quicklink-tap')}
               contentClassName="flex items-center justify-center w-full h-full min-w-0"
-              className="h-[42px] px-1.5 sm:px-3 rounded-full text-[13.5px] sm:text-[14.5px] font-semibold backdrop-blur-2xl hover:bg-[var(--glass2)] active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+              className="h-[42px] px-1.5 sm:px-3 rounded-full text-[13.5px] sm:text-[14.5px] font-semibold backdrop-blur-lg hover:bg-[var(--glass2)] active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
               style={{
                 backgroundColor: 'var(--glass)',
                 color: 'var(--fg)',
@@ -186,7 +193,7 @@ export function SearchBlock({
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => onSubmit(item.text)}
               contentClassName="flex items-center gap-3 w-full h-full min-w-0"
-              className="w-full h-[46px] px-4 rounded-full text-left text-[16px] font-medium backdrop-blur-2xl cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.98]"
+              className="w-full h-[46px] px-4 rounded-full text-left text-[16px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.98]"
               style={{
                 backgroundColor: 'var(--glass)',
                 color: 'var(--fg)',
@@ -209,10 +216,16 @@ export function SearchBlock({
               <BubbleButton
                 variant="glass"
                 data-testid="clear-history-btn"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={onClearHistory}
+                onMouseDown={(e) => e.preventDefault()}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearHistory();
+                }}
                 contentClassName="inline-flex items-center justify-center gap-1.5"
-                className="h-[34px] px-3.5 rounded-full text-[13px] font-medium backdrop-blur-2xl cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.97]"
+                className="h-[34px] px-3.5 rounded-full text-[13px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.97]"
                 style={{
                   backgroundColor: 'var(--glass)',
                   color: 'var(--mut)',
@@ -228,4 +241,4 @@ export function SearchBlock({
       )}
     </div>
   );
-}
+});

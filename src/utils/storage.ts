@@ -39,6 +39,15 @@ export function writeStorage<T>(key: string, value: T): void {
   }
 }
 
+export function removeStorage(key: string): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage quota or private-mode errors gracefully
+  }
+}
+
 export function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';

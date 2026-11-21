@@ -79,6 +79,58 @@ export const ACCENT_PRESETS: AccentPreset[] = [
       es: 'Morado Flúor',
     },
   },
+  {
+    id: 'cobalt-blue',
+    hex: '#2979FF',
+    lightTextHex: '#1554C7',
+    fgOnAccent: '#FFFFFF',
+    labels: {
+      it: 'Blu Elettrico',
+      en: 'Electric Blue',
+      fr: 'Bleu Électrique',
+      de: 'Elektrisches Blau',
+      es: 'Azul Eléctrico',
+    },
+  },
+  {
+    id: 'laser-coral',
+    hex: '#FF3B5C',
+    lightTextHex: '#C41236',
+    fgOnAccent: '#FFFFFF',
+    labels: {
+      it: 'Corallo Fluo',
+      en: 'Laser Coral',
+      fr: 'Corail Fluo',
+      de: 'Neonkoralle',
+      es: 'Coral Flúor',
+    },
+  },
+  {
+    id: 'hyper-mint',
+    hex: '#00F5A0',
+    lightTextHex: '#007B52',
+    fgOnAccent: '#07090F',
+    labels: {
+      it: 'Menta Fluo',
+      en: 'Hyper Mint',
+      fr: 'Menthe Fluo',
+      de: 'Neonminze',
+      es: 'Menta Flúor',
+    },
+  },
+  {
+    id: 'solar-gold',
+    hex: '#FFB800',
+    lightTextHex: '#9A5B00',
+    fgOnAccent: '#07090F',
+    labels: {
+      it: 'Oro Fluo',
+      en: 'Solar Gold',
+      fr: 'Or Fluo',
+      de: 'Neongold',
+      es: 'Oro Flúor',
+    },
+  },
 ];
 
 export const DEFAULT_ACCENT_ID: AccentId = 'neon-orange';
