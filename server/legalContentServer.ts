@@ -1,13 +1,10 @@
-import { JurisdictionCode, LanguageCode, LegalSection } from '../types/orbit';
-import { readStorage, STORAGE_KEYS, writeStorage } from '../utils/storage';
-
-const legalMemoryCache = new Map<string, LegalSection[]>();
+import type { JurisdictionCode, LanguageCode, LegalSection } from '../src/types/orbit.ts';
 
 function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection[] {
   const jurisdictionNotice =
     jurisdiction === 'IT'
-      ? 'La presente informativa è redatta in piena conformità al Regolamento (UE) 2016/679 (GDPR), al D.Lgs. 196/2003 (Codice Privacy novellato dal D.Lgs. 101/2018) e alle Linee Guida del Garante per la protezione dei dati personali. (1) Natura del trattamento reale dell’applicazione: Orbit è un’applicazione web lato client priva di database remoto di profilazione e priva di account utente; le preferenze di tema, colore fluo, link rapidi, lingua, cronologia di ricerca locale e stato del consenso sono salvate esclusivamente nella memoria locale del dispositivo (localStorage) sotto il pieno controllo dell’utente. (2) Trasferimento verso motori di ricerca: solo su azione esplicita di invio o clic da parte dell’utente il browser apre l’URL o inoltra la query al motore di ricerca selezionato (Google, Bing o DuckDuckGo), il quale opera come titolare autonomo. (3) Diritti dell’interessato: ai sensi degli artt. 15–22 GDPR puoi accedere, rettificare, cancellare i dati locali in qualsiasi momento tramite le Impostazioni o la pulizia del browser, nonché proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).'
-      : 'Informativa conforme al GDPR (UE) 2016/679 per l’area SEE/UE: (1) Orbit elabora le preferenze di personalizzazione esclusivamente lato client nel browser (localStorage) senza profilazione su server remoti; (2) Nessun dato personale viene venduto o ceduto a intermediari terzi; (3) L’utente gode dei diritti di accesso, rettifica, cancellazione, limitazione e opposizione ai sensi degli artt. 15–22 GDPR.';
+      ? 'La presente informativa è redatta in piena conformità al Regolamento (UE) 2016/679 (GDPR), al D.Lgs. 196/2003 (Codice Privacy novellato dal D.Lgs. 101/2018) e alle Linee Guida del Garante per la protezione dei dati personali. (1) Natura del trattamento reale dell’applicazione: Orbit è un’applicazione web priva di database di profilazione e priva di account utente; le preferenze di tema, colore fluo, link rapidi, lingua, cronologia di ricerca locale e stato del consenso sono salvate nella memoria locale del dispositivo (localStorage) sotto il pieno controllo dell’utente. (2) Trasferimento verso motori di ricerca: solo su azione esplicita di invio o clic da parte dell’utente il browser apre l’URL o inoltra la query al motore di ricerca selezionato (Google, Bing o DuckDuckGo), il quale opera come titolare autonomo. (3) Diritti dell’interessato: ai sensi degli artt. 15–22 GDPR puoi accedere, rettificare, cancellare i dati locali in qualsiasi momento tramite le Impostazioni o la pulizia del browser, nonché proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).'
+      : 'Informativa conforme al GDPR (UE) 2016/679 per l’area SEE/UE: (1) Orbit elabora le preferenze di personalizzazione esclusivamente nel browser (localStorage) senza profilazione su server remoti; (2) Nessun dato personale viene venduto o ceduto a intermediari terzi; (3) L’utente gode dei diritti di accesso, rettifica, cancellazione, limitazione e opposizione ai sensi degli artt. 15–22 GDPR.';
 
   return [
     {
@@ -21,7 +18,7 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '1',
       title: 'Titolare del Progetto e Natura Open-Source',
       body:
-        'Orbit è un progetto web personale, gratuito, non commerciale e open-source ideato e mantenuto da un privato cittadino (Daniele Mastrorilli). (1) Assenza di forma societaria: Orbit non fa capo ad alcuna S.r.l., società di capitali, impresa commerciale né soggetto dotato di Partita IVA, REA o capitale sociale; (2) Progetto open-source su GitHub: il codice sorgente è pubblicato pubblicamente su GitHub così da consentire a chiunque di ispezionare in totale trasparenza il funzionamento lato client e l’assenza di tracciamento remoto; (3) Finalità non commerciale: la pagina è offerta gratuitamente alla community senza pubblicità, abbonamenti né vendite.',
+        'Orbit è un progetto web personale, gratuito, non commerciale e open-source ideato e mantenuto da un privato cittadino (Daniele Mastrorilli). (1) Assenza di forma societaria: Orbit non fa capo ad alcuna S.r.l., società di capitali, impresa commerciale né soggetto dotato di Partita IVA, REA o capitale sociale; (2) Progetto open-source su GitHub: il codice sorgente è pubblicato pubblicamente su GitHub così da consentire a chiunque di ispezionare in totale trasparenza il funzionamento dell’applicazione e l’assenza di tracciamento remoto; (3) Finalità non commerciale: la pagina è offerta gratuitamente alla community senza pubblicità, abbonamenti né vendite.',
     },
     {
       id: 'contatti-diretti',
@@ -35,7 +32,7 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '3',
       title: 'Cookie Policy, Blocco Preventivo e Gestione Consensi (2026)',
       body:
-        'Orbit adotta un’architettura privacy-by-default pienamente conforme alle direttive ePrivacy e alle linee guida 2026 contro i dark pattern: (1) Blocco preventivo: all’apertura della pagina nessuna richiesta verso API esterne non essenziali (inclusi gli endpoint di completamento automatico di terze parti Wikipedia o DuckDuckGo) viene eseguita senza il tuo consenso preventivo esplicito, restando attive esclusivamente le chiavi tecniche in localStorage necessarie a tema, colore fluo, link rapidi, lingua e stato del consenso; (2) Pari visibilità senza dark pattern: i pulsanti Accetta tutti, Rifiuta non essenziali e Personalizza scelte sono presentati con identico peso visivo, contrasto e accessibilità immediata; (3) Diritto di revoca continua: puoi rivedere, modificare o revocare le tue scelte in qualunque momento utilizzando i controlli interattivi sottostanti o il collegamento nel footer.',
+        'Orbit adotta un’architettura privacy-by-default pienamente conforme alle direttive ePrivacy e alle linee guida 2026 contro i dark pattern: (1) Blocco preventivo: all’apertura della pagina nessuna richiesta verso API di completamento esterne (DuckDuckGo / Google Suggest) viene eseguita senza il tuo consenso preventivo esplicito, restando attive esclusivamente le chiavi tecniche in localStorage necessarie a tema, colore fluo, link rapidi, lingua e stato del consenso; (2) Pari visibilità senza dark pattern: i pulsanti Accetta tutti, Rifiuta non essenziali e Personalizza scelte sono presentati con identico peso visivo, contrasto e accessibilità immediata; (3) Diritto di revoca continua: puoi rivedere, modificare o revocare le tue scelte in qualunque momento utilizzando i controlli interattivi sottostanti o il collegamento nel footer.',
       hasCookieControls: true,
     },
     {
@@ -57,14 +54,14 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '6',
       title: 'Trasparenza sull’Intelligenza Artificiale (EU AI Act 2024/1689)',
       body:
-        'Ai sensi degli obblighi di trasparenza previsti dal Regolamento (UE) 2024/1689 (EU AI Act, Art. 50): (1) Avviso esplicito sulla natura dell’assistente visivo: la mascotte animata Orbit presente al centro della pagina utilizza un motore geometrico deterministico locale (tracciamento matematico dello sguardo rispetto al cursore o al cursore di testo, reazioni predefinite al clic ed espressioni fisiche simulate) e NON integra un modello linguistico generativo (LLM) né genera risposte autonome automatizzate; (2) Contenuti e ricerche esterne: qualora l’utente invii una query verso motori di ricerca esterni o servizi terzi dotati di funzionalità di IA generativa, tali sistemi operano al di fuori di Orbit sotto le rispettive informative e marcature di trasparenza ai sensi dell’AI Act.',
+        'Ai sensi degli obblighi di trasparenza previsti dal Regolamento (UE) 2024/1689 (EU AI Act, Art. 50): (1) Avviso esplicito sulla natura dell’assistente visivo: la mascotte animata Orbit presente al centro della pagina utilizza un motore geometrico deterministico gestito lato server (tracciamento matematico dello sguardo rispetto al cursore o al cursore di testo, reazioni predefinite al clic ed espressioni fisiche simulate) e nella versione attuale NON integra un modello linguistico generativo autonomo (LLM); (2) Contenuti e ricerche esterne: qualora l’utente invii una query verso motori di ricerca esterni o servizi terzi dotati di funzionalità di IA generativa, tali sistemi operano al di fuori di Orbit sotto le rispettive informative e marcature di trasparenza ai sensi dell’AI Act.',
     },
     {
       id: 'sicurezza',
       number: '7',
       title: 'Sicurezza delle Connessioni e Protezione dei Dati',
       body:
-        'La sicurezza tecnica del servizio si fonda su principi di minimizzazione e cifratura: (1) Trasporto cifrato HTTPS/TLS (SSL): ogni sessione di caricamento della pagina e ogni eventuale richiesta autorizzata avvengono su canale cifrato HTTPS con protocolli TLS aggiornati per prevenire intercettazioni o manomissioni in transito; (2) Isolamento locale: i collegamenti rapidi e le preferenze visive non vengono mai trasmessi a server centrali, eliminando il rischio di violazioni di banche dati cloud di profilazione; (3) Validazione degli URL: tutti gli indirizzi inseriti dall’utente nei link rapidi vengono sanitizzati per impedire schemi pericolosi (es. javascript:).',
+        'La sicurezza tecnica del servizio si fonda su principi di minimizzazione e cifratura: (1) Trasporto cifrato HTTPS/TLS (SSL): ogni sessione di caricamento della pagina e ogni eventuale richiesta autorizzata avvengono su canale cifrato HTTPS con protocolli TLS aggiornati per prevenire intercettazioni o manomissioni in transito; (2) Isolamento locale: i collegamenti rapidi e le preferenze visive non vengono mai trasmessi a database centrali di profilazione; (3) Validazione degli URL: tutti gli indirizzi inseriti dall’utente nei link rapidi vengono sanitizzati per impedire schemi pericolosi (es. javascript:).',
     },
     {
       id: 'requisiti-usa',
@@ -90,7 +87,7 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
     EU: 'European Union (GDPR 2016/679) Privacy Notice: Orbit processes interface preferences (theme, fluo accent, up to 4 quick links, locale, consent state, and optional local search history) strictly on your device via browser localStorage with zero remote profiling database. Search queries are only dispatched to your chosen search engine upon explicit submission.',
     UK: 'United Kingdom (UK GDPR & Data Protection Act 2018) Privacy Notice: Orbit processes customization settings strictly on your local device without server-side user profiling. UK residents retain full rights of access, erasure, restriction, and complaint to the Information Commissioner’s Office (ICO, ico.org.uk).',
     US: 'United States (CCPA/CPRA, State Privacy Laws & COPPA) Privacy Notice: Orbit does not sell or share personal information for cross-context behavioral advertising, does not maintain user accounts, honors browser Global Privacy Control (GPC) signals automatically, and does not knowingly collect personal information from children under 13 under COPPA.',
-    GLOBAL: 'International Privacy Notice (LGPD Brazil, PIPEDA Canada & Global Frameworks): Orbit minimizes data processing to strictly client-side localStorage preferences. Any cross-border request to an external search engine occurs exclusively at your explicit navigation command, respecting LGPD (Art. 18), PIPEDA fair information principles, and international transfer safeguards.',
+    GLOBAL: 'International Privacy Notice (LGPD Brazil, PIPEDA Canada & Global Frameworks): Orbit minimizes data processing to strictly local preferences. Any cross-border request to an external search engine occurs exclusively at your explicit navigation command, respecting LGPD (Art. 18), PIPEDA fair information principles, and international transfer safeguards.',
   };
 
   return [
@@ -98,14 +95,14 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       id: 'privacy-giurisdizione',
       number: '0',
       title: `Jurisdiction-Specific Privacy Notice (${jurisdiction}) — Live Audit`,
-      body: `${jurisdictionLead[jurisdiction]} (1) Real application data audit: Orbit runs entirely in your browser without user registration, remote analytics trackers, or e-commerce payment forms; (2) Local storage items are limited to theme mode, neon accent selection, custom quick links (max 4), locale/jurisdiction choice, translation cache, local search history, and cookie consent status; (3) External destinations are only contacted when you actively submit a search or explicitly opt in to third-party autocomplete suggestions.`,
+      body: `${jurisdictionLead[jurisdiction]} (1) Real application data audit: Orbit runs without user registration, remote analytics trackers, or e-commerce payment forms; (2) Local storage items are limited to theme mode, neon accent selection, custom quick links (max 4), locale/jurisdiction choice, translation cache, local search history, and cookie consent status; (3) External search suggestions are only proxied when you explicitly opt in to third-party autocomplete.`,
     },
     {
       id: 'titolare-progetto',
       number: '1',
       title: 'Project Ownership & Open-Source Attribution',
       body:
-        'Orbit is a free, non-commercial, open-source personal web project created and maintained privately by an individual developer (Daniele Mastrorilli). (1) No Corporate Entity: Orbit is NOT operated by an S.r.l., limited liability company, commercial firm, or VAT-registered business; (2) Open-Source on GitHub: the project source code is openly published on GitHub so anyone can verify its client-side architecture and local-only privacy behavior; (3) Non-Commercial Purpose: Orbit runs ad-free with zero paid subscriptions, purchases, or tracking databases.',
+        'Orbit is a free, non-commercial, open-source personal web project created and maintained privately by an individual developer (Daniele Mastrorilli). (1) No Corporate Entity: Orbit is NOT operated by an S.r.l., limited liability company, commercial firm, or VAT-registered business; (2) Open-Source on GitHub: the project source code is openly published on GitHub so anyone can inspect its architecture and zero-tracking privacy guarantees; (3) Non-Commercial Purpose: Orbit runs ad-free with zero paid subscriptions, purchases, or tracking databases.',
     },
     {
       id: 'contatti-diretti',
@@ -119,7 +116,7 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '3',
       title: 'Cookie Policy, Preventive Blocking & Equal-Prominence Consent (2026)',
       body:
-        'Orbit enforces privacy-by-default rules compliant with ePrivacy and 2026 anti-dark-pattern guidelines: (1) Preventive blocking: before explicit user consent, all non-essential external suggestion requests (Wikipedia OpenSearch / DuckDuckGo API) are blocked by code, while strictly technical localStorage keys remain active to render your chosen UI state; (2) Equal visual prominence: Accept All, Reject Non-Essential, and Customize Choices are displayed with equal visual weight and zero manipulative design; (3) Continuous right to review: you can revisit, update, or withdraw consent anytime below or via the footer link.',
+        'Orbit enforces privacy-by-default rules compliant with ePrivacy and 2026 anti-dark-pattern guidelines: (1) Preventive blocking: before explicit user consent, all non-essential external suggestion requests (DuckDuckGo / Google Suggest) are blocked by code, while strictly technical localStorage keys remain active to render your chosen UI state; (2) Equal visual prominence: Accept All, Reject Non-Essential, and Customize Choices are displayed with equal visual weight and zero manipulative design; (3) Continuous right to review: you can revisit, update, or withdraw consent anytime below or via the footer link.',
       hasCookieControls: true,
     },
     {
@@ -141,7 +138,7 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '6',
       title: 'AI Transparency Disclosure (EU AI Act 2024/1689)',
       body:
-        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic local procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and is NOT a generative Large Language Model (LLM) nor an autonomous AI agent; (2) Third-Party AI Search Engines: any query you choose to send to an external search provider that displays AI-generated summaries is governed by that provider’s own AI Act transparency disclosures.',
+        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic server-assisted procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and in its current release is NOT an autonomous generative Large Language Model (LLM); (2) Third-Party AI Search Engines: any query you choose to send to an external search provider that displays AI-generated summaries is governed by that provider’s own AI Act transparency disclosures.',
     },
     {
       id: 'sicurezza',
@@ -191,7 +188,7 @@ function buildLocalizedSummaryLegalSections(
       title: titles[idx] ?? sec.title,
       body:
         idx === 0
-          ? `Conformité RGPD (UE) 2016/679 : (1) Orbit fonctionne entièrement côté client via localStorage sans base de données de profilage ; (2) Aucune requête externe non essentielle n’est envoyée sans consentement explicite ; (3) Vous disposez des droits d’accès, de rectification et d’effacement.`
+          ? `Conformité RGPD (UE) 2016/679 : (1) Orbit stocke vos préférences localement via localStorage sans base de données de profilage ; (2) Aucune requête de suggestion externe n’est envoyée sans consentement explicite ; (3) Vous disposez des droits d’accès, de rectification et d’effacement.`
           : idx === 1
             ? `Orbit est un projet personnel gratuit, non commercial et open-source créé et maintenu à titre privé par Daniele Mastrorilli (aucune société ou S.r.l.), avec code source public hébergé sur GitHub.`
             : idx === 2
@@ -257,30 +254,22 @@ function buildLocalizedSummaryLegalSections(
   }));
 }
 
-export function getLegalSections(lang: LanguageCode, jurisdiction: JurisdictionCode): LegalSection[] {
-  const key = `legal:${lang}:${jurisdiction}:v3`;
-  const mem = legalMemoryCache.get(key);
-  if (mem) return mem;
+const VALID_LANGS = new Set<LanguageCode>(['it', 'en', 'fr', 'de', 'es']);
+const VALID_JURISDICTIONS = new Set<JurisdictionCode>(['IT', 'EU', 'UK', 'US', 'GLOBAL']);
 
-  const stored = readStorage<Record<string, LegalSection[]>>(`${STORAGE_KEYS.i18nCache}_legal`, {});
-  if (stored[key]) {
-    legalMemoryCache.set(key, stored[key]);
-    return stored[key];
-  }
+export function getLegalSections(rawLang: unknown, rawJurisdiction: unknown): LegalSection[] {
+  const lang: LanguageCode =
+    typeof rawLang === 'string' && VALID_LANGS.has(rawLang as LanguageCode)
+      ? (rawLang as LanguageCode)
+      : 'en';
+  const jurisdiction: JurisdictionCode =
+    typeof rawJurisdiction === 'string' && VALID_JURISDICTIONS.has(rawJurisdiction as JurisdictionCode)
+      ? (rawJurisdiction as JurisdictionCode)
+      : 'EU';
 
-  let sections: LegalSection[];
-  if (lang === 'it') {
-    sections = buildItalianLegalSections(jurisdiction);
-  } else if (lang === 'en') {
-    sections = buildEnglishLegalSections(jurisdiction);
-  } else {
-    sections = buildLocalizedSummaryLegalSections(lang, jurisdiction);
-  }
-
-  legalMemoryCache.set(key, sections);
-  stored[key] = sections;
-  writeStorage(`${STORAGE_KEYS.i18nCache}_legal`, stored);
-  return sections;
+  if (lang === 'it') return buildItalianLegalSections(jurisdiction);
+  if (lang === 'en') return buildEnglishLegalSections(jurisdiction);
+  return buildLocalizedSummaryLegalSections(lang, jurisdiction);
 }
 
 export function filterLegalSections(sections: LegalSection[], query: string): LegalSection[] {

@@ -1,36 +1,28 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { BootPhase } from '../types/orbit';
-import { evaluatePresenceState, OrbPresenceState, WAKE_HAPPY_DURATION_MS } from '../utils/idleSleepState';
-import { damp } from '../utils/layoutMath';
-import {
-  computeAwaySeriousMotion,
-  computeSleepingMotion,
-  computeWakingHappyMotion,
-} from '../utils/orbMotionMath';
+import type {
+  BootPhase,
+  BotReactionType,
+  OrbPoseTarget,
+  OrbPresenceState,
+  OrbStepEvent,
+  OrbStepResponse,
+} from '../types/orbit';
+import { damp, ORB_RING_RADIUS_VB, ORB_RING_STROKE_VB } from '../utils/layoutMath';
 import { playPresenceSound, playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
-
-export type BotReactionType =
-  | 'wink'
-  | 'surprise'
-  | 'glance'
-  | 'sleepy'
-  | 'think'
-  | 'happy'
-  | 'judge'
-  | 'perplexed'
-  | 'curious'
-  | 'peek'
-  | 'content';
 
 interface OrbitBotProps {
   bootPhase: BootPhase;
   botSize: number;
+  baseBotSize?: number;
   botCenterY: number;
-  horizontalPercent: number; // 50 normally, ~24 on desktop when side menu is open
+  horizontalPercent: number; // 50 normally, ~24 on desktop when side menu is open, ~27 in standby
   viewportWidth: number;
   scale: number;
   animateStageTransition: boolean;
   menuOpen: boolean;
+  paused?: boolean;
+  hidden?: boolean;
+  standbyMode?: boolean;
   isFocused: boolean;
   hasQuery?: boolean;
   caretRatio: number;
@@ -39,31 +31,41 @@ interface OrbitBotProps {
   onBotClick?: () => void;
 }
 
-const POOL: BotReactionType[] = ['wink', 'surprise', 'glance', 'sleepy'];
-const IDLE_POOL: BotReactionType[] = ['peek', 'curious', 'glance', 'content', 'wink'];
-const DURATIONS: Record<BotReactionType, number> = {
-  wink: 680,
-  surprise: 700,
-  glance: 900,
-  sleepy: 1100,
-  think: 3200,
-  happy: 850,
-  judge: 1800,
-  perplexed: 1850,
-  curious: 1450,
-  peek: 1250,
-  content: 1150,
+const DEFAULT_POSE: OrbPoseTarget = {
+  dx: 0,
+  dy: 0,
+  tRot: 0,
+  tScX: 1,
+  tScY: 1,
+  tLW: 1,
+  tLH: 1,
+  tRW: 1,
+  tRH: 1,
+  tLY: 0,
+  tRY: 0,
+  tArcBottom: 0,
+  tLFlatTop: 0,
+  tRFlatTop: 0,
+  tLTBias: 0,
+  tRTBias: 0,
+  tBobY: 0,
+  followPointerLive: true,
+  allowNaturalBlink: true,
 };
 
 export const OrbitBot = memo(function OrbitBot({
   bootPhase,
   botSize,
+  baseBotSize,
   botCenterY,
   horizontalPercent,
   viewportWidth,
   scale,
   animateStageTransition,
   menuOpen,
+  paused = false,
+  hidden = false,
+  standbyMode = false,
   isFocused,
   hasQuery = false,
   caretRatio,
@@ -82,65 +84,60 @@ export const OrbitBot = memo(function OrbitBot({
   const [activeReactionLabel, setActiveReactionLabel] = useState<string>('idle');
   const [presenceState, setPresenceState] = useState<OrbPresenceState>('awake');
 
+  const safeBaseSize = Math.max(44, baseBotSize || Math.round(botSize / Math.max(0.1, scale)));
+  const renderSize = viewportWidth >= 768 ? Math.max(520, Math.round(botSize)) : safeBaseSize;
+  const visualScale = (botSize / Math.max(1, renderSize)) * (hidden ? 0.94 : 1);
+  const innerBubbleScale = renderSize / safeBaseSize;
+
   const propsRef = useRef({
     bootPhase,
-    botSize,
+    renderSize,
     botCenterY,
     horizontalPercent,
     viewportWidth,
-    scale,
     isFocused,
     hasQuery,
     caretRatio,
     menuOpen,
+    paused,
+    standbyMode,
   });
   propsRef.current = {
     bootPhase,
-    botSize,
+    renderSize,
     botCenterY,
     horizontalPercent,
     viewportWidth,
-    scale,
     isFocused,
     hasQuery,
     caretRatio,
     menuOpen,
+    paused,
+    standbyMode,
   };
 
-  const reactionRef = useRef<{ on: boolean; type: BotReactionType; t0: number; dur: number; dir: number }>({
-    on: false,
-    type: 'wink',
-    t0: 0,
-    dur: 680,
-    dir: 1,
-  });
-  const lastIndexRef = useRef(-1);
+  const sessionIdRef = useRef<string>(
+    `main-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
+  );
+  const pendingEventRef = useRef<OrbStepEvent | null>(null);
+  const urgentSyncRef = useRef<() => void>(() => {});
+  const resumeLoopRef = useRef<() => void>(() => {});
   const bootWinkTriggeredRef = useRef(false);
 
-  const triggerReaction = (type: BotReactionType, clientX?: number, silent = false) => {
-    const botCenterX =
-      (propsRef.current.horizontalPercent / 100) * (propsRef.current.viewportWidth || window.innerWidth);
-    const dir = clientX !== undefined && clientX < botCenterX ? -1 : 1;
-    reactionRef.current = {
-      on: true,
-      type,
-      t0: performance.now(),
-      dur: DURATIONS[type],
-      dir,
-    };
-    setActiveReactionLabel(type);
-    if (!silent) {
-      playReactionSound(type);
-    }
-  };
-
-  // Trigger playful wink on boot pop-in
+  // Trigger boot wink via backend step engine
   useEffect(() => {
     if (bootPhase === 'pop' && !bootWinkTriggeredRef.current) {
       bootWinkTriggeredRef.current = true;
       const timer = setTimeout(() => {
-        triggerReaction('wink', undefined, true);
-      }, 260);
+        pendingEventRef.current = {
+          kind: 'signal',
+          reactionType: 'wink',
+          dir: 1,
+          silent: true,
+          nonce: Date.now() + Math.random(),
+        };
+        urgentSyncRef.current();
+      }, 240);
       return () => clearTimeout(timer);
     }
   }, [bootPhase]);
@@ -148,9 +145,24 @@ export const OrbitBot = memo(function OrbitBot({
   // Trigger external reaction signals (e.g. happy on submit, judge/perplexed on settings edit)
   useEffect(() => {
     if (reactionSignal) {
-      triggerReaction(reactionSignal.type, undefined, false);
+      pendingEventRef.current = {
+        kind: 'signal',
+        reactionType: reactionSignal.type,
+        dir: 1,
+        silent: false,
+        nonce: reactionSignal.nonce,
+      };
+      urgentSyncRef.current();
     }
   }, [reactionSignal]);
+
+  // Immediate backend sync on structural mode transitions (Standby / Menu / BootReady)
+  useEffect(() => {
+    if (!paused) {
+      resumeLoopRef.current();
+      urgentSyncRef.current();
+    }
+  }, [standbyMode, menuOpen, paused, bootPhase, hasQuery]);
 
   // Holiday snow + hat check (Dec 1 – Jan 6 or #natale)
   useEffect(() => {
@@ -172,27 +184,27 @@ export const OrbitBot = memo(function OrbitBot({
     };
   }, []);
 
-  // Main 60fps eye tracking, presence ("seriously?" -> sleep -> wake happy) & seamless expression springs
+  // Main 60fps generic spring renderer + pointer listener synced with backend mascot engine
   useEffect(() => {
     let tx = 0;
     let ty = 0;
     let lastPtr = 0;
     let drag = false;
-    let nextThink = performance.now() + 6500;
-    let nextIdleAct = performance.now() + 2600;
-    let idlePoolIdx = 0;
     let lastTime = performance.now();
     let thinkOn = false;
     let rafId = 0;
+    let isDisposed = false;
     const reducedMotionMq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
-    // Away / Sleep presence tracking
-    let currentPresence: OrbPresenceState = 'awake';
-    let presenceEnteredAt = performance.now();
     let pointerOutside = false;
     let isTouchMode = window.matchMedia?.('(pointer: coarse) and (hover: none)')?.matches ?? false;
     let lastActivityAt = performance.now();
-    let wasBootReady = false;
+
+    let serverPose: OrbPoseTarget = { ...DEFAULT_POSE };
+    let serverPresence: OrbPresenceState = 'awake';
+    let serverReactionLabel = 'idle';
+    let inFlight = false;
+    let lastSyncSentAt = 0;
 
     const GX = { p: 0, v: 0 };
     const GY = { p: 0, v: 0 };
@@ -201,7 +213,6 @@ export const OrbitBot = memo(function OrbitBot({
     const BOB_Y = { p: 0, v: 0 };
     const BL = { on: false, t0: 0, next: performance.now() + 2400, doubleLeft: 0 };
 
-    // Continuous damped springs for every expression parameter so switches never snap
     const EROT = { p: 0, v: 0 };
     const ESCX = { p: 1, v: 0 };
     const ESCY = { p: 1, v: 0 };
@@ -216,6 +227,82 @@ export const OrbitBot = memo(function OrbitBot({
     const EARC = { p: 0, v: 0 };
     const ELFLAT = { p: 0, v: 0 };
     const ERFLAT = { p: 0, v: 0 };
+
+    const syncWithBackend = async () => {
+      if (isDisposed || inFlight || propsRef.current.paused) return;
+      inFlight = true;
+      lastSyncSentAt = performance.now();
+
+      const eventToSend = pendingEventRef.current;
+      pendingEventRef.current = null;
+
+      const cur = propsRef.current;
+      const now = performance.now();
+      try {
+        const res = await fetch('/api/orb/step', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            variant: 'main',
+            nowMs: now,
+            botSize: cur.renderSize,
+            bootReady: cur.bootPhase === 'ready',
+            menuOpen: cur.menuOpen,
+            standbyMode: cur.standbyMode,
+            hasQuery: cur.hasQuery,
+            isFocused: cur.isFocused,
+            caretRatio: cur.caretRatio,
+            drag,
+            reduceMotion: Boolean(reducedMotionMq?.matches),
+            isTouchMode,
+            pointerOutside,
+            pointerDx: tx,
+            pointerDy: ty,
+            lastActivityAgoMs: Math.max(0, now - lastActivityAt),
+            lastPtrAgoMs: Math.max(0, now - lastPtr),
+            event: eventToSend,
+          }),
+        });
+        if (!res.ok || isDisposed) return;
+        const data = (await res.json()) as OrbStepResponse;
+        serverPose = data.poseTarget;
+
+        if (data.presenceState !== serverPresence) {
+          serverPresence = data.presenceState;
+          setPresenceState(data.presenceState);
+        }
+        if (data.activeReaction !== serverReactionLabel) {
+          serverReactionLabel = data.activeReaction;
+          setActiveReactionLabel(data.activeReaction);
+        }
+        if (data.thinkActive !== thinkOn) {
+          thinkOn = data.thinkActive;
+          thinkRef.current?.classList.toggle('on', thinkOn);
+        }
+        if (data.stopAllAnimations && BL.on) {
+          BL.on = false;
+        }
+        if (data.soundCue) {
+          if (data.soundCue.channel === 'presence') {
+            playPresenceSound(data.soundCue.id as OrbPresenceState);
+          } else if (data.soundCue.channel === 'reaction') {
+            playReactionSound(data.soundCue.id as BotReactionType, data.soundCue.ambient);
+          }
+        }
+      } catch {
+        // Ignore transient offline errors gracefully
+      } finally {
+        inFlight = false;
+        if (pendingEventRef.current && !isDisposed) {
+          void syncWithBackend();
+        }
+      }
+    };
+
+    urgentSyncRef.current = () => {
+      void syncWithBackend();
+    };
 
     const norm = () => Math.min(window.innerWidth, window.innerHeight) * 0.42;
     const pointAt = (x: number, y: number) => {
@@ -243,9 +330,12 @@ export const OrbitBot = memo(function OrbitBot({
         pointerOutside = false;
       } else {
         isTouchMode = false;
-        pointerOutside = false;
+        if (pointerOutside) {
+          pointerOutside = false;
+          void syncWithBackend();
+        }
       }
-      if (!propsRef.current.hasQuery || propsRef.current.menuOpen) {
+      if (!propsRef.current.standbyMode && (!propsRef.current.hasQuery || propsRef.current.menuOpen)) {
         pointAt(e.clientX, e.clientY);
       }
     };
@@ -261,9 +351,10 @@ export const OrbitBot = memo(function OrbitBot({
         pointerOutside = false;
       }
       if (
-        !propsRef.current.hasQuery ||
-        propsRef.current.menuOpen ||
-        !(e.target as HTMLElement)?.closest('#search-ui')
+        !propsRef.current.standbyMode &&
+        (!propsRef.current.hasQuery ||
+          propsRef.current.menuOpen ||
+          !(e.target as HTMLElement)?.closest('#search-ui'))
       ) {
         pointAt(e.clientX, e.clientY);
       }
@@ -273,26 +364,33 @@ export const OrbitBot = memo(function OrbitBot({
       lastActivityAt = performance.now();
     };
     const onFrameLeave = () => {
-      if (!isTouchMode) pointerOutside = true;
+      if (!isTouchMode && !pointerOutside) {
+        pointerOutside = true;
+        void syncWithBackend();
+      }
     };
     const onFrameEnter = (e: MouseEvent) => {
       if (!isTouchMode) {
+        const wasOut = pointerOutside;
         pointerOutside = false;
         lastActivityAt = performance.now();
-        if (e.clientX !== 0 || e.clientY !== 0) {
+        if (!propsRef.current.standbyMode && (e.clientX !== 0 || e.clientY !== 0)) {
           pointAt(e.clientX, e.clientY);
         }
+        if (wasOut) void syncWithBackend();
       }
     };
     const onWindowMouseOut = (e: MouseEvent) => {
       const toEl = (e as MouseEvent & { toElement?: EventTarget | null }).toElement;
-      if (!e.relatedTarget && !toEl && !isTouchMode) {
+      if (!e.relatedTarget && !toEl && !isTouchMode && !pointerOutside) {
         pointerOutside = true;
+        void syncWithBackend();
       }
     };
     const onWindowBlur = () => {
-      if (!isTouchMode && !propsRef.current.menuOpen) {
+      if (!isTouchMode && !propsRef.current.menuOpen && !propsRef.current.standbyMode && !pointerOutside) {
         pointerOutside = true;
+        void syncWithBackend();
       }
     };
     const onTouchActivity = () => {
@@ -306,8 +404,9 @@ export const OrbitBot = memo(function OrbitBot({
       unlockOrbitAudio();
     };
     const onVisibilityChange = () => {
-      if (document.hidden && !isTouchMode) {
+      if (document.hidden && !isTouchMode && !propsRef.current.standbyMode) {
         pointerOutside = true;
+        void syncWithBackend();
       }
     };
 
@@ -359,11 +458,6 @@ export const OrbitBot = memo(function OrbitBot({
 
     const sine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
     const bell = (t: number) => (t <= 0 || t >= 1 ? 0 : sine(Math.sin(t * Math.PI)));
-    const sstep = (a: number, b: number, t: number) => {
-      const k = Math.max(0, Math.min(1, (t - a) / (b - a)));
-      return k * k * (3 - 2 * k);
-    };
-    const hold = (t: number) => sstep(0, 0.16, t) * (1 - sstep(0.78, 1, t));
     const clampGaze = (v: number) => Math.max(-1.15, Math.min(1.15, v));
 
     const eyeCache = new WeakMap<
@@ -416,63 +510,25 @@ export const OrbitBot = memo(function OrbitBot({
     };
 
     let lastBotTf = '';
+    void syncWithBackend();
 
     const tick = (now: number) => {
+      if (isDisposed || propsRef.current.paused) {
+        rafId = 0;
+        return;
+      }
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      const {
-        bootPhase: bPhase,
-        botSize: Draw,
-        isFocused: foc,
-        hasQuery: hQuery,
-        caretRatio: cRatio,
-        menuOpen: mOpen,
-      } = propsRef.current;
-
-      if (!wasBootReady && bPhase === 'ready') {
-        wasBootReady = true;
-        lastActivityAt = now;
+      // Sync authoritative pose & presence periodically (~20Hz) without piling requests
+      if (!inFlight && now - lastSyncSentAt >= 48) {
+        void syncWithBackend();
       }
 
-      // Evaluate desktop pointer-leave / mobile touch-inactivity presence -> 'away-serious' -> 'sleeping' -> 'waking-happy'
-      const presenceEval = evaluatePresenceState({
-        currentState: currentPresence,
-        stateEnteredAt: presenceEnteredAt,
-        now,
-        bootReady: bPhase === 'ready',
-        menuOpen: mOpen,
-        hasQuery: hQuery,
-        isTouchMode,
-        pointerOutside,
-        lastActivityAt,
-      });
+      const { renderSize: Draw } = propsRef.current;
 
-      if (presenceEval.changed) {
-        currentPresence = presenceEval.nextState;
-        presenceEnteredAt = now;
-        setPresenceState(presenceEval.nextState);
-        if (presenceEval.nextState === 'away-serious') {
-          setActiveReactionLabel('away-serious');
-          playPresenceSound('away-serious');
-        } else if (presenceEval.nextState === 'sleeping') {
-          setActiveReactionLabel('sleeping');
-          playPresenceSound('sleeping');
-        } else if (presenceEval.nextState === 'waking-happy') {
-          setActiveReactionLabel('waking-happy');
-          playPresenceSound('waking-happy');
-        } else if (!reactionRef.current.on) {
-          setActiveReactionLabel('idle');
-        }
-      }
-
-      const stopAnimations = presenceEval.stopAllAnimations;
-      const isSleeping = currentPresence === 'sleeping';
-      const isAwaySerious = currentPresence === 'away-serious';
-      const isWakingHappy = currentPresence === 'waking-happy';
-
-      // Holiday snow rendering (paused when sleeping so only Zzz animates)
-      if (snowCx && !isSleeping && document.documentElement.classList.contains('xmas')) {
+      // Holiday snow rendering (paused while sleeping)
+      if (snowCx && serverPresence !== 'sleeping' && document.documentElement.classList.contains('xmas')) {
         snowCx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         snowCx.fillStyle = '#9AA1AF';
         for (const f of flakes) {
@@ -491,349 +547,38 @@ export const OrbitBot = memo(function OrbitBot({
         snowCx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       }
 
-      let dx = tx;
-      let dy = ty;
-      const reduceMotion = Boolean(reducedMotionMq?.matches);
-      const R = reactionRef.current;
+      const targetDx = serverPose.followPointerLive ? tx : serverPose.dx;
+      const targetDy = serverPose.followPointerLive ? ty : serverPose.dy;
 
-      // Stop active reactions / blinks when entering away-serious or sleeping
-      if (stopAnimations) {
-        if (R.on) {
-          R.on = false;
-        }
-        if (BL.on) {
-          BL.on = false;
-        }
-      }
-
-      const awayMotion = isAwaySerious ? computeAwaySeriousMotion(now, presenceEnteredAt, Draw) : null;
-      const sleepMotion = isSleeping ? computeSleepingMotion(now, Draw) : null;
-      const wakeMotion = isWakingHappy
-        ? computeWakingHappyMotion(now, presenceEnteredAt, WAKE_HAPPY_DURATION_MS, Draw)
-        : null;
-
-      // Gaze target routing
-      if (awayMotion) {
-        dx = awayMotion.dx;
-        dy = awayMotion.dy;
-      } else if (sleepMotion) {
-        dx = sleepMotion.dx;
-        dy = sleepMotion.dy;
-      } else if (wakeMotion) {
-        // Wakes up and looks right at the returning mouse pointer with lively shimmer
-        dx = tx + wakeMotion.gazeJitterDx;
-        dy = ty + wakeMotion.gazeJitterDy;
-      } else {
-        if (mOpen && now - lastPtr > 1600) {
-          // Look curiously toward open Settings / Legal drawer
-          dx = 0.72;
-          dy = Math.sin(now * 0.0008) * 0.08;
-        } else if (hQuery && foc && !mOpen) {
-          dx = cRatio * 0.75;
-          dy = 0.42;
-        } else if (foc && !mOpen && now - lastPtr > 4500) {
-          dx = cRatio * 0.75;
-          dy = 0.42;
-        } else if (!drag && !mOpen && !reduceMotion && now - lastPtr > 2400) {
-          dx += Math.sin(now * 0.00037) * 0.09;
-          dy += Math.sin(now * 0.00051 + 1) * 0.06;
-        }
-      }
-
-      if (currentPresence === 'awake') {
-        if (foc && !mOpen && !R.on && now > nextThink) {
-          triggerReaction('think', undefined, true);
-          nextThink = now + 8000 + Math.random() * 6000;
-        } else if (
-          bPhase === 'ready' &&
-          !foc &&
-          !mOpen &&
-          !drag &&
-          !R.on &&
-          !reduceMotion &&
-          now - lastPtr > 2200 &&
-          now > nextIdleAct
-        ) {
-          const idleType = IDLE_POOL[idlePoolIdx % IDLE_POOL.length];
-          idlePoolIdx = (idlePoolIdx + 1) % IDLE_POOL.length;
-          const idleDir = idlePoolIdx % 2 === 0 ? 1 : -1;
-          reactionRef.current = {
-            on: true,
-            type: idleType,
-            t0: now,
-            dur: DURATIONS[idleType],
-            dir: idleDir,
-          };
-          setActiveReactionLabel(idleType);
-          playReactionSound(idleType, true);
-          nextIdleAct = now + DURATIONS[idleType] + 4800 + Math.random() * 4200;
-        }
-      }
-
-      let rt = -1;
-      let tRot =
-        currentPresence === 'awake' && !mOpen && !reduceMotion && !R.on
-          ? Math.sin(now * 0.00085) * 1.35
-          : 0;
-
-      if (R.on) {
-        rt = (now - R.t0) / R.dur;
-        if (rt >= 1) {
-          R.on = false;
-          rt = -1;
-          if (currentPresence === 'awake') setActiveReactionLabel('idle');
-        }
-      }
-      const b =
-        rt < 0
-          ? 0
-          : R.type === 'think' ||
-              R.type === 'happy' ||
-              R.type === 'judge' ||
-              R.type === 'perplexed' ||
-              R.type === 'curious' ||
-              R.type === 'content'
-            ? hold(rt)
-            : bell(rt);
-
-      if (currentPresence === 'awake' && rt >= 0) {
-        if (R.type === 'glance') {
-          dx = dx * (1 - b) + R.dir * 0.84 * b;
-          dy = dy * (1 - b) - 0.36 * b;
-          tRot = R.dir * b * 7;
-        } else if (R.type === 'think') {
-          dx = dx * (1 - b) + (0.68 + Math.sin(rt * Math.PI * 3) * 0.08) * b;
-          dy = dy * (1 - b) + (-0.62 + Math.cos(rt * Math.PI * 2) * 0.05) * b;
-        } else if (R.type === 'sleepy') {
-          dy = dy * (1 - b * 0.75) + 0.4 * b;
-          tRot = R.dir * b * 3;
-        } else if (R.type === 'judge') {
-          dx = dx * (1 - b) + (0.78 + Math.sin(rt * Math.PI * 2.5) * 0.09) * b;
-          dy = dy * (1 - b) - 0.05 * b;
-          tRot = -b * (6 + Math.sin(rt * Math.PI * 2) * 1.5);
-        } else if (R.type === 'perplexed') {
-          dx = dx * (1 - b) + (0.72 + Math.cos(rt * Math.PI * 2.5) * 0.08) * b;
-          dy = dy * (1 - b) + (-0.14 + Math.sin(rt * Math.PI * 2) * 0.04) * b;
-          tRot = b * (8.5 + Math.sin(rt * Math.PI * 3) * 1.8);
-        } else if (R.type === 'curious') {
-          dx = dx * (1 - b) + R.dir * (0.48 + Math.sin(rt * Math.PI * 2) * 0.08) * b;
-          dy = dy * (1 - b) - 0.18 * b;
-          tRot = R.dir * b * (6.5 + Math.sin(rt * Math.PI * 2.5) * 1.4);
-        } else if (R.type === 'peek') {
-          dx = dx * (1 - b) + R.dir * 0.66 * b;
-          dy = dy * (1 - b) - 0.34 * b;
-          tRot = R.dir * b * 5.2;
-        } else if (R.type === 'content') {
-          dy = dy * (1 - b * 0.4) - 0.06 * b;
-          tRot = Math.sin(rt * Math.PI * 2) * 2.2;
-        }
-      }
-
-      const wt = currentPresence === 'awake' && R.on && R.type === 'think' && rt > 0.04 && rt < 0.9;
-      if (wt !== thinkOn) {
-        thinkOn = wt;
-        thinkRef.current?.classList.toggle('on', wt);
-      }
-
-      const sx = damp(GX, dx, 0.17, dt);
-      const sy = damp(GY, dy, 0.17, dt);
-      const bx = damp(BX, dx, 0.36, dt);
-      const by = damp(BY, dy, 0.36, dt);
+      const sx = damp(GX, targetDx, 0.17, dt);
+      const sy = damp(GY, targetDy, 0.17, dt);
+      const bx = damp(BX, targetDx, 0.36, dt);
+      const by = damp(BY, targetDy, 0.36, dt);
 
       const D = Math.max(44, Draw);
       const eW = D * 0.188;
       const eH = D * 0.405;
       const baseGap = D * 0.278;
-      // Keep gentle living breath in away-serious and sleeping; pause only on reduced motion
-      const br = reduceMotion
-        ? 0
-        : sleepMotion
-          ? sleepMotion.breath
-          : awayMotion
-            ? awayMotion.breath
-            : Math.sin(now * 0.0021);
-      let tScX = 1 + br * (sleepMotion ? 0.0095 : 0.006);
-      let tScY = 1 - br * (sleepMotion ? 0.009 : 0.006);
-      let tLW = 1;
-      let tLH = 1;
-      let tRW = 1;
-      let tRH = 1;
-      let tLY = 0;
-      let tRY = 0;
-      let tArcBottom = 0;
-      let tLFlatTop = 0;
-      let tRFlatTop = 0;
-      let tLT = -4.2 - sx * 6.5;
-      let tRT = 4.2 - sx * 6.5;
 
-      if (awayMotion) {
-        // Alive "seriously?" face with impatient glances, asymmetrical tension & occasional half-blinks
-        tRot = awayMotion.rot;
-        tLW = 1.12;
-        tRW = 1.12;
-        tLH = awayMotion.leftHeightMul;
-        tRH = awayMotion.rightHeightMul;
-        tLY = D * 0.012;
-        tRY = D * 0.012;
-        tLT = 2.5 - sx * 2.5;
-        tRT = -2.5 - sx * 2.5;
-        tLFlatTop = 0.94;
-        tRFlatTop = 0.94;
-        tArcBottom = 0;
-      } else if (sleepMotion) {
-        // Peaceful sleeping breath & subtle dreaming lid rise while Zzz floats above
-        tRot = sleepMotion.rot;
-        tLW = 1.18;
-        tRW = 1.18;
-        tLH = sleepMotion.lidHeightMul;
-        tRH = sleepMotion.lidHeightMul;
-        tLY = sleepMotion.lidY;
-        tRY = sleepMotion.lidY;
-        tLT = 5;
-        tRT = -5;
-        tLFlatTop = 0.85;
-        tRFlatTop = 0.85;
-        tArcBottom = 0;
-      } else if (wakeMotion) {
-        // Wakes up smiling with joyful bounce & happy crescent eyes tracking returning pointer
-        tRot = sx * 4.5 + wakeMotion.rotOffset;
-        tScX *= 1.028;
-        tScY *= 1.028;
-        tLH *= wakeMotion.heightMul;
-        tRH *= wakeMotion.heightMul;
-        tLW *= wakeMotion.widthMul;
-        tRW *= wakeMotion.widthMul;
-        tLY = -D * 0.024 + wakeMotion.eyeBounceY;
-        tRY = -D * 0.024 + wakeMotion.eyeBounceY;
-        tLT -= 7;
-        tRT += 7;
-        tArcBottom = 0.95;
-      } else if (rt >= 0) {
-        switch (R.type) {
-          case 'wink':
-            if (R.dir < 0) {
-              tLH *= 1 - b * 0.88;
-              tLW *= 1 + b * 0.2;
-              tLT -= b * 7;
-              tRH *= 1 + b * 0.06;
-            } else {
-              tRH *= 1 - b * 0.88;
-              tRW *= 1 + b * 0.2;
-              tRT += b * 7;
-              tLH *= 1 + b * 0.06;
-            }
-            tRot += R.dir * b * 4;
-            break;
-          case 'surprise':
-            tScX *= 1 + b * 0.03;
-            tScY *= 1 + b * 0.03;
-            tLW *= 1 + b * 0.22;
-            tRW *= 1 + b * 0.22;
-            tLH *= 1 + b * 0.16;
-            tRH *= 1 + b * 0.16;
-            break;
-          case 'happy':
-            tScX *= 1 + b * 0.025;
-            tScY *= 1 + b * 0.025;
-            tLH *= 1 - b * (0.58 - Math.sin(rt * Math.PI * 3) * 0.05);
-            tRH *= 1 - b * (0.58 - Math.sin(rt * Math.PI * 3) * 0.05);
-            tLW *= 1 + b * 0.26;
-            tRW *= 1 + b * 0.26;
-            tLY = tRY = -b * (D * 0.026 + Math.abs(Math.sin(rt * Math.PI * 3)) * D * 0.01);
-            tLT -= b * 7;
-            tRT += b * 7;
-            tArcBottom = b;
-            break;
-          case 'glance':
-            tLW *= 1 + b * 0.1;
-            tRH *= 1 - b * 0.3;
-            tRW *= 1 + b * 0.14;
-            tLT -= b * 8;
-            tRT += b * 5;
-            break;
-          case 'sleepy':
-            tScY *= 1 - b * 0.02;
-            tLH *= 1 - b * 0.7;
-            tRH *= 1 - b * 0.7;
-            tLW *= 1 + b * 0.16;
-            tRW *= 1 + b * 0.16;
-            tLY = tRY = b * D * 0.026;
-            tLT += b * 5;
-            tRT -= b * 5;
-            break;
-          case 'think':
-            tLH *= 1 - b * 0.22;
-            tRH *= 1 - b * 0.1;
-            tLT -= b * 6;
-            tRT += b * 2;
-            break;
-          case 'judge':
-            tLH *= 1 - b * 0.52;
-            tRH *= 1 - b * 0.52;
-            tLW *= 1 + b * 0.14;
-            tRW *= 1 + b * 0.14;
-            tLY = tRY = b * D * 0.018;
-            tLT += b * 4;
-            tRT -= b * 4;
-            tLFlatTop = b * 0.9;
-            tRFlatTop = b * 0.9;
-            break;
-          case 'perplexed':
-            tLH *= 1 - b * 0.44;
-            tLW *= 1 + b * 0.08;
-            tLY = b * D * 0.022;
-            tLT += b * 11;
-            tLFlatTop = b * 0.75;
-            tRH *= 1 + b * 0.15;
-            tRW *= 1 + b * 0.12;
-            tRY = -b * D * 0.02;
-            tRT -= b * 8;
-            break;
-          case 'curious':
-            tLH *= 1 + b * 0.08;
-            tRH *= 1 - b * 0.16;
-            tLT -= b * 5;
-            tRT += b * 6;
-            break;
-          case 'peek':
-            tLW *= 1 + b * 0.14;
-            tRW *= 1 + b * 0.14;
-            tLH *= 1 + b * 0.12;
-            tRH *= 1 + b * 0.12;
-            break;
-          case 'content':
-            tScX *= 1 + b * 0.015;
-            tScY *= 1 + b * 0.015;
-            tLH *= 1 - b * 0.48;
-            tRH *= 1 - b * 0.48;
-            tLW *= 1 + b * 0.2;
-            tRW *= 1 + b * 0.2;
-            tLY = tRY = -b * D * 0.02;
-            tLT -= b * 5;
-            tRT += b * 5;
-            tArcBottom = b * 0.85;
-            break;
-        }
-      }
+      const tLT = -4.2 - sx * 6.5 + serverPose.tLTBias;
+      const tRT = 4.2 - sx * 6.5 + serverPose.tRTBias;
 
-      // Smoothly damp all expression channels so transitions between ANY two animations are seamless
-      const rot = damp(EROT, tRot, 0.14, dt);
-      const scX = damp(ESCX, tScX, 0.14, dt);
-      const scY = damp(ESCY, tScY, 0.14, dt);
-      let lW = damp(ELW, tLW, 0.12, dt);
-      let lH = damp(ELH, tLH, 0.12, dt);
-      let rW = damp(ERW, tRW, 0.12, dt);
-      let rH = damp(ERH, tRH, 0.12, dt);
-      const lY = damp(ELY, tLY, 0.12, dt);
-      const rY = damp(ERY, tRY, 0.12, dt);
+      const rot = damp(EROT, serverPose.tRot, 0.14, dt);
+      const scX = damp(ESCX, serverPose.tScX, 0.14, dt);
+      const scY = damp(ESCY, serverPose.tScY, 0.14, dt);
+      let lW = damp(ELW, serverPose.tLW, 0.12, dt);
+      let lH = damp(ELH, serverPose.tLH, 0.12, dt);
+      let rW = damp(ERW, serverPose.tRW, 0.12, dt);
+      let rH = damp(ERH, serverPose.tRH, 0.12, dt);
+      const lY = damp(ELY, serverPose.tLY, 0.12, dt);
+      const rY = damp(ERY, serverPose.tRY, 0.12, dt);
       const lT = damp(ELT, tLT, 0.12, dt);
       const rT = damp(ERT, tRT, 0.12, dt);
-      const arcBottom = Math.max(0, damp(EARC, tArcBottom, 0.12, dt));
-      const lFlatTop = Math.max(0, damp(ELFLAT, tLFlatTop, 0.12, dt));
-      const rFlatTop = Math.max(0, damp(ERFLAT, tRFlatTop, 0.12, dt));
+      const arcBottom = Math.max(0, damp(EARC, serverPose.tArcBottom, 0.12, dt));
+      const lFlatTop = Math.max(0, damp(ELFLAT, serverPose.tLFlatTop, 0.12, dt));
+      const rFlatTop = Math.max(0, damp(ERFLAT, serverPose.tRFlatTop, 0.12, dt));
 
-      // Apply natural blinks only while awake and not running special states
-      if (currentPresence === 'awake' && !BL.on && !R.on && now >= BL.next) {
+      if (serverPose.allowNaturalBlink && !BL.on && now >= BL.next) {
         BL.on = true;
         BL.t0 = now;
         if (BL.doubleLeft === 0 && Math.random() < 0.28) {
@@ -879,15 +624,7 @@ export const OrbitBot = memo(function OrbitBot({
       const lh = Math.max(4, eH * lH * les * vfy);
       const rw = Math.max(4, eW * rW * res * rfx);
       const rh = Math.max(4, eH * rH * res * vfy);
-      const targetBobY =
-        reduceMotion || mOpen
-          ? 0
-          : sleepMotion
-            ? sleepMotion.bobY
-            : awayMotion
-              ? awayMotion.bobY
-              : Math.sin(now * 0.00145) * D * 0.011;
-      const idleBobY = damp(BOB_Y, targetBobY, 0.24, dt);
+      const idleBobY = damp(BOB_Y, serverPose.tBobY, 0.24, dt);
 
       if (botRef.current) {
         const botTf = `translate3d(${(bx * D * 0.038).toFixed(2)}px,${(by * D * 0.038 + idleBobY).toFixed(2)}px,0) rotate(${rot.toFixed(2)}deg) scale(${scX.toFixed(4)},${scY.toFixed(4)})`;
@@ -903,10 +640,20 @@ export const OrbitBot = memo(function OrbitBot({
       rafId = requestAnimationFrame(tick);
     };
 
-    rafId = requestAnimationFrame(tick);
+    resumeLoopRef.current = () => {
+      if (!isDisposed && !propsRef.current.paused && rafId === 0) {
+        lastTime = performance.now();
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    if (!propsRef.current.paused) {
+      rafId = requestAnimationFrame(tick);
+    }
 
     return () => {
-      cancelAnimationFrame(rafId);
+      isDisposed = true;
+      if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
@@ -924,16 +671,21 @@ export const OrbitBot = memo(function OrbitBot({
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     unlockOrbitAudio();
-    let idx = Math.floor(Math.random() * POOL.length);
-    if (idx === lastIndexRef.current) idx = (idx + 1) % POOL.length;
-    lastIndexRef.current = idx;
-    triggerReaction(POOL[idx], e.clientX);
+    const botCenterX =
+      (propsRef.current.horizontalPercent / 100) * (propsRef.current.viewportWidth || window.innerWidth);
+    const dir = e.clientX < botCenterX ? -1 : 1;
+    pendingEventRef.current = {
+      kind: 'click',
+      dir,
+      nonce: Date.now() + Math.random(),
+    };
+    urgentSyncRef.current();
     onBotClick?.();
   };
 
   const isVisible = bootPhase === 'pop' || bootPhase === 'ready';
-  const leftPx = (horizontalPercent / 100) * viewportWidth - botSize / 2;
-  const topPx = botCenterY - botSize / 2;
+  const leftPx = (horizontalPercent / 100) * viewportWidth - renderSize / 2;
+  const topPx = botCenterY - renderSize / 2;
 
   return (
     <>
@@ -944,24 +696,42 @@ export const OrbitBot = memo(function OrbitBot({
         data-testid="orbit-bot-wrapper"
         className="absolute left-0 top-0 z-40"
         style={{
-          width: `${botSize.toFixed(2)}px`,
-          height: `${botSize.toFixed(2)}px`,
-          transform: `translate3d(${leftPx.toFixed(2)}px, ${topPx.toFixed(2)}px, 0)`,
-          opacity: isVisible ? 1 : 0,
-          pointerEvents: isVisible ? 'auto' : 'none',
-          willChange: 'transform',
+          width: `${renderSize.toFixed(2)}px`,
+          height: `${renderSize.toFixed(2)}px`,
+          transformOrigin: 'center center',
+          transform: `translate3d(${leftPx.toFixed(2)}px, ${topPx.toFixed(2)}px, 0) scale(${visualScale.toFixed(4)})`,
+          opacity: isVisible && !hidden ? 1 : 0,
+          pointerEvents: isVisible && !hidden ? 'auto' : 'none',
+          willChange: 'transform, opacity',
           transition: animateStageTransition
-            ? 'transform 620ms cubic-bezier(0.22, 1, 0.36, 1), width 500ms cubic-bezier(0.22, 1, 0.36, 1), height 500ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out'
-            : 'opacity 220ms ease-out',
+            ? 'transform 720ms cubic-bezier(0.16, 1, 0.3, 1), opacity 280ms cubic-bezier(0.16, 1, 0.3, 1)'
+            : 'opacity 280ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
           ref={scaleWrapRef}
           className={`relative w-full h-full ${bootPhase === 'pop' ? 'animate-bot-pop' : ''}`}
-          style={{ ['--k' as string]: scale.toFixed(4) }}
+          style={{ ['--k' as string]: innerBubbleScale.toFixed(4) }}
         >
-          {/* Single crisp fixed orbital ring around the sphere (zero glow, no satellite dot) */}
-          <div data-testid="orbit-single-ring" className="orbit-ring-track" />
+          {/* Single crisp proportional orbital ring */}
+          <svg
+            data-testid="orbit-single-ring"
+            viewBox="0 0 100 100"
+            aria-hidden="true"
+            className="absolute left-1/2 top-1/2 w-[126%] h-[126%] -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-visible"
+          >
+            <circle
+              cx="50"
+              cy="50"
+              r={ORB_RING_RADIUS_VB}
+              fill="none"
+              strokeWidth={ORB_RING_STROKE_VB}
+              style={{
+                stroke: 'color-mix(in srgb, var(--acc) 82%, transparent)',
+                transition: 'stroke 0.45s var(--soft)',
+              }}
+            />
+          </svg>
 
           {/* Bot sphere */}
           <button
@@ -969,6 +739,7 @@ export const OrbitBot = memo(function OrbitBot({
             type="button"
             data-reaction={activeReactionLabel}
             data-presence={presenceState}
+            data-standby={standbyMode ? 'true' : 'false'}
             onClick={handleClick}
             aria-label={ariaLabel}
             className="relative w-full h-full rounded-full border-0 p-0 flex items-center justify-center cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--acc)]"
@@ -1003,7 +774,7 @@ export const OrbitBot = memo(function OrbitBot({
             </svg>
           </button>
 
-          {/* Sleeping Zzz floating above Orb's head (only visible animation while asleep) */}
+          {/* Sleeping Zzz floating above Orb's head */}
           {presenceState === 'sleeping' && (
             <div
               data-testid="orb-sleep-zzz"
@@ -1025,14 +796,14 @@ export const OrbitBot = memo(function OrbitBot({
           <div
             id="think-bubble"
             ref={thinkRef}
-            className="absolute left-[calc(86%-10px)] top-[calc(17%-84px)] pointer-events-none z-20"
+            className="absolute left-[86%] top-[17%] w-0 h-0 pointer-events-none z-20"
             aria-hidden="true"
           >
             <svg
               width="130"
               height="96"
               viewBox="0 0 130 96"
-              className="block overflow-visible"
+              className="block overflow-visible absolute -left-[10px] -top-[84px]"
               style={{
                 transform: 'scale(var(--k, 1))',
                 transformOrigin: '10px 84px',

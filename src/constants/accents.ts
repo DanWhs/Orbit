@@ -1,4 +1,4 @@
-import { AccentId, AccentPreset } from '../types/orbit';
+import { AccentId, AccentPreset, AccentValue } from '../types/orbit';
 
 export const ACCENT_PRESETS: AccentPreset[] = [
   {
@@ -135,8 +135,87 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 
 export const DEFAULT_ACCENT_ID: AccentId = 'neon-orange';
 
-export function getAccentPreset(id: AccentId | string | null | undefined): AccentPreset {
+export function getAccentPreset(id: AccentValue | string | null | undefined): AccentPreset {
   return ACCENT_PRESETS.find((p) => p.id === id) ?? ACCENT_PRESETS[0];
+}
+
+export function normalizeHexColor(val: string | null | undefined): `#${string}` | null {
+  if (typeof val !== 'string') return null;
+  const trimmed = val.trim();
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  if (!/^#[0-9a-fA-F]{6}$/.test(withHash)) return null;
+  return withHash.toUpperCase() as `#${string}`;
+}
+
+function relativeLuminance(r: number, g: number, b: number): number {
+  const toLin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+}
+
+export interface ResolvedAccentTokens {
+  hex: string;
+  lightTextHex: string;
+  fgOnAccent: '#07090F' | '#FFFFFF';
+  isCustom: boolean;
+  presetId: AccentId | null;
+}
+
+export function resolveAccentTokens(accentValue: AccentValue | string | null | undefined): ResolvedAccentTokens {
+  const matchedPreset = ACCENT_PRESETS.find((p) => p.id === accentValue);
+  if (matchedPreset) {
+    return {
+      hex: matchedPreset.hex,
+      lightTextHex: matchedPreset.lightTextHex,
+      fgOnAccent: matchedPreset.fgOnAccent,
+      isCustom: false,
+      presetId: matchedPreset.id,
+    };
+  }
+
+  const customHex = normalizeHexColor(accentValue);
+  if (customHex) {
+    const bigint = parseInt(customHex.slice(1), 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    const lum = relativeLuminance(r, g, b);
+    const fgOnAccent: '#07090F' | '#FFFFFF' = lum > 0.36 ? '#07090F' : '#FFFFFF';
+
+    let lightTextHex: string = customHex;
+    if (lum > 0.25) {
+      const factor = Math.max(0.32, Math.min(0.75, Math.sqrt(0.24 / lum)));
+      const dr = Math.round(r * factor)
+        .toString(16)
+        .padStart(2, '0');
+      const dg = Math.round(g * factor)
+        .toString(16)
+        .padStart(2, '0');
+      const db = Math.round(b * factor)
+        .toString(16)
+        .padStart(2, '0');
+      lightTextHex = `#${dr}${dg}${db}`.toUpperCase();
+    }
+
+    return {
+      hex: customHex,
+      lightTextHex,
+      fgOnAccent,
+      isCustom: true,
+      presetId: null,
+    };
+  }
+
+  const fallback = ACCENT_PRESETS[0];
+  return {
+    hex: fallback.hex,
+    lightTextHex: fallback.lightTextHex,
+    fgOnAccent: fallback.fgOnAccent,
+    isCustom: false,
+    presetId: fallback.id,
+  };
 }
 
 export function hexToRgb(hex: string): string {
@@ -148,4 +227,3 @@ export function hexToRgb(hex: string): string {
   const b = bigint & 255;
   return `${r}, ${g}, ${b}`;
 }
-

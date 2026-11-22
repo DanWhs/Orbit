@@ -8,11 +8,25 @@ export interface UiDictionary {
   clearHistoryLabel: string;
   settingsAria: string;
   settingsTitle: string;
+  settingsBreadcrumbLabel: string;
   settingsSubtitle: string;
+  settingsTabAppearance: string;
+  settingsTabExperience: string;
+  settingsTabQuickLinks: string;
+  settingsTabAi: string;
+  settingsTabPrivacy: string;
   themeLabel: string;
+  themeSystem: string;
   themeDark: string;
   themeLight: string;
   accentLabel: string;
+  accentCustomLabel: string;
+  accentCustomHint: string;
+  betaTag: string;
+  introSectionLabel: string;
+  alwaysShowIntroLabel: string;
+  alwaysShowIntroHint: string;
+  languageRegionSectionLabel: string;
   quickLinksLabel: string;
   quickLinksLimitNote: string;
   quickLinkTitlePlaceholder: string;
@@ -29,6 +43,7 @@ export interface UiDictionary {
   footerLegalLink: string;
   regionSelectorAria: string;
   legalModalTitle: string;
+  legalBreadcrumbLabel: string;
   legalJurisdictionBadge: string;
   legalSearchPlaceholder: string;
   legalSearchClear: string;
@@ -58,6 +73,17 @@ export interface UiDictionary {
   settingsCookieTitle: string;
   settingsCookieSubtitle: string;
   botAriaLabel: string;
+  aiComingSoonTitle: string;
+  aiComingSoonDesc: string;
+  standbyButtonLabel: string;
+  standbyAriaLabel: string;
+  standbyExitHint: string;
+  weatherClear: string;
+  weatherCloudy: string;
+  weatherFog: string;
+  weatherRain: string;
+  weatherSnow: string;
+  weatherStorm: string;
 }
 
 export const LOCALE_REGION_OPTIONS: LocaleRegionOption[] = [
@@ -79,11 +105,25 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     clearHistoryLabel: 'Cancella cronologia',
     settingsAria: 'Apri impostazioni',
     settingsTitle: 'Impostazioni Orbit',
-    settingsSubtitle: 'Personalizza aspetto, colore fluo e collegamenti rapidi salvati localmente.',
+    settingsBreadcrumbLabel: 'impostazioni',
+    settingsSubtitle: 'Personalizza aspetto, esperienza d’avvio, collegamenti rapidi e privacy.',
+    settingsTabAppearance: 'Aspetto',
+    settingsTabExperience: 'Esperienza',
+    settingsTabQuickLinks: 'Link rapidi',
+    settingsTabAi: 'Features AI',
+    settingsTabPrivacy: 'Privacy',
     themeLabel: 'Tema interfaccia',
+    themeSystem: 'In base al dispositivo',
     themeDark: 'Scuro',
     themeLight: 'Chiaro',
     accentLabel: 'Colore di accento Fluo',
+    accentCustomLabel: 'Colore personalizzato',
+    accentCustomHint: 'Scegli qualsiasi tonalità per Orbit e i dettagli dell’interfaccia.',
+    betaTag: 'BETA',
+    introSectionLabel: 'Avvio e animazione',
+    alwaysShowIntroLabel: 'Mostra sempre intro',
+    alwaysShowIntroHint: 'Dopo il primo accesso e la scelta dei cookie l’intro si disattiva. Attiva per vederla ad ogni apertura.',
+    languageRegionSectionLabel: 'Lingua e area legale',
     quickLinksLabel: 'Collegamenti rapidi',
     quickLinksLimitNote: 'Massimo 4 link rapidi sotto la barra di ricerca',
     quickLinkTitlePlaceholder: 'Titolo (es. GitHub)',
@@ -100,6 +140,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Note Legali e Informativa Privacy',
     regionSelectorAria: 'Seleziona lingua e giurisdizione legale',
     legalModalTitle: 'Note Legali, Privacy e Conformità 2026',
+    legalBreadcrumbLabel: 'Note legali',
     legalJurisdictionBadge: 'Giurisdizione attiva',
     legalSearchPlaceholder: 'Cerca nel documento (es. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Pulisci ricerca',
@@ -114,7 +155,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Rifiuta non essenziali',
     cookieCustomize: 'Personalizza scelte',
     cookieSaveCustom: 'Salva preferenze',
-    cookieFunctionalToggle: 'Suggerimenti di ricerca esterni (Wikipedia / DuckDuckGo API)',
+    cookieFunctionalToggle: 'Suggerimenti di ricerca esterni (DuckDuckGo / Google Suggest)',
     cookieAnalyticsToggle: 'Diagnostica anonima locale',
     cookieRevisitHint: 'Puoi modificare o revocare le tue scelte in qualsiasi momento da questo pannello senza alcuna penalizzazione.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information (Opt-Out USA)',
@@ -129,6 +170,18 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Preferenze Cookie e Privacy',
     settingsCookieSubtitle: 'Modifica in qualsiasi momento le scelte sui cookie salvate localmente.',
     botAriaLabel: 'Assistente Orbit interattivo, clicca per una reazione',
+    aiComingSoonTitle: 'coming soon...',
+    aiComingSoonDesc:
+      'Orb non sarà più soltanto una mascotte interattiva, ma diventerà anche un vero segretario personale e aiutante intelligente in tutte le tue attività quotidiane e ricerche sul web.',
+    standbyButtonLabel: 'Modalità standby',
+    standbyAriaLabel: 'Attiva modalità standby desktop',
+    standbyExitHint: 'Clicca per uscire',
+    weatherClear: 'Sereno',
+    weatherCloudy: 'Nuvoloso',
+    weatherFog: 'Nebbia',
+    weatherRain: 'Pioggia',
+    weatherSnow: 'Neve',
+    weatherStorm: 'Temporale',
   },
   en: {
     searchPlaceholder: 'Search or enter a web address',
@@ -137,11 +190,25 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     clearHistoryLabel: 'Clear history',
     settingsAria: 'Open settings',
     settingsTitle: 'Orbit Settings',
-    settingsSubtitle: 'Customize theme, neon accent color, and quick links saved locally on your device.',
+    settingsBreadcrumbLabel: 'settings',
+    settingsSubtitle: 'Customize appearance, startup experience, quick links, and privacy.',
+    settingsTabAppearance: 'Appearance',
+    settingsTabExperience: 'Experience',
+    settingsTabQuickLinks: 'Quick Links',
+    settingsTabAi: 'AI Features',
+    settingsTabPrivacy: 'Privacy',
     themeLabel: 'Interface Theme',
+    themeSystem: 'Match device',
     themeDark: 'Dark',
     themeLight: 'Light',
     accentLabel: 'Fluo Accent Color',
+    accentCustomLabel: 'Custom color',
+    accentCustomHint: 'Pick any hue for Orbit and interface highlights.',
+    betaTag: 'BETA',
+    introSectionLabel: 'Startup & Animation',
+    alwaysShowIntroLabel: 'Always show intro',
+    alwaysShowIntroHint: 'After your first visit and cookie choice, the intro turns off automatically. Enable to show it every time.',
+    languageRegionSectionLabel: 'Language & Region',
     quickLinksLabel: 'Quick Links',
     quickLinksLimitNote: 'Up to 4 quick links displayed below the search bar',
     quickLinkTitlePlaceholder: 'Title (e.g. GitHub)',
@@ -158,6 +225,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Legal Notice & Privacy Policy',
     regionSelectorAria: 'Select language and legal jurisdiction',
     legalModalTitle: 'Legal Notice, Privacy & 2026 Compliance',
+    legalBreadcrumbLabel: 'Legal Notice',
     legalJurisdictionBadge: 'Active Jurisdiction',
     legalSearchPlaceholder: 'Search document (e.g. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Clear search',
@@ -172,7 +240,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Reject Non-Essential',
     cookieCustomize: 'Customize Choices',
     cookieSaveCustom: 'Save Preferences',
-    cookieFunctionalToggle: 'External search autocomplete suggestions (Wikipedia / DuckDuckGo API)',
+    cookieFunctionalToggle: 'External search autocomplete suggestions (DuckDuckGo / Google Suggest)',
     cookieAnalyticsToggle: 'Local diagnostic metrics',
     cookieRevisitHint: 'You may review, modify, or withdraw your consent at any time from this panel with zero friction.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information (US Opt-Out)',
@@ -187,6 +255,18 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Cookie & Privacy Preferences',
     settingsCookieSubtitle: 'Update your locally saved cookie preferences at any time.',
     botAriaLabel: 'Interactive Orbit mascot, click for a reaction',
+    aiComingSoonTitle: 'coming soon...',
+    aiComingSoonDesc:
+      'Orb will evolve beyond being just an interactive mascot — becoming a personal secretary and dedicated assistant across all your tasks and web searches.',
+    standbyButtonLabel: 'Standby mode',
+    standbyAriaLabel: 'Enter desktop standby mode',
+    standbyExitHint: 'Click to exit',
+    weatherClear: 'Clear',
+    weatherCloudy: 'Cloudy',
+    weatherFog: 'Fog',
+    weatherRain: 'Rain',
+    weatherSnow: 'Snow',
+    weatherStorm: 'Storm',
   },
   fr: {
     searchPlaceholder: 'Rechercher ou saisir une adresse web',
@@ -195,11 +275,25 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     clearHistoryLabel: 'Effacer l’historique',
     settingsAria: 'Ouvrir les paramètres',
     settingsTitle: 'Paramètres Orbit',
-    settingsSubtitle: 'Personnalisez le thème, la couleur fluo et vos raccourcis enregistrés localement.',
+    settingsBreadcrumbLabel: 'paramètres',
+    settingsSubtitle: 'Personnalisez l’apparence, le démarrage, vos raccourcis et la confidentialité.',
+    settingsTabAppearance: 'Apparence',
+    settingsTabExperience: 'Expérience',
+    settingsTabQuickLinks: 'Accès rapides',
+    settingsTabAi: 'Fonctionnalités IA',
+    settingsTabPrivacy: 'Confidentialité',
     themeLabel: 'Thème de l’interface',
+    themeSystem: 'Selon l’appareil',
     themeDark: 'Sombre',
     themeLight: 'Clair',
     accentLabel: 'Couleur d’accent Fluo',
+    accentCustomLabel: 'Couleur personnalisée',
+    accentCustomHint: 'Choisissez n’importe quelle nuance pour Orbit et l’interface.',
+    betaTag: 'BETA',
+    introSectionLabel: 'Démarrage et animation',
+    alwaysShowIntroLabel: 'Toujours afficher l’intro',
+    alwaysShowIntroHint: 'Après votre premier accès et le choix des cookies, l’intro se désactive. Activez pour la revoir toujours.',
+    languageRegionSectionLabel: 'Langue et région',
     quickLinksLabel: 'Accès rapides',
     quickLinksLimitNote: 'Maximum 4 liens rapides sous la barre de recherche',
     quickLinkTitlePlaceholder: 'Titre (ex. GitHub)',
@@ -216,6 +310,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Mentions Légales et Confidentialité',
     regionSelectorAria: 'Sélectionner la langue et la juridiction',
     legalModalTitle: 'Mentions Légales, Confidentialité et Conformité 2026',
+    legalBreadcrumbLabel: 'Mentions légales',
     legalJurisdictionBadge: 'Juridiction active',
     legalSearchPlaceholder: 'Rechercher (ex. cookie, GitHub, open-source, IA, CCPA)...',
     legalSearchClear: 'Effacer',
@@ -230,7 +325,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Tout refuser',
     cookieCustomize: 'Personnaliser',
     cookieSaveCustom: 'Enregistrer',
-    cookieFunctionalToggle: 'Suggestions de recherche externes (API Wikipedia / DuckDuckGo)',
+    cookieFunctionalToggle: 'Suggestions de recherche externes (DuckDuckGo / Google Suggest)',
     cookieAnalyticsToggle: 'Métriques de diagnostic locales',
     cookieRevisitHint: 'Vous pouvez modifier ou retirer votre consentement à tout moment ici.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -245,6 +340,18 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Préférences Cookies & Confidentialité',
     settingsCookieSubtitle: 'Modifiez à tout moment vos choix enregistrés localement.',
     botAriaLabel: 'Mascotte Orbit interactive, cliquer pour une réaction',
+    aiComingSoonTitle: 'coming soon...',
+    aiComingSoonDesc:
+      'Orb ne sera pas seulement une mascotte, mais aussi un véritable secrétaire personnel et assistant dans toutes vos activités et recherches.',
+    standbyButtonLabel: 'Mode veille',
+    standbyAriaLabel: 'Activer le mode veille bureau',
+    standbyExitHint: 'Cliquez pour quitter',
+    weatherClear: 'Dégagé',
+    weatherCloudy: 'Nuageux',
+    weatherFog: 'Brouillard',
+    weatherRain: 'Pluie',
+    weatherSnow: 'Neige',
+    weatherStorm: 'Orage',
   },
   de: {
     searchPlaceholder: 'Suchen oder Webadresse eingeben',
@@ -253,11 +360,25 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     clearHistoryLabel: 'Verlauf löschen',
     settingsAria: 'Einstellungen öffnen',
     settingsTitle: 'Orbit-Einstellungen',
-    settingsSubtitle: 'Design, Neon-Akzentfarbe und lokal gespeicherte Schnellzugriffe anpassen.',
+    settingsBreadcrumbLabel: 'einstellungen',
+    settingsSubtitle: 'Design, Start-Erlebnis, Schnellzugriffe und Datenschutz anpassen.',
+    settingsTabAppearance: 'Design',
+    settingsTabExperience: 'Erlebnis',
+    settingsTabQuickLinks: 'Schnellzugriffe',
+    settingsTabAi: 'KI-Funktionen',
+    settingsTabPrivacy: 'Datenschutz',
     themeLabel: 'Erscheinungsbild',
+    themeSystem: 'Wie Gerät',
     themeDark: 'Dunkel',
     themeLight: 'Hell',
     accentLabel: 'Fluo-Akzentfarbe',
+    accentCustomLabel: 'Eigene Farbe',
+    accentCustomHint: 'Wähle einen beliebigen Farbton für Orbit und Akzente.',
+    betaTag: 'BETA',
+    introSectionLabel: 'Start & Animation',
+    alwaysShowIntroLabel: 'Intro immer anzeigen',
+    alwaysShowIntroHint: 'Nach dem ersten Besuch und der Cookie-Wahl wird das Intro deaktiviert. Aktivieren für jedes Öffnen.',
+    languageRegionSectionLabel: 'Sprache & Region',
     quickLinksLabel: 'Schnellzugriffe',
     quickLinksLimitNote: 'Maximal 4 Schnellzugriffe unter der Suchleiste',
     quickLinkTitlePlaceholder: 'Titel (z. B. GitHub)',
@@ -274,6 +395,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Rechtliche Hinweise & Datenschutz',
     regionSelectorAria: 'Sprache und Rechtsraum wählen',
     legalModalTitle: 'Rechtliche Hinweise, Datenschutz & Compliance 2026',
+    legalBreadcrumbLabel: 'Rechtliches',
     legalJurisdictionBadge: 'Aktiver Rechtsraum',
     legalSearchPlaceholder: 'Dokument durchsuchen (z. B. Cookie, GitHub, Open-Source, KI, CCPA)...',
     legalSearchClear: 'Suche löschen',
@@ -288,7 +410,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Nicht notwendige ablehnen',
     cookieCustomize: 'Anpassen',
     cookieSaveCustom: 'Auswahl speichern',
-    cookieFunctionalToggle: 'Externe Suchvorschläge (Wikipedia / DuckDuckGo API)',
+    cookieFunctionalToggle: 'Externe Suchvorschläge (DuckDuckGo / Google Suggest)',
     cookieAnalyticsToggle: 'Lokale Diagnosedaten',
     cookieRevisitHint: 'Sie können Ihre Einwilligung jederzeit hier einsehen oder widerrufen.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -303,6 +425,18 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Cookie- & Datenschutzeinstellungen',
     settingsCookieSubtitle: 'Passe deine lokal gespeicherte Einwilligung jederzeit an.',
     botAriaLabel: 'Interaktives Orbit-Maskottchen, klicken für eine Reaktion',
+    aiComingSoonTitle: 'coming soon...',
+    aiComingSoonDesc:
+      'Orb wird nicht nur ein Maskottchen bleiben, sondern auch dein persönlicher Sekretär und Helfer bei allen Aufgaben und Websuchen werden.',
+    standbyButtonLabel: 'Standby-Modus',
+    standbyAriaLabel: 'Desktop-Standby-Modus aktivieren',
+    standbyExitHint: 'Klicken zum Beenden',
+    weatherClear: 'Klar',
+    weatherCloudy: 'Bewölkt',
+    weatherFog: 'Nebel',
+    weatherRain: 'Regen',
+    weatherSnow: 'Schnee',
+    weatherStorm: 'Gewitter',
   },
   es: {
     searchPlaceholder: 'Buscar o escribir una dirección web',
@@ -311,11 +445,25 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     clearHistoryLabel: 'Borrar historial',
     settingsAria: 'Abrir configuración',
     settingsTitle: 'Configuración de Orbit',
-    settingsSubtitle: 'Personaliza el tema, el color flúor y los enlaces rápidos guardados localmente.',
+    settingsBreadcrumbLabel: 'ajustes',
+    settingsSubtitle: 'Personaliza el aspecto, el inicio, los enlaces rápidos y la privacidad.',
+    settingsTabAppearance: 'Apariencia',
+    settingsTabExperience: 'Experiencia',
+    settingsTabQuickLinks: 'Enlaces rápidos',
+    settingsTabAi: 'Funciones IA',
+    settingsTabPrivacy: 'Privacidad',
     themeLabel: 'Tema de interfaz',
+    themeSystem: 'Según el dispositivo',
     themeDark: 'Oscuro',
     themeLight: 'Claro',
     accentLabel: 'Color de acento Flúor',
+    accentCustomLabel: 'Color personalizado',
+    accentCustomHint: 'Elige cualquier tono para Orbit y los detalles de la interfaz.',
+    betaTag: 'BETA',
+    introSectionLabel: 'Inicio y animación',
+    alwaysShowIntroLabel: 'Mostrar siempre la intro',
+    alwaysShowIntroHint: 'Tras el primer acceso y la elección de cookies, la intro se desactiva. Actívala para verla siempre.',
+    languageRegionSectionLabel: 'Idioma y región',
     quickLinksLabel: 'Enlaces rápidos',
     quickLinksLimitNote: 'Máximo 4 enlaces rápidos bajo la barra de búsqueda',
     quickLinkTitlePlaceholder: 'Título (ej. GitHub)',
@@ -332,6 +480,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Notas Legales y Política de Privacidad',
     regionSelectorAria: 'Seleccionar idioma y jurisdicción legal',
     legalModalTitle: 'Notas Legales, Privacidad y Cumplimiento 2026',
+    legalBreadcrumbLabel: 'Aviso legal',
     legalJurisdictionBadge: 'Jurisdicción activa',
     legalSearchPlaceholder: 'Buscar en el documento (ej. cookie, GitHub, código abierto, IA, CCPA)...',
     legalSearchClear: 'Limpiar',
@@ -346,7 +495,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Rechazar no esenciales',
     cookieCustomize: 'Personalizar',
     cookieSaveCustom: 'Guardar preferencias',
-    cookieFunctionalToggle: 'Sugerencias de búsqueda externas (API Wikipedia / DuckDuckGo)',
+    cookieFunctionalToggle: 'Sugerencias de búsqueda externas (DuckDuckGo / Google Suggest)',
     cookieAnalyticsToggle: 'Métricas locales de diagnóstico',
     cookieRevisitHint: 'Puedes revisar o revocar tus elecciones en cualquier momento desde este panel.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -361,6 +510,18 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Preferencias de Cookies y Privacidad',
     settingsCookieSubtitle: 'Modifica en cualquier momento tus preferencias guardadas localmente.',
     botAriaLabel: 'Mascota interactiva Orbit, haz clic para ver una reacción',
+    aiComingSoonTitle: 'coming soon...',
+    aiComingSoonDesc:
+      'Orb dejará de ser solo una mascota interactiva para convertirse también en tu secretario personal y ayudante en todas tus tareas y búsquedas.',
+    standbyButtonLabel: 'Modo espera',
+    standbyAriaLabel: 'Activar modo espera de escritorio',
+    standbyExitHint: 'Haz clic para salir',
+    weatherClear: 'Despejado',
+    weatherCloudy: 'Nublado',
+    weatherFog: 'Niebla',
+    weatherRain: 'Lluvia',
+    weatherSnow: 'Nieve',
+    weatherStorm: 'Tormenta',
   },
 };
 
@@ -418,7 +579,7 @@ export function getInitialLocaleOption(): LocaleRegionOption {
 }
 
 export function getCachedDictionary(lang: LanguageCode, jurisdiction: JurisdictionCode): UiDictionary {
-  const cacheKey = `${lang}:${jurisdiction}:v4`;
+  const cacheKey = `${lang}:${jurisdiction}:v8`;
   const memHit = memoryCache.get(cacheKey);
   if (memHit) return memHit;
 
@@ -438,7 +599,7 @@ export function getCachedDictionary(lang: LanguageCode, jurisdiction: Jurisdicti
 export function prewarmTranslationCache(): void {
   const bundle: Record<string, UiDictionary> = {};
   for (const opt of LOCALE_REGION_OPTIONS) {
-    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v4`;
+    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v8`;
     const dict = DICTIONARIES[opt.lang] ?? DICTIONARIES.en;
     memoryCache.set(cacheKey, dict);
     bundle[cacheKey] = dict;

@@ -64,12 +64,13 @@ export const SearchBlock = memo(function SearchBlock({
       className="absolute left-1/2 top-0 z-20"
       style={{
         width: 'min(560px, calc(100% - 32px))',
-        transform: `translate3d(-50%, ${uiTopY.toFixed(2)}px, 0)`,
+        transform: `translate3d(-50%, ${(uiTopY + (visible ? 0 : 18)).toFixed(2)}px, 0) scale(${visible ? 1 : 0.965})`,
         opacity: visible ? 1 : 0,
         pointerEvents: visible ? 'auto' : 'none',
+        willChange: 'transform, opacity',
         transition: animateStageTransition
-          ? 'transform 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)'
-          : 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)',
+          ? 'transform 480ms cubic-bezier(0.16, 1, 0.3, 1), opacity 320ms cubic-bezier(0.16, 1, 0.3, 1)'
+          : 'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Search Bar (preserves exact frosted glass design, adds perimeter glow + click pulse) */}

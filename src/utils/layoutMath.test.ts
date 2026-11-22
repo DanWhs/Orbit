@@ -1,29 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStageLayout } from './layoutMath';
+import { computeStageLayout, ORB_RING_OUTER_RADIUS_RATIO } from './layoutMath';
 import {
+  DEFAULT_QUICK_LINKS,
+  getInitialTheme,
   isValidQuickLinkInput,
   normalizeUrl,
+  resolveThemeMode,
   sanitizeQuickLinks,
+  shouldShowBootIntro,
   STORAGE_KEYS,
 } from './storage';
-import { ACCENT_PRESETS, hexToRgb } from '../constants/accents';
-import { clearSearchHistory, getHistorySuggestions, getSearchHistory, saveSearchHistory } from './searchEngine';
+import { ACCENT_PRESETS, hexToRgb, normalizeHexColor, resolveAccentTokens } from '../constants/accents';
+import {
+  buildSuggestions,
+  clearSearchHistory,
+  getHistorySuggestions,
+  getSearchHistory,
+  saveSearchHistory,
+} from './searchEngine';
 import {
   AWAY_BORED_TO_SLEEP_MS,
-  evaluatePresenceState,
+  getAudioProfilePayload,
   TOUCH_INACTIVITY_MS,
   WAKE_HAPPY_DURATION_MS,
-} from './idleSleepState';
+} from '../../server/orbPersonality';
 import {
   computeAwaySeriousMotion,
   computeSleepingMotion,
   computeWakingHappyMotion,
-} from './orbMotionMath';
+  evaluatePresenceState,
+  stepOrbEngine,
+} from '../../server/orbMotionEngine';
 import {
   playPresenceSound,
   playReactionSound,
   playUiSound,
+  setLoadedAudioProfile,
   unlockOrbitAudio,
 } from './orbSounds';
 
@@ -46,6 +59,11 @@ test('desktop idle layout centers the entire bot+bar+links group vertically', ()
   const topMargin = groupTop;
   const bottomMargin = 900 - groupBottom;
   assert.ok(Math.abs(topMargin - bottomMargin) <= 2, `Expected balanced vertical centering, got top=${topMargin}, bottom=${bottomMargin}`);
+  const desktopRingBottom = layout.botCenterY + layout.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    layout.uiTopY - desktopRingBottom >= 14,
+    `Expected clean desktop gap below thick orbital ring (got ${layout.uiTopY - desktopRingBottom}px)`
+  );
 });
 
 test('mobile idle layout is centered, shifts up on virtual keyboard, and returns identically on close', () => {
@@ -65,6 +83,11 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const idleTop = initialIdle.botCenterY - initialIdle.botSize / 2;
   const idleBottom = initialIdle.uiTopY + 58 + 52;
   assert.ok(Math.abs(idleTop - (844 - idleBottom)) <= 2, 'Mobile idle group must be centered vertically');
+  const idleRingBottom = initialIdle.botCenterY + initialIdle.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    initialIdle.uiTopY - idleRingBottom >= 14,
+    `Expected clean mobile idle gap below thick orbital ring (got ${initialIdle.uiTopY - idleRingBottom}px)`
+  );
 
   // Simulate virtual keyboard shrinking visualViewport to 430px
   const keyboardOpen = computeStageLayout({
@@ -84,6 +107,11 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const keyboardBottom = keyboardOpen.uiTopY + 58 + (keyboardOpen.visibleSuggestions > 0 ? 10 + keyboardOpen.visibleSuggestions * 46 : 0);
   assert.ok(keyboardBottom <= 430, `Nothing should clip below visualViewport height (bottom=${keyboardBottom})`);
   assert.ok(keyboardOpen.botCenterY - keyboardOpen.botSize / 2 >= 12, 'Bot must not clip off the top');
+  const kbdRingBottom = keyboardOpen.botCenterY + keyboardOpen.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    keyboardOpen.uiTopY - kbdRingBottom >= 12,
+    `Expected clean mobile keyboard gap below thick orbital ring (got ${keyboardOpen.uiTopY - kbdRingBottom}px)`
+  );
 
   // Simulate closing keyboard
   const restoredIdle = computeStageLayout({
@@ -118,6 +146,33 @@ test('quick links sanitization enforces max 4 links and valid URLs', () => {
   ]);
   assert.equal(sanitized.length, 4);
   assert.equal(sanitized[0].url, 'https://one.com');
+
+  // Default quick links now ship with Threads and Instagram instead of Maps and Wikipedia
+  assert.deepEqual(
+    DEFAULT_QUICK_LINKS.map((l) => l.title),
+    ['YouTube', 'Gmail', 'Threads', 'Instagram']
+  );
+
+  // Untouched legacy factory defaults migrate seamlessly
+  const migrated = sanitizeQuickLinks([
+    { id: 'ql-youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
+    { id: 'ql-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
+    { id: 'ql-maps', title: 'Maps', url: 'https://maps.google.com/' },
+    { id: 'ql-wikipedia', title: 'Wikipedia', url: 'https://it.wikipedia.org/' },
+  ]);
+  assert.deepEqual(
+    migrated.map((l) => l.title),
+    ['YouTube', 'Gmail', 'Threads', 'Instagram']
+  );
+});
+
+test('buildSuggestions returns only history, URLs, and real network suggestions without fake suffix padding', () => {
+  assert.deepEqual(buildSuggestions('meteo', []), []);
+  assert.deepEqual(buildSuggestions('openai.com', []), [{ text: 'openai.com', kind: 'url' }]);
+  assert.deepEqual(buildSuggestions('meteo', ['meteo roma', 'meteo milano']), [
+    { text: 'meteo roma', kind: 'search' },
+    { text: 'meteo milano', kind: 'search' },
+  ]);
 });
 
 test('hexToRgb converts 6-digit hex accents to comma-separated RGB channels', () => {
@@ -251,6 +306,46 @@ test('presence state machine transitions away-serious -> sleeping -> waking-happ
   });
   assert.equal(t2.nextState, 'away-serious');
   assert.equal(t2.stopAllAnimations, true);
+
+  // Desktop Standby mode: keeps Orb awake and stops away-serious/sleep even when pointerOutside is true
+  const s1 = evaluatePresenceState({
+    currentState: 'awake',
+    stateEnteredAt: 0,
+    now: 5000,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: true,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    lastActivityAt: 0,
+  });
+  assert.equal(s1.nextState, 'awake');
+  assert.equal(s1.stopAllAnimations, false);
+
+  const stepRes = stepOrbEngine({
+    sessionId: 'standby-test',
+    variant: 'main',
+    nowMs: 12000,
+    botSize: 440,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: true,
+    hasQuery: false,
+    isFocused: false,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    pointerDx: -0.9,
+    pointerDy: 0.7,
+    lastActivityAgoMs: 10000,
+    lastPtrAgoMs: 10000,
+  });
+  assert.equal(stepRes.presenceState, 'awake');
+  assert.equal(stepRes.poseTarget.followPointerLive, false);
+  assert.ok(stepRes.poseTarget.dx > 0.7, 'Standby Orb must gaze right toward the clock and ignore pointer');
 });
 
 test('desktop stage layout remains identical when blurring search input on compact viewports with suggestions', () => {
@@ -356,18 +451,123 @@ test('orbSounds plays tones cleanly for all reactions, presence states, and UI i
     AudioContext: MockAudioContext,
   };
   try {
+    setLoadedAudioProfile(getAudioProfilePayload());
     unlockOrbitAudio();
     playPresenceSound('away-serious');
     playPresenceSound('sleeping');
     playPresenceSound('waking-happy');
     playUiSound('menu-open');
     playUiSound('menu-close');
+    playUiSound('standby-enter');
     playUiSound('clear-history');
     playUiSound('quicklink-tap');
     playReactionSound('peek', true);
     playReactionSound('happy');
-    assert.ok(oscillatorsStarted >= 13, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
+    assert.ok(oscillatorsStarted >= 15, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
   } finally {
     (globalThis as unknown as { window?: unknown }).window = prevWindow;
   }
 });
+
+test('getInitialTheme defaults to system and resolveThemeMode resolves OS dark/light cleanly', () => {
+  const store = new Map<string, string>();
+  const prevLS = (globalThis as unknown as { localStorage?: Storage }).localStorage;
+  (globalThis as unknown as { localStorage: Storage }).localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => store.clear(),
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  try {
+    assert.equal(getInitialTheme(), 'system');
+    assert.equal(resolveThemeMode('system', true), 'dark');
+    assert.equal(resolveThemeMode('system', false), 'light');
+    assert.equal(resolveThemeMode('dark', false), 'dark');
+    assert.equal(resolveThemeMode('light', true), 'light');
+  } finally {
+    (globalThis as unknown as { localStorage?: Storage }).localStorage = prevLS;
+  }
+});
+
+test('resolveAccentTokens handles presets and arbitrary beta hex colors with readable contrast', () => {
+  const preset = resolveAccentTokens('electric-cyan');
+  assert.equal(preset.isCustom, false);
+  assert.equal(preset.presetId, 'electric-cyan');
+  assert.equal(preset.hex, '#00E5FF');
+
+  const brightCustom = resolveAccentTokens('#E6FF00');
+  assert.equal(brightCustom.isCustom, true);
+  assert.equal(brightCustom.fgOnAccent, '#07090F');
+  assert.notEqual(brightCustom.lightTextHex, '#E6FF00', 'Bright yellow should darken in light mode for legibility');
+
+  const darkCustom = resolveAccentTokens('#122040');
+  assert.equal(darkCustom.isCustom, true);
+  assert.equal(darkCustom.fgOnAccent, '#FFFFFF');
+
+  assert.equal(normalizeHexColor('abc123'), '#ABC123');
+  assert.equal(normalizeHexColor('nope'), null);
+});
+
+test('shouldShowBootIntro shows on first visit before cookie decision, disables after, and obeys alwaysShowIntro', () => {
+  assert.equal(
+    shouldShowBootIntro({
+      introSeen: false,
+      alwaysShowIntro: false,
+      consentDecided: false,
+      autostart: false,
+      reducedMotion: false,
+    }),
+    true
+  );
+
+  // After cookies are decided / first access completed -> skip intro
+  assert.equal(
+    shouldShowBootIntro({
+      introSeen: true,
+      alwaysShowIntro: false,
+      consentDecided: true,
+      autostart: false,
+      reducedMotion: false,
+    }),
+    false
+  );
+
+  // Override ON -> always show intro on reload
+  assert.equal(
+    shouldShowBootIntro({
+      introSeen: true,
+      alwaysShowIntro: true,
+      consentDecided: true,
+      autostart: false,
+      reducedMotion: false,
+    }),
+    true
+  );
+
+  // autostart or reducedMotion always skip intro
+  assert.equal(
+    shouldShowBootIntro({
+      introSeen: false,
+      alwaysShowIntro: true,
+      consentDecided: false,
+      autostart: true,
+      reducedMotion: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldShowBootIntro({
+      introSeen: false,
+      alwaysShowIntro: true,
+      consentDecided: false,
+      autostart: false,
+      reducedMotion: true,
+    }),
+    false
+  );
+});
+

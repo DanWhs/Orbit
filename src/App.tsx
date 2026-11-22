@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Settings } from 'lucide-react';
+import { MoonStar, Settings } from 'lucide-react';
 import { BootSplash } from './components/BootSplash';
 import { CookieNoticeModal } from './components/CookieNoticeModal';
 import { FooterBar } from './components/FooterBar';
 import { LegalModal } from './components/LegalModal';
 import { BubbleButton } from './components/LiquidBubble';
-import { BotReactionType, OrbitBot } from './components/OrbitBot';
+import { OrbitBot } from './components/OrbitBot';
 import { SearchBlock } from './components/SearchBlock';
 import { SettingsModal } from './components/SettingsModal';
-import { getAccentPreset, hexToRgb } from './constants/accents';
+import { StandbyOverlay } from './components/StandbyOverlay';
+import { resolveAccentTokens, hexToRgb } from './constants/accents';
 import {
   getCachedDictionary,
   getInitialLocaleOption,
@@ -17,11 +18,13 @@ import {
   prewarmTranslationCache,
 } from './i18n/translations';
 import {
-  AccentId,
+  AccentValue,
   BootPhase,
+  BotReactionType,
   ConsentState,
   LocaleRegionOption,
   QuickLink,
+  ResolvedTheme,
   SearchSuggestion,
   ThemeMode,
 } from './types/orbit';
@@ -40,29 +43,47 @@ import {
   DEFAULT_QUICK_LINKS,
   getInitialAccent,
   getInitialConsent,
+  getInitialIntroPreferences,
   getInitialTheme,
+  IntroPreferences,
   readStorage,
+  resolveThemeMode,
   sanitizeQuickLinks,
+  shouldShowBootIntro,
   STORAGE_KEYS,
   writeStorage,
 } from './utils/storage';
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [accentId, setAccentId] = useState<AccentId>(getInitialAccent);
+  const [prefersDark, setPrefersDark] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? Boolean(window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+      : true
+  );
+  const [accentId, setAccentId] = useState<AccentValue>(getInitialAccent);
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(() =>
     sanitizeQuickLinks(readStorage(STORAGE_KEYS.quickLinks, DEFAULT_QUICK_LINKS))
   );
   const [localeOption, setLocaleOption] = useState<LocaleRegionOption>(getInitialLocaleOption);
   const [consent, setConsent] = useState<ConsentState>(getInitialConsent);
+  const [introPrefs, setIntroPrefs] = useState<IntroPreferences>(getInitialIntroPreferences);
 
   const [bootPhase, setBootPhase] = useState<BootPhase>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('autostart') === '1') return 'ready';
-      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 'ready';
-    }
-    return 'word';
+    const autostart =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('autostart') === '1';
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    const shouldPlay = shouldShowBootIntro({
+      introSeen: introPrefs.introSeen,
+      alwaysShowIntro: introPrefs.alwaysShowIntro,
+      consentDecided: consent.decided,
+      autostart,
+      reducedMotion,
+    });
+    return shouldPlay ? 'word' : 'ready';
   });
 
   const [query, setQuery] = useState('');
@@ -75,6 +96,7 @@ export default function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
+  const [standbyMode, setStandbyMode] = useState(false);
 
   const [viewportMetrics, setViewportMetrics] = useState(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
@@ -106,12 +128,16 @@ export default function App() {
   const fullHeightRef = useRef(viewportMetrics.fullHeight);
   const isFocusedRef = useRef(isFocused);
   isFocusedRef.current = isFocused;
+  const standbyEnteredAtRef = useRef(0);
   const searchEngine = useMemo(() => detectSearchEngine(), []);
 
   const cookieNoticeOpen =
     bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen;
+  const overlayBackdropOpen = cookieNoticeOpen;
   const isMenuOpen = settingsOpen || legalOpen || cookieNoticeOpen;
   const isDesktop = viewportMetrics.width >= 768;
+  const canUseDesktopStandby = isDesktop && !viewportMetrics.isMobile;
+  const activeStandby = standbyMode && canUseDesktopStandby && !isMenuOpen && bootPhase === 'ready';
 
   // Trigger judging or perplexed face whenever user modifies settings or preferences
   const triggerModifyReaction = useCallback(() => {
@@ -131,24 +157,50 @@ export default function App() {
     [localeOption.lang, localeOption.jurisdiction]
   );
 
+  // Follow OS prefers-color-scheme live when theme is set to 'system'
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    setPrefersDark(mq.matches);
+    const handleChange = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', handleChange);
+      return () => mq.removeEventListener('change', handleChange);
+    }
+    mq.addListener(handleChange);
+    return () => mq.removeListener(handleChange);
+  }, []);
+
+  const resolvedTheme: ResolvedTheme = useMemo(
+    () => resolveThemeMode(theme, prefersDark),
+    [theme, prefersDark]
+  );
+
   // Sync <html lang> and theme / accent CSS tokens (zero glow)
-  const activeAccent = useMemo(() => getAccentPreset(accentId), [accentId]);
+  const activeAccent = useMemo(() => resolveAccentTokens(accentId), [accentId]);
 
   useEffect(() => {
     const root = document.documentElement;
     root.lang = localeOption.lang;
-    root.classList.toggle('dark', theme === 'dark');
+    root.classList.toggle('dark', resolvedTheme === 'dark');
     root.style.setProperty('--bot', activeAccent.hex);
     root.style.setProperty('--acc', activeAccent.hex);
     root.style.setProperty('--acc-rgb', hexToRgb(activeAccent.hex));
     root.style.setProperty(
       '--acc-text',
-      theme === 'dark' ? activeAccent.hex : activeAccent.lightTextHex
+      resolvedTheme === 'dark' ? activeAccent.hex : activeAccent.lightTextHex
     );
     root.style.setProperty('--acc-fg', activeAccent.fgOnAccent);
     writeStorage(STORAGE_KEYS.theme, theme);
     writeStorage(STORAGE_KEYS.accent, accentId);
-  }, [theme, activeAccent, accentId, localeOption.lang]);
+
+    const faviconEl = document.getElementById('orbit-favicon') as HTMLLinkElement | null;
+    if (faviconEl) {
+      const botColor = encodeURIComponent(activeAccent.hex);
+      const eyeColor = encodeURIComponent(resolvedTheme === 'dark' ? '#05070C' : '#FFFFFF');
+      faviconEl.href = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='none' stroke='${botColor}' stroke-width='3' opacity='0.82'/%3E%3Ccircle cx='32' cy='32' r='22' fill='${botColor}'/%3E%3Crect x='22.5' y='23' width='6.5' height='15.5' rx='3.25' fill='${eyeColor}' transform='rotate(-4 25.75 30.75)'/%3E%3Crect x='35' y='23' width='6.5' height='15.5' rx='3.25' fill='${eyeColor}' transform='rotate(4 38.25 30.75)'/%3E%3C/svg%3E`;
+    }
+  }, [theme, resolvedTheme, activeAccent, accentId, localeOption.lang]);
 
   // Boot splash sequence: ORBIT -> keyboard Backspace erase -> bot pops in + winks -> ready
   useEffect(() => {
@@ -252,6 +304,27 @@ export default function App() {
     };
   }, []);
 
+  // Exit Desktop Standby Mode on click (after button-click settle grace) or key press — never on cursor move
+  const handleExitStandby = useCallback(() => {
+    if (performance.now() - standbyEnteredAtRef.current < 240) return;
+    setStandbyMode(false);
+  }, []);
+
+  useEffect(() => {
+    if (!activeStandby) return;
+    const onClick = () => {
+      if (performance.now() - standbyEnteredAtRef.current < 240) return;
+      setStandbyMode(false);
+    };
+    const onKey = () => setStandbyMode(false);
+    window.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKey, { passive: true });
+    return () => {
+      window.removeEventListener('click', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [activeStandby]);
+
   const stageLayout = useMemo(() => {
     const layout = computeStageLayout({
       viewportWidth: viewportMetrics.width,
@@ -260,19 +333,23 @@ export default function App() {
       safeTop: viewportMetrics.safeTop,
       safeBottom: viewportMetrics.safeBottom,
       isMobile: viewportMetrics.isMobile,
-      isFocused: isFocused && !isMenuOpen,
+      isFocused: isFocused && !isMenuOpen && !activeStandby,
       hasQuickLinks: quickLinks.length > 0,
       suggestionCount: suggestions.length,
     });
 
-    // On desktop when side menu or cookie notice is open, center Orb vertically on the left stage.
-    // On mobile when cookie notice is open, sit Orb cleanly in the upper stage above the bottom card.
-    const desiredBotSize =
-      cookieNoticeOpen && viewportMetrics.width < 768
+    const standbyBotSize = Math.round(
+      Math.max(300, Math.min(viewportMetrics.width * 0.41, viewportMetrics.height * 0.66, 520))
+    );
+
+    const desiredBotSize = activeStandby
+      ? standbyBotSize
+      : cookieNoticeOpen && viewportMetrics.width < 768
         ? Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.15))
         : layout.botSize;
-    const desiredBotCenterY =
-      isMenuOpen && viewportMetrics.width >= 768
+    const desiredBotCenterY = activeStandby
+      ? viewportMetrics.height * 0.5
+      : overlayBackdropOpen && viewportMetrics.width >= 768
         ? viewportMetrics.height * 0.5
         : cookieNoticeOpen && viewportMetrics.width < 768
           ? Math.max(90, viewportMetrics.safeTop + Math.min(132, viewportMetrics.height * 0.175))
@@ -288,12 +365,14 @@ export default function App() {
     viewportMetrics,
     isFocused,
     isMenuOpen,
+    activeStandby,
+    overlayBackdropOpen,
     cookieNoticeOpen,
     quickLinks.length,
     suggestions.length,
   ]);
 
-  // Live privacy-compliant search suggestions
+  // Live privacy-compliant search suggestions (real unlimited backend Suggest API + local history)
   const reqIdRef = useRef(0);
   useEffect(() => {
     const trimmed = query.trim();
@@ -304,15 +383,15 @@ export default function App() {
       return;
     }
 
-    setSuggestions(buildSuggestions(trimmed, [], localeOption.lang));
+    setSuggestions(buildSuggestions(trimmed, []));
 
     if (!consent.functionalExternal) return;
 
     const timer = setTimeout(async () => {
       const ext = await fetchExternalSuggestions(trimmed, localeOption.lang, true);
       if (reqId !== reqIdRef.current || !ext) return;
-      setSuggestions(buildSuggestions(trimmed, ext, localeOption.lang));
-    }, 120);
+      setSuggestions(buildSuggestions(trimmed, ext));
+    }, 110);
 
     return () => clearTimeout(timer);
   }, [query, localeOption.lang, consent.functionalExternal]);
@@ -321,7 +400,7 @@ export default function App() {
   useEffect(() => {
     const syncHistoryFromStorage = () => {
       const trimmed = query.trim();
-      setSuggestions(trimmed ? buildSuggestions(trimmed, [], localeOption.lang) : getHistorySuggestions());
+      setSuggestions(trimmed ? buildSuggestions(trimmed, []) : getHistorySuggestions());
     };
     const onStorage = (e: StorageEvent) => {
       if (!e.key || e.key === STORAGE_KEYS.history) {
@@ -337,7 +416,7 @@ export default function App() {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('pageshow', onPageShow);
     };
-  }, [query, localeOption.lang]);
+  }, [query]);
 
   const measureCaret = useCallback(() => {
     const input = inputRef.current;
@@ -394,6 +473,26 @@ export default function App() {
   const handleUpdateConsent = useCallback((next: ConsentState) => {
     setConsent(next);
     writeStorage(STORAGE_KEYS.consent, next);
+    if (next.decided) {
+      setIntroPrefs((prev) => {
+        if (prev.introSeen) return prev;
+        const updated = { ...prev, introSeen: true };
+        writeStorage(STORAGE_KEYS.intro, updated);
+        return updated;
+      });
+    }
+  }, []);
+
+  const handleToggleAlwaysShowIntro = useCallback((always: boolean) => {
+    setIntroPrefs((prev) => {
+      const next: IntroPreferences = {
+        ...prev,
+        introSeen: true,
+        alwaysShowIntro: always,
+      };
+      writeStorage(STORAGE_KEYS.intro, next);
+      return next;
+    });
   }, []);
 
   const handleAcceptCookieNotice = useCallback(
@@ -408,14 +507,24 @@ export default function App() {
     clearSearchHistory();
     playUiSound('clear-history');
     const trimmed = query.trim();
-    setSuggestions(trimmed ? buildSuggestions(trimmed, [], localeOption.lang) : []);
-  }, [query, localeOption.lang]);
+    setSuggestions(trimmed ? buildSuggestions(trimmed, []) : []);
+  }, [query]);
 
   const handleOpenSettings = useCallback(() => {
     inputRef.current?.blur();
+    setStandbyMode(false);
     playUiSound('menu-open');
     setSettingsOpen(true);
   }, []);
+
+  const handleEnterStandby = useCallback(() => {
+    if (!canUseDesktopStandby) return;
+    inputRef.current?.blur();
+    setIsFocused(false);
+    standbyEnteredAtRef.current = performance.now();
+    playUiSound('standby-enter');
+    setStandbyMode(true);
+  }, [canUseDesktopStandby]);
 
   const handleCloseSettings = useCallback(() => {
     playUiSound('menu-close');
@@ -462,15 +571,17 @@ export default function App() {
   }, []);
 
   const isUiReady = bootPhase === 'ready';
-  const botHorizontalPercent = isMenuOpen && isDesktop ? 24 : 50;
+  const botHorizontalPercent = activeStandby ? 27 : overlayBackdropOpen && isDesktop ? 24 : 50;
 
   return (
     <div
       data-testid="orbit-app"
       data-boot-phase={bootPhase}
-      data-theme={theme}
+      data-theme={resolvedTheme}
+      data-theme-mode={theme}
       data-keyboard-active={stageLayout.keyboardActive ? 'true' : 'false'}
       data-menu-open={isMenuOpen ? 'true' : 'false'}
+      data-standby={activeStandby ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
       className="fixed left-0 top-0 w-full overflow-hidden select-none"
       style={{
@@ -512,13 +623,38 @@ export default function App() {
         aria-hidden="true"
       />
 
-      {/* Top-Right Settings Gear Button (hidden cleanly when menu or mobile keyboard active) */}
+      {/* Top-Right Desktop Standby Pill + Settings Gear Button */}
       <header
-        className="fixed left-0 right-0 top-0 z-30 flex justify-end px-4 pt-[calc(var(--st)+14px)] pointer-events-none transition-opacity duration-250"
+        className="fixed left-0 right-0 top-0 z-30 flex items-center justify-end gap-2 px-4 pt-[calc(var(--st)+14px)] pointer-events-none"
         style={{
-          opacity: isUiReady && !stageLayout.keyboardActive && !isMenuOpen ? 1 : 0,
+          opacity: isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 1 : 0,
+          transform:
+            isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby
+              ? 'translate3d(0, 0, 0)'
+              : 'translate3d(0, -8px, 0)',
+          transition:
+            'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+        {canUseDesktopStandby && (
+          <BubbleButton
+            variant="glass"
+            data-testid="standby-btn"
+            aria-label={dict.standbyAriaLabel}
+            onClick={handleEnterStandby}
+            contentClassName="inline-flex items-center gap-2"
+            className="hidden md:inline-flex pointer-events-auto h-11 px-4 rounded-full text-xs font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+            style={{
+              backgroundColor: 'var(--glass)',
+              color: 'var(--fg)',
+              boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+            }}
+          >
+            <MoonStar className="w-3.5 h-3.5 opacity-75 shrink-0" aria-hidden="true" />
+            <span>{dict.standbyButtonLabel}</span>
+          </BubbleButton>
+        )}
+
         <BubbleButton
           variant="glass"
           data-testid="settings-btn"
@@ -536,9 +672,9 @@ export default function App() {
         </BubbleButton>
       </header>
 
-      {/* Smooth blurred background layer behind Orb when Settings or Legal menu is open */}
+      {/* Smooth blurred background layer behind Orb when Legal or Cookie notice is open */}
       <AnimatePresence>
-        {isMenuOpen && (
+        {overlayBackdropOpen && (
           <motion.div
             data-testid="menu-blur-backdrop"
             initial={{ opacity: 0 }}
@@ -547,7 +683,8 @@ export default function App() {
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="fixed inset-0 z-30 backdrop-blur-[8px] pointer-events-none"
             style={{
-              backgroundColor: theme === 'dark' ? 'rgba(5, 7, 12, 0.36)' : 'rgba(244, 246, 250, 0.42)',
+              backgroundColor:
+                resolvedTheme === 'dark' ? 'rgba(5, 7, 12, 0.36)' : 'rgba(244, 246, 250, 0.42)',
               willChange: 'opacity',
             }}
             aria-hidden="true"
@@ -558,31 +695,43 @@ export default function App() {
       {/* Boot Splash Sequence */}
       <BootSplash phase={bootPhase} centerY={stageLayout.botCenterY} />
 
-      {/* Central Mascot with Single Crisp Orbital Ring (stays z-40 above backdrop blur on PC) */}
+      {/* Central Mascot with Single Crisp Orbital Ring (stays z-40 above backdrop blur on PC, grows huge in Standby, fades cleanly behind Settings) */}
       <main>
         <OrbitBot
           bootPhase={bootPhase}
           botSize={stageLayout.botSize}
+          baseBotSize={stageLayout.baseBotSize}
           botCenterY={stageLayout.botCenterY}
           horizontalPercent={botHorizontalPercent}
           viewportWidth={viewportMetrics.width}
           scale={stageLayout.scale}
           animateStageTransition={animateStageTransition}
           menuOpen={isMenuOpen}
-          isFocused={isFocused && !isMenuOpen}
+          paused={settingsOpen || legalOpen}
+          hidden={settingsOpen || legalOpen}
+          standbyMode={activeStandby}
+          isFocused={isFocused && !isMenuOpen && !activeStandby}
           hasQuery={query.trim().length > 0}
           caretRatio={caretRatio}
           reactionSignal={reactionSignal}
           ariaLabel={dict.botAriaLabel}
         />
 
+        {/* Desktop Standby Clock + Weather Overlay */}
+        <StandbyOverlay
+          active={activeStandby}
+          lang={localeOption.lang}
+          dict={dict}
+          onExit={handleExitStandby}
+        />
+
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
-          visible={isUiReady}
+          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen}
           uiTopY={stageLayout.uiTopY}
           animateStageTransition={animateStageTransition}
           query={query}
-          isFocused={isFocused && !isMenuOpen}
+          isFocused={isFocused && !isMenuOpen && !activeStandby}
           quickLinks={quickLinks}
           suggestions={suggestions}
           visibleSuggestions={stageLayout.visibleSuggestions}
@@ -599,7 +748,7 @@ export default function App() {
 
       {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
       <FooterBar
-        visible={isUiReady && !stageLayout.keyboardActive}
+        visible={isUiReady && !stageLayout.keyboardActive && !activeStandby && !settingsOpen && !legalOpen}
         localeOption={localeOption}
         dict={dict}
         onOpenLegal={handleOpenLegalFromFooter}
@@ -616,25 +765,30 @@ export default function App() {
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Settings Drawer / Modal */}
+      {/* Full-Screen Settings Panel */}
       <SettingsModal
         open={settingsOpen}
         theme={theme}
+        resolvedTheme={resolvedTheme}
         accentId={accentId}
         quickLinks={quickLinks}
-        lang={localeOption.lang}
+        localeOption={localeOption}
         dict={dict}
         consent={consent}
+        alwaysShowIntro={introPrefs.alwaysShowIntro}
+        reactionSignal={reactionSignal}
         onClose={handleCloseSettings}
         onThemeChange={setTheme}
         onAccentChange={setAccentId}
         onQuickLinksChange={handleQuickLinksChange}
         onUpdateConsent={handleUpdateConsent}
+        onToggleAlwaysShowIntro={handleToggleAlwaysShowIntro}
+        onSelectLocaleRegion={handleLocaleChange}
         onOpenLegal={handleOpenLegalFromSettings}
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Legal & Privacy 2026 Interactive Drawer / Modal */}
+      {/* Full-Screen Legal & Privacy 2026 Panel (mirrors Settings layout) */}
       <LegalModal
         open={legalOpen}
         lang={localeOption.lang}
@@ -642,6 +796,7 @@ export default function App() {
         jurisdictionLabel={localeOption.fullLabel}
         dict={dict}
         consent={consent}
+        reactionSignal={reactionSignal}
         onClose={handleCloseLegal}
         onUpdateConsent={handleUpdateConsent}
         onUserModify={triggerModifyReaction}

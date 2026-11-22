@@ -1,4 +1,4 @@
-import { AccentId, ConsentState, QuickLink, ThemeMode } from '../types/orbit';
+import { AccentValue, ConsentState, QuickLink, ResolvedTheme, ThemeMode } from '../types/orbit';
 
 export const STORAGE_KEYS = {
   theme: 'orbit_theme_v1',
@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   localeRegion: 'orbit_locale_region_v1',
   i18nCache: 'orbit_i18n_cache_v1',
   consent: 'orbit_consent_v1',
+  intro: 'orbit_intro_v1',
 } as const;
 
 export const MAX_QUICK_LINKS = 4;
@@ -15,9 +16,11 @@ export const MAX_QUICK_LINKS = 4;
 export const DEFAULT_QUICK_LINKS: QuickLink[] = [
   { id: 'ql-youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
   { id: 'ql-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
-  { id: 'ql-maps', title: 'Maps', url: 'https://maps.google.com/' },
-  { id: 'ql-wikipedia', title: 'Wikipedia', url: 'https://it.wikipedia.org/' },
+  { id: 'ql-threads', title: 'Threads', url: 'https://www.threads.net/' },
+  { id: 'ql-instagram', title: 'Instagram', url: 'https://www.instagram.com/' },
 ];
+
+const LEGACY_FACTORY_QUICK_LINK_IDS = ['ql-youtube', 'ql-gmail', 'ql-maps', 'ql-wikipedia'] as const;
 
 export function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -84,20 +87,63 @@ export function sanitizeQuickLinks(links: unknown): QuickLink[] {
     }
     if (cleaned.length >= MAX_QUICK_LINKS) break;
   }
+
+  // Upgrade untouched legacy factory defaults cleanly to include Threads and Instagram
+  if (
+    cleaned.length === 4 &&
+    cleaned.every((item, idx) => item.id === LEGACY_FACTORY_QUICK_LINK_IDS[idx])
+  ) {
+    writeStorage(STORAGE_KEYS.quickLinks, DEFAULT_QUICK_LINKS);
+    return DEFAULT_QUICK_LINKS;
+  }
+
   return cleaned;
 }
 
 export function getInitialTheme(): ThemeMode {
-  const saved = readStorage<ThemeMode | null>(STORAGE_KEYS.theme, null);
-  if (saved === 'dark' || saved === 'light') return saved;
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'dark';
+  const saved = readStorage<string | null>(STORAGE_KEYS.theme, null);
+  if (saved === 'system' || saved === 'dark' || saved === 'light') return saved;
+  return 'system';
 }
 
-export function getInitialAccent(): AccentId {
-  return readStorage<AccentId>(STORAGE_KEYS.accent, 'neon-orange');
+export function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): ResolvedTheme {
+  if (mode === 'system') return prefersDark ? 'dark' : 'light';
+  return mode;
+}
+
+export function getInitialAccent(): AccentValue {
+  return readStorage<AccentValue>(STORAGE_KEYS.accent, 'neon-orange');
+}
+
+export interface IntroPreferences {
+  introSeen: boolean;
+  alwaysShowIntro: boolean;
+}
+
+export function getInitialIntroPreferences(): IntroPreferences {
+  const saved = readStorage<Partial<IntroPreferences> | null>(STORAGE_KEYS.intro, null);
+  if (saved && typeof saved === 'object') {
+    return {
+      introSeen: Boolean(saved.introSeen),
+      alwaysShowIntro: Boolean(saved.alwaysShowIntro),
+    };
+  }
+  return {
+    introSeen: false,
+    alwaysShowIntro: false,
+  };
+}
+
+export function shouldShowBootIntro(input: {
+  introSeen: boolean;
+  alwaysShowIntro: boolean;
+  consentDecided: boolean;
+  autostart: boolean;
+  reducedMotion: boolean;
+}): boolean {
+  if (input.autostart || input.reducedMotion) return false;
+  if (input.alwaysShowIntro) return true;
+  return !input.consentDecided && !input.introSeen;
 }
 
 export function detectGpcSignal(): boolean {
