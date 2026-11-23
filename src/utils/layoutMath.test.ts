@@ -1,32 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStageLayout } from './layoutMath';
+import { computeStageLayout, ORB_RING_OUTER_RADIUS_RATIO } from './layoutMath';
 import {
+  DEFAULT_QUICK_LINKS,
+  DONATION_COOLDOWN_MS,
   getInitialTheme,
   isValidQuickLinkInput,
   normalizeUrl,
+  resolveEffectiveReducedMotion,
   resolveThemeMode,
+  sanitizeAccessibilityPreferences,
   sanitizeQuickLinks,
   shouldShowBootIntro,
+  shouldTriggerDonationPrompt,
   STORAGE_KEYS,
 } from './storage';
 import { ACCENT_PRESETS, hexToRgb, normalizeHexColor, resolveAccentTokens } from '../constants/accents';
-import { clearSearchHistory, getHistorySuggestions, getSearchHistory, saveSearchHistory } from './searchEngine';
+import {
+  buildSuggestions,
+  clearSearchHistory,
+  getHistorySuggestions,
+  getSearchHistory,
+  saveSearchHistory,
+} from './searchEngine';
 import {
   AWAY_BORED_TO_SLEEP_MS,
-  evaluatePresenceState,
+  getAudioProfilePayload,
   TOUCH_INACTIVITY_MS,
   WAKE_HAPPY_DURATION_MS,
-} from './idleSleepState';
+} from '../../server/orbPersonality';
 import {
   computeAwaySeriousMotion,
   computeSleepingMotion,
   computeWakingHappyMotion,
-} from './orbMotionMath';
+  evaluatePresenceState,
+  stepOrbEngine,
+} from '../../server/orbMotionEngine';
 import {
   playPresenceSound,
   playReactionSound,
   playUiSound,
+  setLoadedAudioProfile,
   unlockOrbitAudio,
 } from './orbSounds';
 
@@ -49,6 +63,11 @@ test('desktop idle layout centers the entire bot+bar+links group vertically', ()
   const topMargin = groupTop;
   const bottomMargin = 900 - groupBottom;
   assert.ok(Math.abs(topMargin - bottomMargin) <= 2, `Expected balanced vertical centering, got top=${topMargin}, bottom=${bottomMargin}`);
+  const desktopRingBottom = layout.botCenterY + layout.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    layout.uiTopY - desktopRingBottom >= 14,
+    `Expected clean desktop gap below thick orbital ring (got ${layout.uiTopY - desktopRingBottom}px)`
+  );
 });
 
 test('mobile idle layout is centered, shifts up on virtual keyboard, and returns identically on close', () => {
@@ -68,6 +87,11 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const idleTop = initialIdle.botCenterY - initialIdle.botSize / 2;
   const idleBottom = initialIdle.uiTopY + 58 + 52;
   assert.ok(Math.abs(idleTop - (844 - idleBottom)) <= 2, 'Mobile idle group must be centered vertically');
+  const idleRingBottom = initialIdle.botCenterY + initialIdle.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    initialIdle.uiTopY - idleRingBottom >= 14,
+    `Expected clean mobile idle gap below thick orbital ring (got ${initialIdle.uiTopY - idleRingBottom}px)`
+  );
 
   // Simulate virtual keyboard shrinking visualViewport to 430px
   const keyboardOpen = computeStageLayout({
@@ -87,6 +111,11 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const keyboardBottom = keyboardOpen.uiTopY + 58 + (keyboardOpen.visibleSuggestions > 0 ? 10 + keyboardOpen.visibleSuggestions * 46 : 0);
   assert.ok(keyboardBottom <= 430, `Nothing should clip below visualViewport height (bottom=${keyboardBottom})`);
   assert.ok(keyboardOpen.botCenterY - keyboardOpen.botSize / 2 >= 12, 'Bot must not clip off the top');
+  const kbdRingBottom = keyboardOpen.botCenterY + keyboardOpen.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+  assert.ok(
+    keyboardOpen.uiTopY - kbdRingBottom >= 12,
+    `Expected clean mobile keyboard gap below thick orbital ring (got ${keyboardOpen.uiTopY - kbdRingBottom}px)`
+  );
 
   // Simulate closing keyboard
   const restoredIdle = computeStageLayout({
@@ -121,6 +150,33 @@ test('quick links sanitization enforces max 4 links and valid URLs', () => {
   ]);
   assert.equal(sanitized.length, 4);
   assert.equal(sanitized[0].url, 'https://one.com');
+
+  // Default quick links now ship with Threads and Instagram instead of Maps and Wikipedia
+  assert.deepEqual(
+    DEFAULT_QUICK_LINKS.map((l) => l.title),
+    ['YouTube', 'Gmail', 'Threads', 'Instagram']
+  );
+
+  // Untouched legacy factory defaults migrate seamlessly
+  const migrated = sanitizeQuickLinks([
+    { id: 'ql-youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
+    { id: 'ql-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
+    { id: 'ql-maps', title: 'Maps', url: 'https://maps.google.com/' },
+    { id: 'ql-wikipedia', title: 'Wikipedia', url: 'https://it.wikipedia.org/' },
+  ]);
+  assert.deepEqual(
+    migrated.map((l) => l.title),
+    ['YouTube', 'Gmail', 'Threads', 'Instagram']
+  );
+});
+
+test('buildSuggestions returns only history, URLs, and real network suggestions without fake suffix padding', () => {
+  assert.deepEqual(buildSuggestions('meteo', []), []);
+  assert.deepEqual(buildSuggestions('openai.com', []), [{ text: 'openai.com', kind: 'url' }]);
+  assert.deepEqual(buildSuggestions('meteo', ['meteo roma', 'meteo milano']), [
+    { text: 'meteo roma', kind: 'search' },
+    { text: 'meteo milano', kind: 'search' },
+  ]);
 });
 
 test('hexToRgb converts 6-digit hex accents to comma-separated RGB channels', () => {
@@ -254,6 +310,46 @@ test('presence state machine transitions away-serious -> sleeping -> waking-happ
   });
   assert.equal(t2.nextState, 'away-serious');
   assert.equal(t2.stopAllAnimations, true);
+
+  // Desktop Standby mode: keeps Orb awake and stops away-serious/sleep even when pointerOutside is true
+  const s1 = evaluatePresenceState({
+    currentState: 'awake',
+    stateEnteredAt: 0,
+    now: 5000,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: true,
+    hasQuery: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    lastActivityAt: 0,
+  });
+  assert.equal(s1.nextState, 'awake');
+  assert.equal(s1.stopAllAnimations, false);
+
+  const stepRes = stepOrbEngine({
+    sessionId: 'standby-test',
+    variant: 'main',
+    nowMs: 12000,
+    botSize: 440,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: true,
+    hasQuery: false,
+    isFocused: false,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    pointerDx: -0.9,
+    pointerDy: 0.7,
+    lastActivityAgoMs: 10000,
+    lastPtrAgoMs: 10000,
+  });
+  assert.equal(stepRes.presenceState, 'awake');
+  assert.equal(stepRes.poseTarget.followPointerLive, false);
+  assert.ok(stepRes.poseTarget.dx > 0.7, 'Standby Orb must gaze right toward the clock and ignore pointer');
 });
 
 test('desktop stage layout remains identical when blurring search input on compact viewports with suggestions', () => {
@@ -359,17 +455,19 @@ test('orbSounds plays tones cleanly for all reactions, presence states, and UI i
     AudioContext: MockAudioContext,
   };
   try {
+    setLoadedAudioProfile(getAudioProfilePayload());
     unlockOrbitAudio();
     playPresenceSound('away-serious');
     playPresenceSound('sleeping');
     playPresenceSound('waking-happy');
     playUiSound('menu-open');
     playUiSound('menu-close');
+    playUiSound('standby-enter');
     playUiSound('clear-history');
     playUiSound('quicklink-tap');
     playReactionSound('peek', true);
     playReactionSound('happy');
-    assert.ok(oscillatorsStarted >= 13, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
+    assert.ok(oscillatorsStarted >= 15, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
   } finally {
     (globalThis as unknown as { window?: unknown }).window = prevWindow;
   }
@@ -477,3 +575,245 @@ test('shouldShowBootIntro shows on first visit before cookie decision, disables 
   );
 });
 
+test('Orb fires idle reactions during passive empty focus and animates typing cadence when user types', () => {
+  const sid = 'idle-typing-test';
+  // Boot tick
+  stepOrbEngine({
+    sessionId: sid,
+    variant: 'main',
+    nowMs: 100,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: false,
+    isFocused: true,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: 0,
+    pointerDy: 0,
+    lastActivityAgoMs: 5000,
+    lastPtrAgoMs: 5000,
+    lastTypedAgoMs: 999999,
+  });
+
+  // After initial idle wait (> 2600ms) while search bar is empty-focused on desktop -> random idle reaction fires
+  const idleStep = stepOrbEngine({
+    sessionId: sid,
+    variant: 'main',
+    nowMs: 3600,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: false,
+    isFocused: true,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: 0,
+    pointerDy: 0,
+    lastActivityAgoMs: 3500,
+    lastPtrAgoMs: 5000,
+    lastTypedAgoMs: 999999,
+  });
+  assert.notEqual(idleStep.activeReaction, 'idle', 'Expected Orb to trigger an idle animation during passive empty focus');
+
+  // Actively typing with query -> tracks caret + produces typing keystroke bob & tilt
+  const typingStep = stepOrbEngine({
+    sessionId: 'typing-pulse-test',
+    variant: 'main',
+    nowMs: 5000,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: true,
+    isFocused: true,
+    caretRatio: 0.65,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: -0.9,
+    pointerDy: -0.9,
+    lastActivityAgoMs: 120,
+    lastPtrAgoMs: 8000,
+    lastTypedAgoMs: 120,
+  });
+  assert.equal(typingStep.poseTarget.followPointerLive, false);
+  assert.ok(typingStep.poseTarget.dx > 0.35, 'Typing gaze should follow text caret rather than idle pointer');
+  assert.ok(typingStep.poseTarget.tRot > 2.5, 'Typing pose should tilt attentively toward caret');
+});
+
+test('accessibility preferences sanitize safely across all 13 controls and resolve reduced motion cleanly', () => {
+  const clean = sanitizeAccessibilityPreferences({
+    motionMode: 'reduce',
+    highContrast: 1,
+    largeText: true,
+    focusRings: true,
+    dyslexiaFont: true,
+    colorFilter: 'deuteranopia',
+    readingGuide: true,
+  });
+  assert.deepEqual(clean, {
+    motionMode: 'reduce',
+    highContrast: true,
+    largeText: true,
+    textScale: 'large',
+    focusRings: true,
+    reduceTransparency: false,
+    underlineLinks: false,
+    dyslexiaFont: true,
+    relaxedSpacing: false,
+    largeTargets: false,
+    colorFilter: 'deuteranopia',
+    readingGuide: true,
+    screenReaderHints: false,
+  });
+
+  const xlarge = sanitizeAccessibilityPreferences({ textScale: 'xlarge' });
+  assert.equal(xlarge.textScale, 'xlarge');
+  assert.equal(xlarge.largeText, true);
+
+  const fallback = sanitizeAccessibilityPreferences({
+    motionMode: 'invalid',
+    colorFilter: 'unknown',
+    textScale: 'giant',
+  });
+  assert.equal(fallback.motionMode, 'system');
+  assert.equal(fallback.colorFilter, 'none');
+  assert.equal(fallback.textScale, 'normal');
+
+  assert.equal(resolveEffectiveReducedMotion('reduce', false), true);
+  assert.equal(resolveEffectiveReducedMotion('full', true), false);
+  assert.equal(resolveEffectiveReducedMotion('system', true), true);
+  assert.equal(resolveEffectiveReducedMotion('system', false), false);
+});
+
+test('supportMode keeps Orb happily looking left toward text and viewer without falling asleep', () => {
+  const stepRes = stepOrbEngine({
+    sessionId: 'support-showcase-test',
+    variant: 'main',
+    nowMs: 14000,
+    botSize: 360,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    supportMode: true,
+    hasQuery: false,
+    isFocused: false,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    pointerDx: 0.9,
+    pointerDy: 0.8,
+    lastActivityAgoMs: 15000,
+    lastPtrAgoMs: 15000,
+  });
+  assert.equal(stepRes.presenceState, 'awake');
+  assert.equal(stepRes.poseTarget.followPointerLive, false);
+  assert.ok(stepRes.poseTarget.dx < 0, `Expected supportMode Orb to look left, got dx=${stepRes.poseTarget.dx}`);
+  assert.ok(stepRes.poseTarget.tArcBottom > 0.8, `Expected happy arched eyes, got tArcBottom=${stepRes.poseTarget.tArcBottom}`);
+});
+
+test('donation prompt respects consent, cooldown, neverShow, and preview flag', () => {
+  const now = 1_000_000_000;
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: false, lastShownAt: 0, donatedClicked: false },
+      nowMs: now,
+      consentDecided: false,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: false, lastShownAt: now - 1000, donatedClicked: false },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: {
+        dismissedCount: 1,
+        neverShow: false,
+        lastShownAt: now - DONATION_COOLDOWN_MS - 1,
+        donatedClicked: false,
+      },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    true
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: true, lastShownAt: 0, donatedClicked: false },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 3, neverShow: true, lastShownAt: now, donatedClicked: true },
+      nowMs: now,
+      consentDecided: false,
+      isMenuOpen: false,
+      standbyMode: false,
+      forcePreview: true,
+    }),
+    true
+  );
+});
+
+test('smart home compact landscape displays (1024x600 and 800x480) keep Orb ring, search bar, links, and footer unclipped', () => {
+  for (const [w, h] of [
+    [1024, 600],
+    [800, 480],
+  ] as const) {
+    const layout = computeStageLayout({
+      viewportWidth: w,
+      viewportHeight: h,
+      fullHeight: h,
+      safeTop: 0,
+      safeBottom: 0,
+      isMobile: false,
+      isFocused: false,
+      hasQuickLinks: true,
+      suggestionCount: 2,
+    });
+
+    const ringBottom = layout.botCenterY + layout.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+    const barAndLinksBottom = layout.uiTopY + 58 + 52;
+    assert.ok(
+      layout.botCenterY - layout.botSize * ORB_RING_OUTER_RADIUS_RATIO >= 12,
+      `Smart Home ${w}x${h} Orb ring clipped top`
+    );
+    assert.ok(
+      layout.uiTopY - ringBottom >= 14,
+      `Smart Home ${w}x${h} insufficient ring-to-search gap (${layout.uiTopY - ringBottom}px)`
+    );
+    assert.ok(
+      h - barAndLinksBottom >= 44,
+      `Smart Home ${w}x${h} insufficient footer clearance (${h - barAndLinksBottom}px)`
+    );
+  }
+});

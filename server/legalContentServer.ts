@@ -1,13 +1,10 @@
-import { JurisdictionCode, LanguageCode, LegalSection } from '../types/orbit';
-import { readStorage, STORAGE_KEYS, writeStorage } from '../utils/storage';
-
-const legalMemoryCache = new Map<string, LegalSection[]>();
+import type { JurisdictionCode, LanguageCode, LegalSection } from '../src/types/orbit.ts';
 
 function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection[] {
   const jurisdictionNotice =
     jurisdiction === 'IT'
-      ? 'La presente informativa è redatta in piena conformità al Regolamento (UE) 2016/679 (GDPR), al D.Lgs. 196/2003 (Codice Privacy novellato dal D.Lgs. 101/2018) e alle Linee Guida del Garante per la protezione dei dati personali. (1) Natura del trattamento reale dell’applicazione: Orbit è un’applicazione web lato client priva di database remoto di profilazione e priva di account utente; le preferenze di tema, colore fluo, link rapidi, lingua, cronologia di ricerca locale e stato del consenso sono salvate esclusivamente nella memoria locale del dispositivo (localStorage) sotto il pieno controllo dell’utente. (2) Trasferimento verso motori di ricerca: solo su azione esplicita di invio o clic da parte dell’utente il browser apre l’URL o inoltra la query al motore di ricerca selezionato (Google, Bing o DuckDuckGo), il quale opera come titolare autonomo. (3) Diritti dell’interessato: ai sensi degli artt. 15–22 GDPR puoi accedere, rettificare, cancellare i dati locali in qualsiasi momento tramite le Impostazioni o la pulizia del browser, nonché proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).'
-      : 'Informativa conforme al GDPR (UE) 2016/679 per l’area SEE/UE: (1) Orbit elabora le preferenze di personalizzazione esclusivamente lato client nel browser (localStorage) senza profilazione su server remoti; (2) Nessun dato personale viene venduto o ceduto a intermediari terzi; (3) L’utente gode dei diritti di accesso, rettifica, cancellazione, limitazione e opposizione ai sensi degli artt. 15–22 GDPR.';
+      ? 'La presente informativa è redatta in piena conformità al Regolamento (UE) 2016/679 (GDPR), al D.Lgs. 196/2003 (Codice Privacy novellato dal D.Lgs. 101/2018) e alle Linee Guida del Garante per la protezione dei dati personali. (1) Natura del trattamento reale dell’applicazione: Orbit è un’applicazione web priva di database di profilazione e priva di account utente; le preferenze di tema, colore fluo, link rapidi, lingua, cronologia di ricerca locale e stato del consenso sono salvate nella memoria locale del dispositivo (localStorage) sotto il pieno controllo dell’utente. (2) Trasferimento verso motori di ricerca: solo su azione esplicita di invio o clic da parte dell’utente il browser apre l’URL o inoltra la query al motore di ricerca selezionato (Google, Bing o DuckDuckGo), il quale opera come titolare autonomo. (3) Diritti dell’interessato: ai sensi degli artt. 15–22 GDPR puoi accedere, rettificare, cancellare i dati locali in qualsiasi momento tramite le Impostazioni o la pulizia del browser, nonché proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).'
+      : 'Informativa conforme al GDPR (UE) 2016/679 per l’area SEE/UE: (1) Orbit elabora le preferenze di personalizzazione esclusivamente nel browser (localStorage) senza profilazione su server remoti; (2) Nessun dato personale viene venduto o ceduto a intermediari terzi; (3) L’utente gode dei diritti di accesso, rettifica, cancellazione, limitazione e opposizione ai sensi degli artt. 15–22 GDPR.';
 
   return [
     {
@@ -21,7 +18,7 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '1',
       title: 'Titolare del Progetto e Natura Open-Source',
       body:
-        'Orbit è un progetto web personale, gratuito, non commerciale e open-source ideato e mantenuto da un privato cittadino (Daniele Mastrorilli). (1) Assenza di forma societaria: Orbit non fa capo ad alcuna S.r.l., società di capitali, impresa commerciale né soggetto dotato di Partita IVA, REA o capitale sociale; (2) Progetto open-source su GitHub: il codice sorgente è pubblicato pubblicamente su GitHub così da consentire a chiunque di ispezionare in totale trasparenza il funzionamento lato client e l’assenza di tracciamento remoto; (3) Finalità non commerciale: la pagina è offerta gratuitamente alla community senza pubblicità, abbonamenti né vendite.',
+        'Orbit è un progetto web personale, gratuito, non commerciale e open-source ideato e mantenuto da un privato cittadino (Daniele Mastrorilli). (1) Assenza di forma societaria: Orbit non fa capo ad alcuna S.r.l., società di capitali, impresa commerciale né soggetto dotato di Partita IVA, REA o capitale sociale; (2) Progetto open-source su GitHub: il codice sorgente è pubblicato pubblicamente su GitHub così da consentire a chiunque di ispezionare in totale trasparenza il funzionamento dell’applicazione e l’assenza di tracciamento remoto; (3) Finalità non commerciale: la pagina è offerta gratuitamente alla community senza pubblicità, abbonamenti né vendite.',
     },
     {
       id: 'contatti-diretti',
@@ -35,7 +32,7 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '3',
       title: 'Cookie Policy, Blocco Preventivo e Gestione Consensi (2026)',
       body:
-        'Orbit adotta un’architettura privacy-by-default pienamente conforme alle direttive ePrivacy e alle linee guida 2026 contro i dark pattern: (1) Blocco preventivo: all’apertura della pagina nessuna richiesta verso API esterne non essenziali (inclusi gli endpoint di completamento automatico di terze parti Wikipedia o DuckDuckGo) viene eseguita senza il tuo consenso preventivo esplicito, restando attive esclusivamente le chiavi tecniche in localStorage necessarie a tema, colore fluo, link rapidi, lingua e stato del consenso; (2) Pari visibilità senza dark pattern: i pulsanti Accetta tutti, Rifiuta non essenziali e Personalizza scelte sono presentati con identico peso visivo, contrasto e accessibilità immediata; (3) Diritto di revoca continua: puoi rivedere, modificare o revocare le tue scelte in qualunque momento utilizzando i controlli interattivi sottostanti o il collegamento nel footer.',
+        'Orbit adotta un’architettura privacy-by-default pienamente conforme alle direttive ePrivacy e alle linee guida 2026 contro i dark pattern: (1) Blocco preventivo: all’apertura della pagina nessuna richiesta verso API di completamento esterne (DuckDuckGo / Google Suggest) viene eseguita senza il tuo consenso preventivo esplicito, restando attive esclusivamente le chiavi tecniche in localStorage necessarie a tema, colore fluo, link rapidi, lingua e stato del consenso; (2) Pari visibilità senza dark pattern: i pulsanti Accetta tutti, Rifiuta non essenziali e Personalizza scelte sono presentati con identico peso visivo, contrasto e accessibilità immediata; (3) Diritto di revoca continua: puoi rivedere, modificare o revocare le tue scelte in qualunque momento utilizzando i controlli interattivi sottostanti o il collegamento nel footer.',
       hasCookieControls: true,
     },
     {
@@ -57,14 +54,14 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '6',
       title: 'Trasparenza sull’Intelligenza Artificiale (EU AI Act 2024/1689)',
       body:
-        'Ai sensi degli obblighi di trasparenza previsti dal Regolamento (UE) 2024/1689 (EU AI Act, Art. 50): (1) Avviso esplicito sulla natura dell’assistente visivo: la mascotte animata Orbit presente al centro della pagina utilizza un motore geometrico deterministico locale (tracciamento matematico dello sguardo rispetto al cursore o al cursore di testo, reazioni predefinite al clic ed espressioni fisiche simulate) e NON integra un modello linguistico generativo (LLM) né genera risposte autonome automatizzate; (2) Contenuti e ricerche esterne: qualora l’utente invii una query verso motori di ricerca esterni o servizi terzi dotati di funzionalità di IA generativa, tali sistemi operano al di fuori di Orbit sotto le rispettive informative e marcature di trasparenza ai sensi dell’AI Act.',
+        'Ai sensi degli obblighi di trasparenza previsti dal Regolamento (UE) 2024/1689 (EU AI Act, Art. 50): (1) Avviso esplicito sulla natura dell’assistente visivo: la mascotte animata Orbit presente al centro della pagina utilizza un motore geometrico deterministico gestito lato server (tracciamento matematico dello sguardo rispetto al cursore o al cursore di testo, reazioni predefinite al clic ed espressioni fisiche simulate) e nella versione attuale NON integra un modello linguistico generativo autonomo (LLM); (2) Contenuti e ricerche esterne: qualora l’utente invii una query verso motori di ricerca esterni o servizi terzi dotati di funzionalità di IA generativa, tali sistemi operano al di fuori di Orbit sotto le rispettive informative e marcature di trasparenza ai sensi dell’AI Act.',
     },
     {
       id: 'sicurezza',
       number: '7',
       title: 'Sicurezza delle Connessioni e Protezione dei Dati',
       body:
-        'La sicurezza tecnica del servizio si fonda su principi di minimizzazione e cifratura: (1) Trasporto cifrato HTTPS/TLS (SSL): ogni sessione di caricamento della pagina e ogni eventuale richiesta autorizzata avvengono su canale cifrato HTTPS con protocolli TLS aggiornati per prevenire intercettazioni o manomissioni in transito; (2) Isolamento locale: i collegamenti rapidi e le preferenze visive non vengono mai trasmessi a server centrali, eliminando il rischio di violazioni di banche dati cloud di profilazione; (3) Validazione degli URL: tutti gli indirizzi inseriti dall’utente nei link rapidi vengono sanitizzati per impedire schemi pericolosi (es. javascript:).',
+        'La sicurezza tecnica del servizio si fonda su principi di minimizzazione e cifratura: (1) Trasporto cifrato HTTPS/TLS (SSL): ogni sessione di caricamento della pagina e ogni eventuale richiesta autorizzata avvengono su canale cifrato HTTPS con protocolli TLS aggiornati per prevenire intercettazioni o manomissioni in transito; (2) Isolamento locale: i collegamenti rapidi e le preferenze visive non vengono mai trasmessi a database centrali di profilazione; (3) Validazione degli URL: tutti gli indirizzi inseriti dall’utente nei link rapidi vengono sanitizzati per impedire schemi pericolosi (es. javascript:).',
     },
     {
       id: 'requisiti-usa',
@@ -81,6 +78,13 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       body:
         'Per gli utenti residenti nel Regno Unito e nelle principali giurisdizioni internazionali extra-SEE: (1) Regno Unito (UK GDPR e Data Protection Act 2018): il trattamento locale rispetta i principi di liceità e minimizzazione supervisionati dall’Information Commissioner’s Office (ICO, ico.org.uk), garantendo agli interessati UK i medesimi diritti di accesso, rettifica, cancellazione e portabilità; (2) Brasile (LGPD — Lei Geral de Proteção de Dados n. 13.709/2018): sono garantiti i diritti di conferma dell’esistenza del trattamento, revoca del consenso e anonimizzazione sotto vigilanza dell’ANPD; (3) Canada (PIPEDA) e altre aree internazionali: il consenso alle richieste esterne facoltative è sempre espresso, informato e revocabile, con eventuale trasferimento internazionale verso motori di ricerca scelti dall’utente eseguito unicamente su sua richiesta diretta o mediante adeguate garanzie contrattuali (Clausole Contrattuali Standard UE e UK IDTA).',
     },
+    {
+      id: 'donazioni-volontarie',
+      number: '10',
+      title: 'Donazioni Volontarie e Assenza di Rapporto Commerciale (Normativa Italiana e Internazionale)',
+      body:
+        'Eventuali contributi inviati tramite il pulsante Buy Me a Coffee (buymeacoffee.com/OrbitHome) costituiscono esclusivamente atti spontanei di liberalità e sostegno allo sviluppo del progetto open-source Orbit, e NON costituiscono in alcun caso vendita di beni, prestazione di servizi, abbonamento o corrispettivo commerciale. (1) Normativa italiana: tali elargizioni rientrano nella disciplina della donazione per spirito di liberalità di cui all’Art. 769 del Codice Civile italiano e, trattandosi di contributi spontanei di entità proporzionata alla libera discrezione del donante, nella fattispecie delle donazioni di modico valore ai sensi dell’Art. 783 c.c. (esenti dalle formalità dell’Art. 782 c.c.), con conseguente inapplicabilità del Codice del Consumo (D.Lgs. 206/2005, Artt. 45–67) e degli obblighi di commercio elettronico (D.Lgs. 70/2003) proprio per l’assenza di contratto a prestazioni corrispettive; nessuna funzionalità di Orbit è subordinata o sbloccata tramite pagamento. (2) Normativa europea e internazionale: nell’Unione Europea la Direttiva (UE) 2011/83 sui diritti dei consumatori (Art. 3) esclude gli atti gratuiti privi di prezzo o corrispettivo contrattuale, così come la Direttiva IVA 2006/112/CE (Art. 2) distingue le mere liberalità dalle cessioni onerose; nel Regno Unito tali contributi rappresentano gratuitous gifts privi di consideration contrattuale al di fuori del Consumer Rights Act 2015; negli Stati Uniti costituiscono contributi volontari senza alcun quid pro quo né garanzia commerciale sotto la disciplina FTC/UCC (e non configurano donazioni deducibili 501(c)(3)). I trasferimenti sono elaborati su piattaforma esterna Buy Me a Coffee Inc. secondo i relativi standard di sicurezza PCI-DSS / PSD2.',
+    },
   ];
 }
 
@@ -90,7 +94,7 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
     EU: 'European Union (GDPR 2016/679) Privacy Notice: Orbit processes interface preferences (theme, fluo accent, up to 4 quick links, locale, consent state, and optional local search history) strictly on your device via browser localStorage with zero remote profiling database. Search queries are only dispatched to your chosen search engine upon explicit submission.',
     UK: 'United Kingdom (UK GDPR & Data Protection Act 2018) Privacy Notice: Orbit processes customization settings strictly on your local device without server-side user profiling. UK residents retain full rights of access, erasure, restriction, and complaint to the Information Commissioner’s Office (ICO, ico.org.uk).',
     US: 'United States (CCPA/CPRA, State Privacy Laws & COPPA) Privacy Notice: Orbit does not sell or share personal information for cross-context behavioral advertising, does not maintain user accounts, honors browser Global Privacy Control (GPC) signals automatically, and does not knowingly collect personal information from children under 13 under COPPA.',
-    GLOBAL: 'International Privacy Notice (LGPD Brazil, PIPEDA Canada & Global Frameworks): Orbit minimizes data processing to strictly client-side localStorage preferences. Any cross-border request to an external search engine occurs exclusively at your explicit navigation command, respecting LGPD (Art. 18), PIPEDA fair information principles, and international transfer safeguards.',
+    GLOBAL: 'International Privacy Notice (LGPD Brazil, PIPEDA Canada & Global Frameworks): Orbit minimizes data processing to strictly local preferences. Any cross-border request to an external search engine occurs exclusively at your explicit navigation command, respecting LGPD (Art. 18), PIPEDA fair information principles, and international transfer safeguards.',
   };
 
   return [
@@ -98,14 +102,14 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       id: 'privacy-giurisdizione',
       number: '0',
       title: `Jurisdiction-Specific Privacy Notice (${jurisdiction}) — Live Audit`,
-      body: `${jurisdictionLead[jurisdiction]} (1) Real application data audit: Orbit runs entirely in your browser without user registration, remote analytics trackers, or e-commerce payment forms; (2) Local storage items are limited to theme mode, neon accent selection, custom quick links (max 4), locale/jurisdiction choice, translation cache, local search history, and cookie consent status; (3) External destinations are only contacted when you actively submit a search or explicitly opt in to third-party autocomplete suggestions.`,
+      body: `${jurisdictionLead[jurisdiction]} (1) Real application data audit: Orbit runs without user registration, remote analytics trackers, or e-commerce payment forms; (2) Local storage items are limited to theme mode, neon accent selection, custom quick links (max 4), locale/jurisdiction choice, translation cache, local search history, and cookie consent status; (3) External search suggestions are only proxied when you explicitly opt in to third-party autocomplete.`,
     },
     {
       id: 'titolare-progetto',
       number: '1',
       title: 'Project Ownership & Open-Source Attribution',
       body:
-        'Orbit is a free, non-commercial, open-source personal web project created and maintained privately by an individual developer (Daniele Mastrorilli). (1) No Corporate Entity: Orbit is NOT operated by an S.r.l., limited liability company, commercial firm, or VAT-registered business; (2) Open-Source on GitHub: the project source code is openly published on GitHub so anyone can verify its client-side architecture and local-only privacy behavior; (3) Non-Commercial Purpose: Orbit runs ad-free with zero paid subscriptions, purchases, or tracking databases.',
+        'Orbit is a free, non-commercial, open-source personal web project created and maintained privately by an individual developer (Daniele Mastrorilli). (1) No Corporate Entity: Orbit is NOT operated by an S.r.l., limited liability company, commercial firm, or VAT-registered business; (2) Open-Source on GitHub: the project source code is openly published on GitHub so anyone can inspect its architecture and zero-tracking privacy guarantees; (3) Non-Commercial Purpose: Orbit runs ad-free with zero paid subscriptions, purchases, or tracking databases.',
     },
     {
       id: 'contatti-diretti',
@@ -119,7 +123,7 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '3',
       title: 'Cookie Policy, Preventive Blocking & Equal-Prominence Consent (2026)',
       body:
-        'Orbit enforces privacy-by-default rules compliant with ePrivacy and 2026 anti-dark-pattern guidelines: (1) Preventive blocking: before explicit user consent, all non-essential external suggestion requests (Wikipedia OpenSearch / DuckDuckGo API) are blocked by code, while strictly technical localStorage keys remain active to render your chosen UI state; (2) Equal visual prominence: Accept All, Reject Non-Essential, and Customize Choices are displayed with equal visual weight and zero manipulative design; (3) Continuous right to review: you can revisit, update, or withdraw consent anytime below or via the footer link.',
+        'Orbit enforces privacy-by-default rules compliant with ePrivacy and 2026 anti-dark-pattern guidelines: (1) Preventive blocking: before explicit user consent, all non-essential external suggestion requests (DuckDuckGo / Google Suggest) are blocked by code, while strictly technical localStorage keys remain active to render your chosen UI state; (2) Equal visual prominence: Accept All, Reject Non-Essential, and Customize Choices are displayed with equal visual weight and zero manipulative design; (3) Continuous right to review: you can revisit, update, or withdraw consent anytime below or via the footer link.',
       hasCookieControls: true,
     },
     {
@@ -141,14 +145,14 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '6',
       title: 'AI Transparency Disclosure (EU AI Act 2024/1689)',
       body:
-        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic local procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and is NOT a generative Large Language Model (LLM) nor an autonomous AI agent; (2) Third-Party AI Search Engines: any query you choose to send to an external search provider that displays AI-generated summaries is governed by that provider’s own AI Act transparency disclosures.',
+        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic server-assisted procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and also lets users optionally connect their own Google Gemini API key (encrypted end-to-end) because Orbit has no self-hosted model server; (2) Third-Party AI Models: any AI response generated using your personal Gemini API key or external search engine is governed by the provider’s own AI Act disclosures.',
     },
     {
       id: 'sicurezza',
       number: '7',
       title: 'Security Measures (HTTPS/TLS Encryption & Local Isolation)',
       body:
-        'Orbit protects session integrity through layered technical safeguards: (1) Encrypted Transport: all connections and authorized external lookups use HTTPS/TLS (SSL) encryption in transit; (2) Zero Central Profiling Database: preferences stay isolated in your browser storage, removing central server breach exposure; (3) URL Sanitization: user-configured quick links are validated to permit only safe http:// and https:// protocols.',
+        'Orbit protects session integrity through layered technical safeguards: (1) Encrypted Transport: all connections and authorized external lookups use HTTPS/TLS (SSL) encryption in transit; (2) Multi-Layer Key Protection: personal Gemini API keys supplied optionally by users are protected via HKDF-SHA256 + AES-256-GCM double envelopes inside HttpOnly Partitioned cookies and Web Crypto non-extractable keys; (3) URL Sanitization: user-configured quick links are validated to permit only safe http:// and https:// protocols.',
     },
     {
       id: 'requisiti-usa',
@@ -164,6 +168,13 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       title: 'UK (UK GDPR / ICO) & Non-EU International Requirements (LGPD / PIPEDA)',
       body:
         'For users in the United Kingdom and jurisdictions outside the European Economic Area: (1) United Kingdom: Orbit aligns with the UK GDPR and Data Protection Act 2018 overseen by the ICO, granting UK residents equivalent data access, rectification, and erasure rights; (2) Brazil (LGPD Law No. 13.709/2018) and Canada (PIPEDA): users retain clear consent control, transparency over technical storage, and complaint avenues before ANPD or the Office of the Privacy Commissioner of Canada; (3) Cross-Border Transfers: any international data routing triggered by user-initiated searches relies on user-directed navigation or Standard Contractual Clauses (EU SCCs / UK IDTA).',
+    },
+    {
+      id: 'donazioni-volontarie',
+      number: '10',
+      title: 'Voluntary Donations & Non-Commercial Gift Notice (Italian & International Law)',
+      body:
+        'Any contribution made via the Buy Me a Coffee button (buymeacoffee.com/OrbitHome) is strictly a spontaneous act of generosity to support ongoing open-source development of Orbit and does NOT constitute a sale of goods, paid service, subscription, or commercial transaction of any kind. (1) Italian Law: voluntary contributions qualify as non-commercial acts of liberality under Article 769 of the Italian Civil Code (Codice Civile) and specifically as modest-value gifts (donazioni di modico valore) under Article 783 c.c. (exempt from notarial form under Article 782 c.c.), falling outside consumer sales contracts under Legislative Decree 206/2005 (Codice del Consumo, Arts. 45–67) and e-commerce rules (D.Lgs. 70/2003); zero features or access depend on payment. (2) European & International Law: under EU Consumer Rights Directive 2011/83/EU (Art. 3) and EU VAT Directive 2006/112/EC (Art. 2), gratuitous transfers without contractual consideration are not consumer sales; under UK law, voluntary gifts lack contractual consideration outside the Consumer Rights Act 2015; under US law, optional developer tips without quid pro quo carry no commercial warranty under UCC/FTC rules and are personal gifts rather than 501(c)(3) tax-deductible charity. Transfers are processed externally by Buy Me a Coffee Inc. under PCI-DSS and PSD2 compliance.',
     },
   ];
 }
@@ -185,20 +196,23 @@ function buildLocalizedSummaryLegalSections(
       '7. Sécurité (HTTPS/TLS)',
       '8. Exigences États-Unis (CCPA/CPRA, GPC, COPPA)',
       '9. Exigences Royaume-Uni (UK GDPR / ICO) et Hors-UE (LGPD / PIPEDA)',
+      '10. Dons Volontaires et Absence de Vente Commerciale (Droit Italien & International)',
     ];
     return base.map((sec, idx) => ({
       ...sec,
       title: titles[idx] ?? sec.title,
       body:
         idx === 0
-          ? `Conformité RGPD (UE) 2016/679 : (1) Orbit fonctionne entièrement côté client via localStorage sans base de données de profilage ; (2) Aucune requête externe non essentielle n’est envoyée sans consentement explicite ; (3) Vous disposez des droits d’accès, de rectification et d’effacement.`
+          ? `Conformité RGPD (UE) 2016/679 : (1) Orbit stocke vos préférences localement via localStorage sans base de données de profilage ; (2) Aucune requête de suggestion externe n’est envoyée sans consentement explicite ; (3) Vous disposez des droits d’accès, de rectification et d’effacement.`
           : idx === 1
             ? `Orbit est un projet personnel gratuit, non commercial et open-source créé et maintenu à titre privé par Daniele Mastrorilli (aucune société ou S.r.l.), avec code source public hébergé sur GitHub.`
             : idx === 2
               ? `Pour toute question relative à la confidentialité, à l’accessibilité ou au projet open-source, vous pouvez contacter directement Daniele Mastrorilli via le dépôt public sur GitHub.`
               : idx === 3
                 ? `Architecture sans dark pattern conforme 2026 : (1) Blocage préventif des API de suggestions tierces avant consentement ; (2) Boutons Accepter, Refuser et Personnaliser de visibilité strictement égale ; (3) Modification possible à tout moment ci-dessous.`
-                : sec.body,
+                : idx === 10
+                  ? `Toute contribution via Buy Me a Coffee (buymeacoffee.com/OrbitHome) est un don purement volontaire et gratuit, sans aucune contrepartie commerciale, ni vente de biens ou abonnement. En droit italien, il s’agit de libéralités de valeur modique au sens des articles 769, 782 et 783 du Code civil italien (hors champ du Code de la consommation D.Lgs. 206/2005) ; en droit européen et international, la directive (UE) 2011/83 (art. 3) et la directive TVA 2006/112/CE (art. 2), ainsi que les règles du Royaume-Uni (absence de consideration) et des États-Unis (dons sans quid pro quo), confirment qu’il ne s’agit ni d’une vente ni d’un contrat commercial. Les paiements sont traités par Buy Me a Coffee Inc.`
+                  : sec.body,
     }));
   }
   if (lang === 'de') {
@@ -213,6 +227,7 @@ function buildLocalizedSummaryLegalSections(
       '7. Sicherheit (HTTPS/TLS)',
       '8. US-Anforderungen (CCPA/CPRA, GPC, COPPA)',
       '9. UK- (UK GDPR / ICO) & Nicht-EU-Anforderungen (LGPD / PIPEDA)',
+      '10. Freiwillige Spenden & Kein Kaufvertrag (Italienisches & Internationales Recht)',
     ];
     return base.map((sec, idx) => ({
       ...sec,
@@ -226,7 +241,9 @@ function buildLocalizedSummaryLegalSections(
               ? `Für Datenschutzanfragen, Barrierefreiheits-Feedback oder Fehlerberichte wenden Sie sich bitte direkt über das öffentliche GitHub-Repository an Daniele Mastrorilli.`
               : idx === 3
                 ? `Cookie- und Einwilligungsmanagement ohne Dark Patterns (2026): (1) Präventive Blockierung nicht notwendiger externer Anfragen; (2) Gleichwertige Schaltflächen für Akzeptieren, Ablehnen und Anpassen; (3) Jederzeitige Widerrufsmöglichkeit unten.`
-                : sec.body,
+                : idx === 10
+                  ? `Beiträge über Buy Me a Coffee (buymeacoffee.com/OrbitHome) sind rein freiwillige, unentgeltliche Zuwendungen zur Unterstützung der Open-Source-Entwicklung und stellen keinerlei Warenverkauf, kostenpflichtige Dienstleistung oder Abonnement dar. Nach italienischem Recht fallen sie unter Art. 769, 782 und 783 Codice Civile (Schenkung geringen Werts, außerhalb des Verbraucherschutzgesetzes D.Lgs. 206/2005); nach EU-Recht (Richtlinie 2011/83/EU Art. 3, MwSt-Richtlinie 2006/112/EG Art. 2) sowie britischem (fehlende consideration) und US-Recht (Spende ohne quid pro quo) liegt kein Kaufvertrag vor. Die Abwicklung erfolgt extern über Buy Me a Coffee Inc.`
+                  : sec.body,
     }));
   }
   const titles = [
@@ -240,6 +257,7 @@ function buildLocalizedSummaryLegalSections(
     '7. Seguridad (HTTPS/TLS)',
     '8. Requisitos EE. UU. (CCPA/CPRA, GPC, COPPA)',
     '9. Requisitos Reino Unido (UK GDPR / ICO) y Fuera de la UE (LGPD / PIPEDA)',
+    '10. Donaciones Voluntarias y Ausencia de Venta Comercial (Derecho Italiano e Internacional)',
   ];
   return base.map((sec, idx) => ({
     ...sec,
@@ -253,34 +271,28 @@ function buildLocalizedSummaryLegalSections(
             ? `Para consultas de privacidad, accesibilidad o avisos sobre el proyecto open-source, puedes contactar directamente con Daniele Mastrorilli a través del repositorio público en GitHub.`
             : idx === 3
               ? `Gestión de consentimiento sin patrones oscuros (2026): (1) Bloqueo preventivo de APIs externas no esenciales; (2) Botones de igual visibilidad para Aceptar, Rechazar y Personalizar; (3) Modificación disponible en cualquier instante abajo.`
-              : sec.body,
+              : idx === 10
+                ? `Las aportaciones mediante Buy Me a Coffee (buymeacoffee.com/OrbitHome) son donaciones puramente voluntarias y gratuitas de apoyo al desarrollo open-source de Orbit, y NO constituyen venta de bienes, servicio de pago, suscripción ni operación comercial alguna. Conforme al derecho italiano (Arts. 769, 782 y 783 del Código Civil italiano sobre donaciones de módico valor, excluidas del Código de Consumo D.Lgs. 206/2005) y al derecho europeo e internacional (Directiva 2011/83/UE Art. 3, Directiva IVA 2006/112/CE Art. 2, derecho británico sin consideration y normativa estadounidense sin quid pro quo), estas liberalidades carecen de contraprestación contractual. El procesamiento externo corresponde a Buy Me a Coffee Inc.`
+                : sec.body,
   }));
 }
 
-export function getLegalSections(lang: LanguageCode, jurisdiction: JurisdictionCode): LegalSection[] {
-  const key = `legal:${lang}:${jurisdiction}:v3`;
-  const mem = legalMemoryCache.get(key);
-  if (mem) return mem;
+const VALID_LANGS = new Set<LanguageCode>(['it', 'en', 'fr', 'de', 'es']);
+const VALID_JURISDICTIONS = new Set<JurisdictionCode>(['IT', 'EU', 'UK', 'US', 'GLOBAL']);
 
-  const stored = readStorage<Record<string, LegalSection[]>>(`${STORAGE_KEYS.i18nCache}_legal`, {});
-  if (stored[key]) {
-    legalMemoryCache.set(key, stored[key]);
-    return stored[key];
-  }
+export function getLegalSections(rawLang: unknown, rawJurisdiction: unknown): LegalSection[] {
+  const lang: LanguageCode =
+    typeof rawLang === 'string' && VALID_LANGS.has(rawLang as LanguageCode)
+      ? (rawLang as LanguageCode)
+      : 'en';
+  const jurisdiction: JurisdictionCode =
+    typeof rawJurisdiction === 'string' && VALID_JURISDICTIONS.has(rawJurisdiction as JurisdictionCode)
+      ? (rawJurisdiction as JurisdictionCode)
+      : 'EU';
 
-  let sections: LegalSection[];
-  if (lang === 'it') {
-    sections = buildItalianLegalSections(jurisdiction);
-  } else if (lang === 'en') {
-    sections = buildEnglishLegalSections(jurisdiction);
-  } else {
-    sections = buildLocalizedSummaryLegalSections(lang, jurisdiction);
-  }
-
-  legalMemoryCache.set(key, sections);
-  stored[key] = sections;
-  writeStorage(`${STORAGE_KEYS.i18nCache}_legal`, stored);
-  return sections;
+  if (lang === 'it') return buildItalianLegalSections(jurisdiction);
+  if (lang === 'en') return buildEnglishLegalSections(jurisdiction);
+  return buildLocalizedSummaryLegalSections(lang, jurisdiction);
 }
 
 export function filterLegalSections(sections: LegalSection[], query: string): LegalSection[] {

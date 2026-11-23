@@ -66,53 +66,61 @@ body {
   font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* Subtle atmospheric accent glow + softly masked micro-dot background pattern */
+/* Subtle animated atmospheric accent glow + softly masked micro-dot background pattern */
 .orbit-ambient-bg {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
+}
+
+@keyframes orbitAmbientDrift {
+  0% {
+    transform: translate3d(-1.8%, -1.4%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(1.6%, 1.2%, 0) scale(1.03);
+  }
+  100% {
+    transform: translate3d(-0.8%, 1.8%, 0) scale(1.015);
+  }
+}
+
+.orbit-ambient-bg::before {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  will-change: transform;
   background:
-    radial-gradient(circle at 22% 20%, rgba(var(--acc-rgb), 0.06) 0%, transparent 46%),
-    radial-gradient(circle at 78% 78%, rgba(var(--acc-rgb), 0.045) 0%, transparent 50%),
-    radial-gradient(ellipse 64% 52% at 50% 44%, rgba(var(--acc-rgb), 0.03) 0%, transparent 68%);
-  transition: background 0.6s var(--soft);
+    radial-gradient(circle at 18% 18%, rgba(var(--acc-rgb), 0.068) 0%, rgba(var(--acc-rgb), 0.02) 34%, transparent 62%),
+    radial-gradient(circle at 82% 82%, rgba(var(--acc-rgb), 0.052) 0%, rgba(var(--acc-rgb), 0.016) 36%, transparent 64%),
+    radial-gradient(ellipse 58% 48% at 50% 42%, rgba(var(--acc-rgb), 0.04) 0%, rgba(var(--acc-rgb), 0.012) 46%, transparent 74%);
+  animation: orbitAmbientDrift 24s ease-in-out infinite alternate;
+  transition: background 0.7s var(--soft);
 }
 
 .orbit-ambient-bg::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(13, 17, 29, 0.065) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(13, 17, 29, 0.055) 1px, transparent 1px);
   background-size: 26px 26px;
-  -webkit-mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 58%, transparent 100%);
-  mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 58%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.3) 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 64% at 50% 48%, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.3) 58%, transparent 100%);
 }
 
-:root.dark .orbit-ambient-bg {
+:root.dark .orbit-ambient-bg::before {
   background:
-    radial-gradient(circle at 22% 20%, rgba(var(--acc-rgb), 0.055) 0%, transparent 46%),
-    radial-gradient(circle at 78% 78%, rgba(var(--acc-rgb), 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse 64% 52% at 50% 44%, rgba(var(--acc-rgb), 0.025) 0%, transparent 68%);
+    radial-gradient(circle at 18% 18%, rgba(var(--acc-rgb), 0.082) 0%, rgba(var(--acc-rgb), 0.024) 34%, transparent 62%),
+    radial-gradient(circle at 82% 82%, rgba(var(--acc-rgb), 0.062) 0%, rgba(var(--acc-rgb), 0.018) 36%, transparent 64%),
+    radial-gradient(ellipse 58% 48% at 50% 42%, rgba(var(--acc-rgb), 0.048) 0%, rgba(var(--acc-rgb), 0.014) 46%, transparent 74%);
 }
 
 :root.dark .orbit-ambient-bg::after {
-  background-image: radial-gradient(circle, rgba(242, 244, 255, 0.055) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(242, 244, 255, 0.048) 1px, transparent 1px);
 }
 
-/* Single crisp fixed orbital ring around the bot sphere (zero glow) */
-.orbit-ring-track {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 126%;
-  height: 126%;
-  border-radius: 9999px;
-  transform: translate(-50%, -50%);
-  border: 1.5px solid color-mix(in srgb, var(--acc) 72%, transparent);
-  pointer-events: none;
-  transition: border-color 0.45s var(--soft);
-}
 
 /* Thinking cloud animation */
 #think-bubble .p {
@@ -229,6 +237,10 @@ mark.legal-hit {
 }
 
 /* Custom sleek scrollbar inside menus */
+.orbit-scroll {
+  scroll-behavior: smooth;
+}
+
 .orbit-scroll::-webkit-scrollbar {
   width: 5px;
 }
@@ -483,7 +495,12 @@ mark.legal-hit {
   .animate-caret-blink,
   .orb-sleep-z-1,
   .orb-sleep-z-2,
-  .orb-sleep-z-3 {
+  .orb-sleep-z-3,
+  .orbit-ambient-bg::before,
+  .support-vfx-particle,
+  .support-vfx-orbit-ring,
+  .support-vfx-halo-sweep,
+  .donation-vfx-halo::before {
     animation: none !important;
   }
   .bubble-border-sweep,
@@ -494,4 +511,263 @@ mark.legal-hit {
   .bubble-interactive.is-flashing .bubble-flash {
     animation: none !important;
   }
+  .orbit-scroll {
+    scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY PREFERENCES (Controlled via Settings -> Accessibility)
+   ========================================================================== */
+html[data-reduce-motion="reduce"] .hat-sway,
+html[data-reduce-motion="reduce"] .animate-caret-blink,
+html[data-reduce-motion="reduce"] .orb-sleep-z-1,
+html[data-reduce-motion="reduce"] .orb-sleep-z-2,
+html[data-reduce-motion="reduce"] .orb-sleep-z-3,
+html[data-reduce-motion="reduce"] .support-tab-shimmer,
+html[data-reduce-motion="reduce"] .orbit-ambient-bg::before,
+html[data-reduce-motion="reduce"] .support-vfx-particle,
+html[data-reduce-motion="reduce"] .support-vfx-orbit-ring,
+html[data-reduce-motion="reduce"] .support-vfx-halo-sweep,
+html[data-reduce-motion="reduce"] .donation-vfx-halo::before {
+  animation: none !important;
+}
+
+html[data-reduce-motion="reduce"] .bubble-border-sweep,
+html[data-reduce-motion="reduce"] .bubble-border-aura,
+html[data-reduce-motion="reduce"] .bubble-interior-wave {
+  transition-duration: 100ms !important;
+}
+
+html[data-reduce-motion="reduce"] .orbit-scroll {
+  scroll-behavior: auto;
+}
+
+html[data-large-text="true"],
+html[data-text-scale="large"] {
+  font-size: 18px;
+}
+
+html[data-text-scale="xlarge"] {
+  font-size: 20px;
+}
+
+html[data-high-contrast="true"]:not(.dark) {
+  --mut: rgba(13, 17, 29, 0.88);
+  --glass: rgba(13, 17, 29, 0.11);
+  --glass2: rgba(13, 17, 29, 0.2);
+  --border-subtle: rgba(13, 17, 29, 0.42);
+}
+
+html[data-high-contrast="true"].dark {
+  --mut: rgba(242, 244, 255, 0.88);
+  --glass: rgba(255, 255, 255, 0.15);
+  --glass2: rgba(255, 255, 255, 0.24);
+  --border-subtle: rgba(242, 244, 255, 0.42);
+}
+
+html[data-focus-rings="true"] :focus-visible {
+  outline: 3px solid var(--acc) !important;
+  outline-offset: 3px !important;
+}
+
+html[data-reduce-transparency="true"]:not(.dark) {
+  --glass: #eaeef5;
+  --glass2: #dde4ef;
+  --menu-glass: #f4f6fa;
+  --surface: #ffffff;
+}
+
+html[data-reduce-transparency="true"].dark {
+  --glass: #151a28;
+  --glass2: #1e2538;
+  --menu-glass: #10141f;
+  --surface: #10141f;
+}
+
+html[data-reduce-transparency="true"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-underline-links="true"] a,
+html[data-underline-links="true"] [role="link"] {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+html[data-dyslexia-font="true"] body,
+html[data-dyslexia-font="true"] button,
+html[data-dyslexia-font="true"] input,
+html[data-dyslexia-font="true"] textarea,
+html[data-dyslexia-font="true"] select {
+  font-family: Verdana, "Trebuchet MS", "Segoe UI", Arial, sans-serif !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.09em;
+}
+
+html[data-relaxed-spacing="true"] body {
+  letter-spacing: 0.02em;
+  line-height: 1.72;
+}
+
+html[data-large-targets="true"] button,
+html[data-large-targets="true"] [role="button"],
+html[data-large-targets="true"] a[href] {
+  min-height: 44px;
+}
+
+html[data-color-filter="grayscale"] {
+  filter: grayscale(1);
+}
+
+html[data-color-filter="protanopia"] {
+  filter: url(#orbit-filter-protanopia);
+}
+
+html[data-color-filter="deuteranopia"] {
+  filter: url(#orbit-filter-deuteranopia);
+}
+
+html[data-color-filter="tritanopia"] {
+  filter: url(#orbit-filter-tritanopia);
+}
+
+/* Highlighted Settings Tab (Support / Buy Me a Coffee) — liquid sweep shimmer matching button hover */
+@keyframes supportShimmerSweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  55%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.support-tab-highlight {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(var(--acc-rgb), 0.36);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--acc-rgb), 0.08) 0%,
+    rgba(var(--acc-rgb), 0.16) 100%
+  );
+  transition: transform 0.28s var(--ease-liquid), border-color 0.28s var(--ease-liquid), box-shadow 0.28s var(--ease-liquid);
+}
+
+.support-tab-highlight:hover {
+  border-color: rgba(var(--acc-rgb), 0.72);
+  box-shadow:
+    inset 0 0 10px 0 rgba(var(--acc-rgb), 0.26),
+    inset 0 0 22px 0 rgba(var(--acc-rgb), 0.12);
+}
+
+.support-tab-shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(var(--acc-rgb), 0.24) 48%,
+    rgba(255, 255, 255, 0.22) 52%,
+    transparent 80%
+  );
+  animation: supportShimmerSweep 3.8s var(--ease-liquid) infinite;
+}
+
+/* Orbit-coherent Support & Donation VFX */
+@keyframes supportOrbFloat {
+  0% {
+    transform: translate3d(0px, 0px, 0) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate3d(7px, -11px, 0) scale(1.22);
+    opacity: 0.72;
+  }
+  100% {
+    transform: translate3d(-5px, 6px, 0) scale(0.95);
+    opacity: 0.35;
+  }
+}
+
+@keyframes supportRingSpin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.03);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.support-vfx-stage {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(var(--acc-rgb), 0.12) 0%, rgba(var(--acc-rgb), 0.03) 42%, transparent 72%),
+    radial-gradient(circle at 88% 84%, rgba(var(--acc-rgb), 0.09) 0%, transparent 62%),
+    var(--glass);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--acc-rgb), 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.support-vfx-orbit-ring {
+  position: absolute;
+  right: -54px;
+  top: -54px;
+  width: 196px;
+  height: 196px;
+  border-radius: 9999px;
+  pointer-events: none;
+  border: 1.5px dashed rgba(var(--acc-rgb), 0.24);
+  box-shadow: inset 0 0 24px rgba(var(--acc-rgb), 0.08);
+  animation: supportRingSpin 26s linear infinite;
+}
+
+.support-vfx-halo-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    rgba(var(--acc-rgb), 0.07) 48%,
+    rgba(255, 255, 255, 0.07) 52%,
+    transparent 82%
+  );
+  animation: supportShimmerSweep 7.5s var(--ease-liquid) infinite;
+}
+
+.support-vfx-particle {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(var(--acc-rgb), 0.65) 0%, rgba(var(--acc-rgb), 0) 70%);
+  animation: supportOrbFloat 6.8s ease-in-out infinite;
+}
+
+.donation-vfx-halo::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    125deg,
+    rgba(var(--acc-rgb), 0.42) 0%,
+    rgba(var(--acc-rgb), 0.08) 46%,
+    rgba(var(--acc-rgb), 0.34) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.72;
 }

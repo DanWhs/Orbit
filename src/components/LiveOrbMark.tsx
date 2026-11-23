@@ -1,31 +1,45 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { damp } from '../utils/layoutMath';
+import type {
+  BotReactionType,
+  OrbPoseTarget,
+  OrbStepEvent,
+  OrbStepResponse,
+} from '../types/orbit';
+import { damp, ORB_RING_RADIUS_VB, ORB_RING_STROKE_VB } from '../utils/layoutMath';
 import { playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
-import { BotReactionType } from './OrbitBot';
 
 interface LiveOrbMarkProps {
   size?: number;
+  reduceMotion?: boolean;
   reactionSignal?: { type: BotReactionType; nonce: number } | null;
   ariaLabel?: string;
 }
 
-const CLICK_POOL: BotReactionType[] = ['wink', 'happy', 'surprise', 'glance'];
-const MARK_DURATIONS: Record<BotReactionType, number> = {
-  wink: 680,
-  surprise: 700,
-  glance: 900,
-  sleepy: 1100,
-  think: 1800,
-  happy: 850,
-  judge: 1700,
-  perplexed: 1750,
-  curious: 1300,
-  peek: 1150,
-  content: 1050,
+const DEFAULT_MINI_POSE: OrbPoseTarget = {
+  dx: 0,
+  dy: 0,
+  tRot: 0,
+  tScX: 1,
+  tScY: 1,
+  tLW: 1,
+  tLH: 1,
+  tRW: 1,
+  tRH: 1,
+  tLY: 0,
+  tRY: 0,
+  tArcBottom: 0,
+  tLFlatTop: 0,
+  tRFlatTop: 0,
+  tLTBias: 0,
+  tRTBias: 0,
+  tBobY: 0,
+  followPointerLive: true,
+  allowNaturalBlink: true,
 };
 
 export const LiveOrbMark = memo(function LiveOrbMark({
   size = 40,
+  reduceMotion,
   reactionSignal = null,
   ariaLabel = 'Orbit',
 }: LiveOrbMarkProps) {
@@ -37,33 +51,25 @@ export const LiveOrbMark = memo(function LiveOrbMark({
   const [reactionLabel, setReactionLabel] = useState<string>('idle');
   const sizeRef = useRef(size);
   sizeRef.current = size;
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
 
-  const reactionRef = useRef<{ on: boolean; type: BotReactionType; t0: number; dur: number; dir: number }>({
-    on: false,
-    type: 'judge',
-    t0: 0,
-    dur: 1700,
-    dir: 1,
-  });
-  const lastClickIdxRef = useRef(-1);
-
-  const triggerReaction = (type: BotReactionType, silent = false) => {
-    reactionRef.current = {
-      on: true,
-      type,
-      t0: performance.now(),
-      dur: MARK_DURATIONS[type] ?? 900,
-      dir: 1,
-    };
-    setReactionLabel(type);
-    if (!silent) {
-      playReactionSound(type);
-    }
-  };
+  const sessionIdRef = useRef<string>(
+    `mini-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
+  );
+  const pendingEventRef = useRef<OrbStepEvent | null>(null);
+  const urgentSyncRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (reactionSignal) {
-      triggerReaction(reactionSignal.type, true);
+      pendingEventRef.current = {
+        kind: 'signal',
+        reactionType: reactionSignal.type,
+        dir: 1,
+        silent: true,
+        nonce: reactionSignal.nonce,
+      };
+      urgentSyncRef.current();
     }
   }, [reactionSignal]);
 
@@ -72,6 +78,11 @@ export const LiveOrbMark = memo(function LiveOrbMark({
     let ty = 0;
     let lastTime = performance.now();
     let rafId = 0;
+    let isDisposed = false;
+    let inFlight = false;
+    let lastSyncSentAt = 0;
+    let serverPose: OrbPoseTarget = { ...DEFAULT_MINI_POSE };
+    let serverReactionLabel = 'idle';
     const reducedMotionMq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 
     const GX = { p: 0, v: 0 };
@@ -91,6 +102,63 @@ export const LiveOrbMark = memo(function LiveOrbMark({
     const ELFLAT = { p: 0, v: 0 };
     const ERFLAT = { p: 0, v: 0 };
     const BL = { on: false, t0: 0, next: performance.now() + 2100 };
+
+    const syncWithBackend = async () => {
+      if (isDisposed || inFlight) return;
+      inFlight = true;
+      lastSyncSentAt = performance.now();
+      const eventToSend = pendingEventRef.current;
+      pendingEventRef.current = null;
+      const now = performance.now();
+      try {
+        const res = await fetch('/api/orb/step', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            variant: 'mini',
+            nowMs: now,
+            botSize: Math.max(30, sizeRef.current),
+            bootReady: true,
+            menuOpen: true,
+            standbyMode: false,
+            hasQuery: false,
+            isFocused: false,
+            caretRatio: 0,
+            drag: false,
+            reduceMotion: reduceMotionRef.current ?? Boolean(reducedMotionMq?.matches),
+            isTouchMode: false,
+            pointerOutside: false,
+            pointerDx: tx,
+            pointerDy: ty,
+            lastActivityAgoMs: 0,
+            lastPtrAgoMs: 0,
+            event: eventToSend,
+          }),
+        });
+        if (!res.ok || isDisposed) return;
+        const data = (await res.json()) as OrbStepResponse;
+        serverPose = data.poseTarget;
+        if (data.activeReaction !== serverReactionLabel) {
+          serverReactionLabel = data.activeReaction;
+          setReactionLabel(data.activeReaction);
+        }
+        if (data.soundCue && data.soundCue.channel === 'reaction') {
+          playReactionSound(data.soundCue.id as BotReactionType, data.soundCue.ambient);
+        }
+      } catch {
+        // Ignore transient offline errors cleanly
+      } finally {
+        inFlight = false;
+        if (pendingEventRef.current && !isDisposed) {
+          void syncWithBackend();
+        }
+      }
+    };
+
+    urgentSyncRef.current = () => {
+      void syncWithBackend();
+    };
 
     const pointAt = (clientX: number, clientY: number) => {
       const el = wrapRef.current;
@@ -112,23 +180,14 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       }
     };
 
-    const onPointerMove = (e: PointerEvent) => {
-      pointAt(e.clientX, e.clientY);
-    };
-    const onPointerDown = (e: PointerEvent) => {
-      pointAt(e.clientX, e.clientY);
-    };
+    const onPointerMove = (e: PointerEvent) => pointAt(e.clientX, e.clientY);
+    const onPointerDown = (e: PointerEvent) => pointAt(e.clientX, e.clientY);
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerdown', onPointerDown, { passive: true });
 
     const sine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2;
     const bell = (t: number) => (t <= 0 || t >= 1 ? 0 : sine(Math.sin(t * Math.PI)));
-    const sstep = (a: number, b: number, t: number) => {
-      const k = Math.max(0, Math.min(1, (t - a) / (b - a)));
-      return k * k * (3 - 2 * k);
-    };
-    const hold = (t: number) => sstep(0, 0.16, t) * (1 - sstep(0.78, 1, t));
     const clampGaze = (v: number) => Math.max(-1.15, Math.min(1.15, v));
 
     const setEye = (
@@ -151,121 +210,44 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${tilt.toFixed(2)}deg)`;
     };
 
+    void syncWithBackend();
+
     const tick = (now: number) => {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
+
+      if (!inFlight && now - lastSyncSentAt >= 52) {
+        void syncWithBackend();
+      }
+
       const D = Math.max(30, sizeRef.current);
-      const reduceMotion = Boolean(reducedMotionMq?.matches);
+      const isReduced = reduceMotionRef.current ?? Boolean(reducedMotionMq?.matches);
 
-      let dx = tx;
-      let dy = ty;
-      let tRot = reduceMotion ? 0 : Math.sin(now * 0.001) * 1.1;
-      let tLW = 1;
-      let tLH = 1;
-      let tRW = 1;
-      let tRH = 1;
-      let tLY = 0;
-      let tRY = 0;
-      let tArcBottom = 0;
-      let tLFlatTop = 0;
-      let tRFlatTop = 0;
+      const targetDx = serverPose.followPointerLive ? tx : serverPose.dx;
+      const targetDy = serverPose.followPointerLive ? ty : serverPose.dy;
 
-      const R = reactionRef.current;
-      let rt = -1;
-      if (R.on) {
-        rt = (now - R.t0) / R.dur;
-        if (rt >= 1) {
-          R.on = false;
-          rt = -1;
-          setReactionLabel('idle');
-        }
-      }
+      const sx = damp(GX, targetDx, 0.18, dt);
+      const sy = damp(GY, targetDy, 0.18, dt);
+      const bx = damp(BX, targetDx, 0.34, dt);
+      const by = damp(BY, targetDy, 0.34, dt);
 
-      const b =
-        rt < 0
-          ? 0
-          : R.type === 'judge' || R.type === 'perplexed' || R.type === 'happy' || R.type === 'content'
-            ? hold(rt)
-            : bell(rt);
+      const tLT = -4.2 - sx * 6.5 + serverPose.tLTBias;
+      const tRT = 4.2 - sx * 6.5 + serverPose.tRTBias;
 
-      if (rt >= 0) {
-        if (R.type === 'judge') {
-          dx = dx * (1 - b * 0.45) + 0.72 * b;
-          dy = dy * (1 - b * 0.45) + 0.06 * b;
-          tRot = -b * (6.2 + Math.sin(rt * Math.PI * 2) * 1.4);
-          tLH *= 1 - b * 0.52;
-          tRH *= 1 - b * 0.52;
-          tLW *= 1 + b * 0.14;
-          tRW *= 1 + b * 0.14;
-          tLY = tRY = b * D * 0.02;
-          tLFlatTop = b * 0.9;
-          tRFlatTop = b * 0.9;
-        } else if (R.type === 'perplexed') {
-          dx = dx * (1 - b * 0.45) + 0.66 * b;
-          dy = dy * (1 - b * 0.45) - 0.08 * b;
-          tRot = b * (8.0 + Math.sin(rt * Math.PI * 3) * 1.6);
-          tLH *= 1 - b * 0.44;
-          tLW *= 1 + b * 0.08;
-          tLY = b * D * 0.022;
-          tLFlatTop = b * 0.75;
-          tRH *= 1 + b * 0.15;
-          tRW *= 1 + b * 0.12;
-          tRY = -b * D * 0.02;
-        } else if (R.type === 'happy') {
-          tLH *= 1 - b * 0.56;
-          tRH *= 1 - b * 0.56;
-          tLW *= 1 + b * 0.24;
-          tRW *= 1 + b * 0.24;
-          tLY = tRY = -b * D * 0.025;
-          tArcBottom = b;
-        } else if (R.type === 'wink') {
-          tRH *= 1 - b * 0.88;
-          tRW *= 1 + b * 0.2;
-          tRot += b * 4.5;
-        } else if (R.type === 'surprise') {
-          tLW *= 1 + b * 0.22;
-          tRW *= 1 + b * 0.22;
-          tLH *= 1 + b * 0.16;
-          tRH *= 1 + b * 0.16;
-        } else if (R.type === 'glance') {
-          dx = dx * (1 - b) + 0.8 * b;
-          dy = dy * (1 - b) - 0.25 * b;
-          tRot = b * 6.5;
-        }
-      }
-
-      const sx = damp(GX, dx, 0.18, dt);
-      const sy = damp(GY, dy, 0.18, dt);
-      const bx = damp(BX, dx, 0.34, dt);
-      const by = damp(BY, dy, 0.34, dt);
-
-      let tLT = -4.2 - sx * 6.5;
-      let tRT = 4.2 - sx * 6.5;
-      if (rt >= 0 && R.type === 'judge') {
-        tLT += b * 4;
-        tRT -= b * 4;
-      } else if (rt >= 0 && R.type === 'perplexed') {
-        tLT += b * 10;
-        tRT -= b * 7;
-      } else if (rt >= 0 && R.type === 'happy') {
-        tLT -= b * 7;
-        tRT += b * 7;
-      }
-
-      const rot = damp(EROT, tRot, 0.14, dt);
-      let lW = damp(ELW, tLW, 0.12, dt);
-      let lH = damp(ELH, tLH, 0.12, dt);
-      let rW = damp(ERW, tRW, 0.12, dt);
-      let rH = damp(ERH, tRH, 0.12, dt);
-      const lY = damp(ELY, tLY, 0.12, dt);
-      const rY = damp(ERY, tRY, 0.12, dt);
+      const rot = damp(EROT, serverPose.tRot, 0.14, dt);
+      let lW = damp(ELW, serverPose.tLW, 0.12, dt);
+      let lH = damp(ELH, serverPose.tLH, 0.12, dt);
+      let rW = damp(ERW, serverPose.tRW, 0.12, dt);
+      let rH = damp(ERH, serverPose.tRH, 0.12, dt);
+      const lY = damp(ELY, serverPose.tLY, 0.12, dt);
+      const rY = damp(ERY, serverPose.tRY, 0.12, dt);
       const lT = damp(ELT, tLT, 0.12, dt);
       const rT = damp(ERT, tRT, 0.12, dt);
-      const arcBottom = Math.max(0, damp(EARC, tArcBottom, 0.12, dt));
-      const lFlatTop = Math.max(0, damp(ELFLAT, tLFlatTop, 0.12, dt));
-      const rFlatTop = Math.max(0, damp(ERFLAT, tRFlatTop, 0.12, dt));
+      const arcBottom = Math.max(0, damp(EARC, serverPose.tArcBottom, 0.12, dt));
+      const lFlatTop = Math.max(0, damp(ELFLAT, serverPose.tLFlatTop, 0.12, dt));
+      const rFlatTop = Math.max(0, damp(ERFLAT, serverPose.tRFlatTop, 0.12, dt));
 
-      if (!BL.on && !R.on && now >= BL.next) {
+      if (serverPose.allowNaturalBlink && !BL.on && now >= BL.next) {
         BL.on = true;
         BL.t0 = now;
       }
@@ -283,9 +265,9 @@ export const LiveOrbMark = memo(function LiveOrbMark({
         }
       }
 
-      const eW = D * 0.19;
-      const eH = D * 0.41;
-      const baseGap = D * 0.28;
+      const eW = D * 0.188;
+      const eH = D * 0.405;
+      const baseGap = D * 0.278;
       const thx = sx * 0.94;
       const thy = sy * 0.9;
       const offX = Math.sin(thx) * D * 0.19;
@@ -302,7 +284,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       const rh = Math.max(2.6, eH * rH * vfy);
 
       if (botRef.current) {
-        const bobY = reduceMotion ? 0 : Math.sin(now * 0.0018) * D * 0.018;
+        const bobY = isReduced ? 0 : Math.sin(now * 0.0018) * D * 0.018;
         botRef.current.style.transform = `translate3d(${(bx * D * 0.04).toFixed(2)}px,${(by * D * 0.04 + bobY).toFixed(2)}px,0) rotate(${rot.toFixed(2)}deg)`;
       }
 
@@ -315,6 +297,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
     rafId = requestAnimationFrame(tick);
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
@@ -323,10 +306,12 @@ export const LiveOrbMark = memo(function LiveOrbMark({
 
   const handleClick = () => {
     unlockOrbitAudio();
-    let idx = Math.floor(Math.random() * CLICK_POOL.length);
-    if (idx === lastClickIdxRef.current) idx = (idx + 1) % CLICK_POOL.length;
-    lastClickIdxRef.current = idx;
-    triggerReaction(CLICK_POOL[idx], false);
+    pendingEventRef.current = {
+      kind: 'click',
+      dir: 1,
+      nonce: Date.now() + Math.random(),
+    };
+    urgentSyncRef.current();
   };
 
   return (
@@ -336,10 +321,28 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       className="relative shrink-0"
       style={{ width: `${size}px`, height: `${size}px` }}
     >
-      <div className="orbit-ring-track" aria-hidden="true" />
+      <svg
+        data-testid="settings-orb-ring"
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        className="absolute left-1/2 top-1/2 w-[126%] h-[126%] -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-visible"
+      >
+        <circle
+          cx="50"
+          cy="50"
+          r={ORB_RING_RADIUS_VB}
+          fill="none"
+          strokeWidth={ORB_RING_STROKE_VB}
+          style={{
+            stroke: 'color-mix(in srgb, var(--acc) 82%, transparent)',
+            transition: 'stroke 0.45s var(--soft)',
+          }}
+        />
+      </svg>
       <button
         ref={botRef}
         type="button"
+        tabIndex={0}
         data-reaction={reactionLabel}
         onClick={handleClick}
         aria-label={ariaLabel}
