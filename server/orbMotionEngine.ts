@@ -463,7 +463,6 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
   const variant = req.variant === 'mini' ? 'mini' : 'main';
   const D = clamp(Number(req.botSize) || 180, 30, 620);
   const standbyMode = Boolean(req.standbyMode) && variant === 'main';
-  const supportMode = Boolean(req.supportMode) && variant === 'main' && !standbyMode;
   const menuOpen = Boolean(req.menuOpen);
   const hasQuery = Boolean(req.hasQuery);
   const isFocused = Boolean(req.isFocused);
@@ -477,9 +476,6 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
   const ty = clamp(Number(req.pointerDy) || 0, -1.2, 1.2);
   const lastActivityAgoMs = Math.max(0, Number(req.lastActivityAgoMs) || 0);
   const lastPtrAgoMs = Math.max(0, Number(req.lastPtrAgoMs) || 0);
-  const lastTypedAgoMs = Math.max(0, Number(req.lastTypedAgoMs ?? 999999));
-  const activelyTyping = hasQuery && isFocused && lastTypedAgoMs < 2400;
-  const passiveEmptyFocus = isFocused && !hasQuery;
   const durTable = variant === 'mini' ? MINI_DURATIONS : DURATIONS;
   let soundCue: OrbSoundCue | null = null;
 
@@ -522,7 +518,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     }
   }
 
-  // Evaluate desktop/mobile presence (disabled in mini mark & ignored for away/sleep during desktop standbyMode or supportMode)
+  // Evaluate desktop/mobile presence (disabled in mini mark & ignored for away/sleep during desktop standbyMode)
   let stopAllAnimations = false;
   if (variant === 'main') {
     const presenceEval = evaluatePresenceState({
@@ -531,7 +527,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       now,
       bootReady,
       menuOpen,
-      standbyMode: standbyMode || supportMode,
+      standbyMode,
       hasQuery,
       isTouchMode,
       pointerOutside,
@@ -553,42 +549,30 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     s.reaction.on = false;
   }
 
-  // Schedule periodic think (when user has a typed query or paused mid-typing) & random idle expressions (including desktop passive empty focus and Standby/Support!)
+  // Schedule periodic think & random idle expressions (including in Standby mode!)
   if (variant === 'main' && s.presence === 'awake') {
-    if (
-      !standbyMode &&
-      !supportMode &&
-      hasQuery &&
-      isFocused &&
-      !menuOpen &&
-      !s.reaction.on &&
-      !reduceMotion &&
-      now > s.nextThinkAt
-    ) {
+    if (!standbyMode && isFocused && !menuOpen && !s.reaction.on && now > s.nextThinkAt) {
       s.reaction = { on: true, type: 'think', t0: now, dur: durTable.think, dir: 1 };
-      s.nextThinkAt = now + 5200 + Math.random() * 4400;
+      s.nextThinkAt = now + 8000 + Math.random() * 6000;
     } else if (
       bootReady &&
-      (!isFocused || passiveEmptyFocus || standbyMode || supportMode) &&
-      !activelyTyping &&
+      (!isFocused || standbyMode) &&
       !menuOpen &&
       !drag &&
       !s.reaction.on &&
       !reduceMotion &&
-      (standbyMode || supportMode || now - s.lastPtrMoveAt > 2000) &&
+      (standbyMode || now - s.lastPtrMoveAt > 2200) &&
       now > s.nextIdleAt
     ) {
-      const idleType: BotReactionType = supportMode
-        ? (['happy', 'content', 'wink'] as const)[s.idlePoolIdx % 3]
-        : IDLE_POOL[s.idlePoolIdx % IDLE_POOL.length];
+      const idleType = IDLE_POOL[s.idlePoolIdx % IDLE_POOL.length];
       s.idlePoolIdx = (s.idlePoolIdx + 1) % IDLE_POOL.length;
-      const idleDir = standbyMode || supportMode ? 1 : s.idlePoolIdx % 2 === 0 ? 1 : -1;
+      const idleDir = standbyMode ? 1 : s.idlePoolIdx % 2 === 0 ? 1 : -1;
       s.reaction = { on: true, type: idleType, t0: now, dur: durTable[idleType], dir: idleDir };
       if (!soundCue) {
         soundCue = { channel: 'reaction', id: idleType, ambient: true };
       }
-      const gapBase = standbyMode || supportMode ? 3600 : 4000;
-      s.nextIdleAt = now + durTable[idleType] + gapBase + Math.random() * 3200;
+      const gapBase = standbyMode ? 3600 : 4800;
+      s.nextIdleAt = now + durTable[idleType] + gapBase + Math.random() * 3800;
     }
   }
 
@@ -602,29 +586,14 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     }
   }
 
-  // Support showcase gaze smoothly alternates between reading the letter on the left and smiling at the viewer
-  const supportGlance = Math.max(0, Math.sin(now * 0.00062));
-  const supportDx = -0.62 * (1 - supportGlance * 0.78) + Math.sin(now * 0.0009) * 0.04;
-  const supportDy = -0.02 + Math.sin(now * 0.00075) * 0.04;
-
   // Base pose target
   const br = reduceMotion ? 0 : Math.sin(now * 0.0021);
   const pose: OrbPoseTarget = {
-    dx: standbyMode
-      ? 0.84 + Math.sin(now * 0.00055) * 0.025
-      : supportMode
-        ? supportDx
-        : tx,
-    dy: standbyMode
-      ? -0.02 + Math.sin(now * 0.00072) * 0.022
-      : supportMode
-        ? supportDy
-        : ty,
+    dx: standbyMode ? 0.84 + Math.sin(now * 0.00055) * 0.025 : tx,
+    dy: standbyMode ? -0.02 + Math.sin(now * 0.00072) * 0.022 : ty,
     tRot:
       s.presence === 'awake' && !menuOpen && !reduceMotion && !s.reaction.on
-        ? supportMode
-          ? -2.2 + Math.sin(now * 0.00095) * 1.6
-          : Math.sin(now * 0.00085) * 1.45
+        ? Math.sin(now * 0.00085) * 1.35
         : 0,
     tScX: 1 + br * 0.006,
     tScY: 1 - br * 0.006,
@@ -639,13 +608,12 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     tRFlatTop: 0,
     tLTBias: 0,
     tRTBias: 0,
-    tBobY: reduceMotion || menuOpen ? 0 : Math.sin(now * 0.00145) * D * 0.012,
+    tBobY: reduceMotion || menuOpen ? 0 : Math.sin(now * 0.00145) * D * 0.011,
     followPointerLive:
       variant === 'mini'
         ? !s.reaction.on
         : s.presence === 'awake' &&
           !standbyMode &&
-          !supportMode &&
           !menuOpen &&
           !(hasQuery && isFocused) &&
           !s.reaction.on &&
@@ -721,51 +689,28 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       pose.tArcBottom = 0.95;
       pose.followPointerLive = true;
     } else {
-      if (supportMode) {
-        // Warm smiling happy eyes gazing toward the letter and viewer
-        pose.tLW *= 1.18;
-        pose.tRW *= 1.18;
-        pose.tLH *= 0.62;
-        pose.tRH *= 0.62;
-        pose.tLY = -D * 0.018;
-        pose.tRY = -D * 0.018;
-        pose.tLTBias = -6;
-        pose.tRTBias = 6;
-        pose.tArcBottom = 0.92;
-      } else if (!standbyMode) {
+      if (!standbyMode) {
         if (menuOpen && now - s.lastPtrMoveAt > 1600) {
           pose.dx = 0.72;
           pose.dy = Math.sin(now * 0.0008) * 0.08;
         } else if (hasQuery && isFocused && !menuOpen) {
-          // Live typing choreography: track text caret, tilt head attentively, subtle keystroke bounce
-          const pulse =
-            !reduceMotion && lastTypedAgoMs < 650
-              ? Math.exp(-lastTypedAgoMs / 260) * Math.sin((lastTypedAgoMs / 650) * Math.PI * 2)
-              : 0;
-          pose.dx = caretRatio * 0.78 + (!reduceMotion ? Math.sin(now * 0.0022) * 0.03 : 0);
-          pose.dy = 0.41 + (!reduceMotion ? Math.sin(now * 0.0045) * 0.025 + pulse * 0.04 : 0);
-          pose.tRot = caretRatio * 4.2 + pulse * 2.1;
-          pose.tLW *= 1.04 + Math.abs(pulse) * 0.05;
-          pose.tRW *= 1.04 + Math.abs(pulse) * 0.05;
-          pose.tLH *= 1 - Math.max(0, pulse) * 0.14;
-          pose.tRH *= 1 - Math.max(0, pulse) * 0.14;
-          pose.tBobY += pulse * D * 0.022;
-        } else if (passiveEmptyFocus && !menuOpen && !reduceMotion && now - s.lastPtrMoveAt > 2400) {
-          // Desktop passive focus with empty bar: glance softly toward bar + wander naturally
-          pose.dx = Math.sin(now * 0.00048) * 0.18;
-          pose.dy = 0.24 + Math.sin(now * 0.00062 + 0.8) * 0.09;
+          pose.dx = caretRatio * 0.75;
+          pose.dy = 0.42;
+        } else if (isFocused && !menuOpen && now - s.lastPtrMoveAt > 4500) {
+          pose.dx = caretRatio * 0.75;
+          pose.dy = 0.42;
         } else if (!drag && !menuOpen && !reduceMotion && now - s.lastPtrMoveAt > 2400) {
-          pose.dx += Math.sin(now * 0.00042) * 0.12;
-          pose.dy += Math.sin(now * 0.00056 + 1) * 0.08;
+          pose.dx += Math.sin(now * 0.00037) * 0.09;
+          pose.dy += Math.sin(now * 0.00051 + 1) * 0.06;
         }
       }
 
       if (rt >= 0) {
-        applyReactionExpression(s.reaction.type, rt, s.reaction.dir, D, standbyMode || supportMode, pose);
+        applyReactionExpression(s.reaction.type, rt, s.reaction.dir, D, standbyMode, pose);
       }
     }
   } else {
-    // Mini mark (used inside Settings / Legal left header)
+    // Mini mark (used inside Settings left header)
     pose.tRot = reduceMotion ? 0 : Math.sin(now * 0.001) * 1.1;
     if (rt >= 0) {
       applyReactionExpression(s.reaction.type, rt, s.reaction.dir, D, false, pose);

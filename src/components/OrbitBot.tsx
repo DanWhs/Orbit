@@ -23,12 +23,9 @@ interface OrbitBotProps {
   paused?: boolean;
   hidden?: boolean;
   standbyMode?: boolean;
-  supportMode?: boolean;
   isFocused: boolean;
   hasQuery?: boolean;
   caretRatio: number;
-  lastTypedTimestamp?: number;
-  reduceMotion?: boolean;
   reactionSignal: { type: BotReactionType; nonce: number } | null;
   ariaLabel: string;
   onBotClick?: () => void;
@@ -69,12 +66,9 @@ export const OrbitBot = memo(function OrbitBot({
   paused = false,
   hidden = false,
   standbyMode = false,
-  supportMode = false,
   isFocused,
   hasQuery = false,
   caretRatio,
-  lastTypedTimestamp = 0,
-  reduceMotion,
   reactionSignal,
   ariaLabel,
   onBotClick,
@@ -104,12 +98,9 @@ export const OrbitBot = memo(function OrbitBot({
     isFocused,
     hasQuery,
     caretRatio,
-    lastTypedTimestamp,
-    reduceMotion,
     menuOpen,
     paused,
     standbyMode,
-    supportMode,
   });
   propsRef.current = {
     bootPhase,
@@ -120,12 +111,9 @@ export const OrbitBot = memo(function OrbitBot({
     isFocused,
     hasQuery,
     caretRatio,
-    lastTypedTimestamp,
-    reduceMotion,
     menuOpen,
     paused,
     standbyMode,
-    supportMode,
   };
 
   const sessionIdRef = useRef<string>(
@@ -174,7 +162,7 @@ export const OrbitBot = memo(function OrbitBot({
       resumeLoopRef.current();
       urgentSyncRef.current();
     }
-  }, [standbyMode, supportMode, menuOpen, paused, bootPhase, hasQuery]);
+  }, [standbyMode, menuOpen, paused, bootPhase, hasQuery]);
 
   // Holiday snow + hat check (Dec 1 – Jan 6 or #natale)
   useEffect(() => {
@@ -200,7 +188,7 @@ export const OrbitBot = memo(function OrbitBot({
   useEffect(() => {
     let tx = 0;
     let ty = 0;
-    let lastPtr = -10000;
+    let lastPtr = 0;
     let drag = false;
     let lastTime = performance.now();
     let thinkOn = false;
@@ -211,8 +199,6 @@ export const OrbitBot = memo(function OrbitBot({
     let pointerOutside = false;
     let isTouchMode = window.matchMedia?.('(pointer: coarse) and (hover: none)')?.matches ?? false;
     let lastActivityAt = performance.now();
-    let lastTypedAt = -10000;
-    let prevTypedTs = propsRef.current.lastTypedTimestamp;
 
     let serverPose: OrbPoseTarget = { ...DEFAULT_POSE };
     let serverPresence: OrbPresenceState = 'awake';
@@ -252,12 +238,6 @@ export const OrbitBot = memo(function OrbitBot({
 
       const cur = propsRef.current;
       const now = performance.now();
-      if (cur.lastTypedTimestamp > prevTypedTs) {
-        prevTypedTs = cur.lastTypedTimestamp;
-        lastTypedAt = now;
-        lastActivityAt = now;
-      }
-      const effectiveReduceMotion = cur.reduceMotion ?? Boolean(reducedMotionMq?.matches);
       try {
         const res = await fetch('/api/orb/step', {
           method: 'POST',
@@ -270,19 +250,17 @@ export const OrbitBot = memo(function OrbitBot({
             bootReady: cur.bootPhase === 'ready',
             menuOpen: cur.menuOpen,
             standbyMode: cur.standbyMode,
-            supportMode: cur.supportMode,
             hasQuery: cur.hasQuery,
             isFocused: cur.isFocused,
             caretRatio: cur.caretRatio,
             drag,
-            reduceMotion: effectiveReduceMotion,
+            reduceMotion: Boolean(reducedMotionMq?.matches),
             isTouchMode,
             pointerOutside,
             pointerDx: tx,
             pointerDy: ty,
             lastActivityAgoMs: Math.max(0, now - lastActivityAt),
             lastPtrAgoMs: Math.max(0, now - lastPtr),
-            lastTypedAgoMs: lastTypedAt > 0 ? Math.max(0, now - lastTypedAt) : 999999,
             event: eventToSend,
           }),
         });
@@ -759,12 +737,9 @@ export const OrbitBot = memo(function OrbitBot({
           <button
             ref={botRef}
             type="button"
-            tabIndex={hidden ? -1 : 0}
-            aria-hidden={hidden || undefined}
             data-reaction={activeReactionLabel}
             data-presence={presenceState}
             data-standby={standbyMode ? 'true' : 'false'}
-            data-support={supportMode ? 'true' : 'false'}
             onClick={handleClick}
             aria-label={ariaLabel}
             className="relative w-full h-full rounded-full border-0 p-0 flex items-center justify-center cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--acc)]"

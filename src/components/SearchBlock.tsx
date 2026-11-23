@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { ArrowRight, Clock, Globe, Search, Sparkles, Trash2 } from 'lucide-react';
-import { AiStatusResponse, QuickLink, SearchSuggestion } from '../types/orbit';
+import { ArrowRight, Clock, Globe, Search, Trash2 } from 'lucide-react';
+import { QuickLink, SearchSuggestion } from '../types/orbit';
 import { UiDictionary } from '../i18n/translations';
 import { playUiSound } from '../utils/orbSounds';
 import {
@@ -21,12 +21,10 @@ interface SearchBlockProps {
   visibleSuggestions: number;
   dict: UiDictionary;
   inputRef: React.RefObject<HTMLInputElement | null>;
-  aiStatus: AiStatusResponse;
   onQueryChange: (val: string) => void;
   onFocus: () => void;
   onBlur: () => void;
   onSubmit: (val?: string) => void;
-  onAskAi: () => void;
   onCaretMove: () => void;
   onClearHistory: () => void;
 }
@@ -42,12 +40,10 @@ export const SearchBlock = memo(function SearchBlock({
   visibleSuggestions,
   dict,
   inputRef,
-  aiStatus,
   onQueryChange,
   onFocus,
   onBlur,
   onSubmit,
-  onAskAi,
   onCaretMove,
   onClearHistory,
 }: SearchBlockProps) {
@@ -96,12 +92,11 @@ export const SearchBlock = memo(function SearchBlock({
         }}
       >
         <LiquidBubbleLayers />
-        <div className="bubble-content flex items-center gap-2 w-full h-full">
+        <div className="bubble-content flex items-center gap-2.5 w-full h-full">
           <Search className="w-5 h-5 shrink-0 opacity-55" aria-hidden="true" />
           <input
             ref={inputRef}
             type="search"
-            tabIndex={visible ? 0 : -1}
             enterKeyHint="search"
             autoComplete="off"
             autoCapitalize="off"
@@ -129,37 +124,13 @@ export const SearchBlock = memo(function SearchBlock({
               caretColor: 'var(--acc)',
             }}
           />
-
-          {hasQuery && (
-            <BubbleButton
-              type="button"
-              variant="glass"
-              tabIndex={visible ? 0 : -1}
-              data-testid="ask-orb-ai-btn"
-              aria-label={dict.aiAskOrbAria}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={onAskAi}
-              contentClassName="flex items-center justify-center gap-1.5 w-full h-full leading-none"
-              className="h-[36px] px-3.5 rounded-full text-[12.5px] font-normal shrink-0 cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-              style={{
-                backgroundColor: 'var(--glass2)',
-                color: aiStatus.connected ? 'var(--acc-text)' : 'var(--fg)',
-                boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
-              }}
-            >
-              <Sparkles className="w-3.5 h-3.5 shrink-0 opacity-80" aria-hidden="true" />
-              <span className="hidden sm:inline whitespace-nowrap leading-none">{dict.aiAskOrbBtn}</span>
-            </BubbleButton>
-          )}
-
           <BubbleButton
             type="submit"
             variant="solid"
-            tabIndex={visible && hasQuery ? 0 : -1}
             aria-label={dict.searchSubmitAria}
             onPointerDown={(e) => e.preventDefault()}
             contentClassName="grid place-items-center w-full h-full"
-            className="w-[42px] h-[42px] rounded-full shrink-0 cursor-pointer transition-all duration-300 active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+            className="w-[42px] h-[42px] rounded-full shrink-0 cursor-pointer transition-all duration-300 active:scale-90"
             style={{
               backgroundColor: 'var(--acc)',
               color: 'var(--acc-fg)',
@@ -190,7 +161,6 @@ export const SearchBlock = memo(function SearchBlock({
             <BubbleAnchor
               key={link.id}
               variant="solid"
-              tabIndex={visible && !showSuggestions ? 0 : -1}
               href={link.url}
               onClick={() => playUiSound('quicklink-tap')}
               contentClassName="flex items-center justify-center w-full h-full min-w-0"
@@ -221,11 +191,10 @@ export const SearchBlock = memo(function SearchBlock({
             <BubbleButton
               key={`${item.kind}-${item.text}`}
               variant="glass"
-              tabIndex={visible ? 0 : -1}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => onSubmit(item.text)}
               contentClassName="flex items-center gap-3 w-full h-full min-w-0"
-              className="w-full h-[46px] px-4 rounded-full text-left text-[16px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+              className="w-full h-[46px] px-4 rounded-full text-left text-[16px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.98]"
               style={{
                 backgroundColor: 'var(--glass)',
                 color: 'var(--fg)',
@@ -247,7 +216,6 @@ export const SearchBlock = memo(function SearchBlock({
             <div className="flex justify-end pt-0.5">
               <BubbleButton
                 variant="glass"
-                tabIndex={visible ? 0 : -1}
                 data-testid="clear-history-btn"
                 onMouseDown={(e) => e.preventDefault()}
                 onPointerDown={(e) => {
@@ -258,7 +226,7 @@ export const SearchBlock = memo(function SearchBlock({
                   onClearHistory();
                 }}
                 contentClassName="inline-flex items-center justify-center gap-1.5"
-                className="h-[34px] px-3.5 rounded-full text-[13px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+                className="h-[34px] px-3.5 rounded-full text-[13px] font-medium backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.97]"
                 style={{
                   backgroundColor: 'var(--glass)',
                   color: 'var(--mut)',

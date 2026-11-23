@@ -10,7 +10,6 @@ import { playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
 
 interface LiveOrbMarkProps {
   size?: number;
-  reduceMotion?: boolean;
   reactionSignal?: { type: BotReactionType; nonce: number } | null;
   ariaLabel?: string;
 }
@@ -39,7 +38,6 @@ const DEFAULT_MINI_POSE: OrbPoseTarget = {
 
 export const LiveOrbMark = memo(function LiveOrbMark({
   size = 40,
-  reduceMotion,
   reactionSignal = null,
   ariaLabel = 'Orbit',
 }: LiveOrbMarkProps) {
@@ -51,8 +49,6 @@ export const LiveOrbMark = memo(function LiveOrbMark({
   const [reactionLabel, setReactionLabel] = useState<string>('idle');
   const sizeRef = useRef(size);
   sizeRef.current = size;
-  const reduceMotionRef = useRef(reduceMotion);
-  reduceMotionRef.current = reduceMotion;
 
   const sessionIdRef = useRef<string>(
     `mini-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
@@ -126,7 +122,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
             isFocused: false,
             caretRatio: 0,
             drag: false,
-            reduceMotion: reduceMotionRef.current ?? Boolean(reducedMotionMq?.matches),
+            reduceMotion: Boolean(reducedMotionMq?.matches),
             isTouchMode: false,
             pointerOutside: false,
             pointerDx: tx,
@@ -221,7 +217,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       }
 
       const D = Math.max(30, sizeRef.current);
-      const isReduced = reduceMotionRef.current ?? Boolean(reducedMotionMq?.matches);
+      const reduceMotion = Boolean(reducedMotionMq?.matches);
 
       const targetDx = serverPose.followPointerLive ? tx : serverPose.dx;
       const targetDy = serverPose.followPointerLive ? ty : serverPose.dy;
@@ -284,7 +280,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       const rh = Math.max(2.6, eH * rH * vfy);
 
       if (botRef.current) {
-        const bobY = isReduced ? 0 : Math.sin(now * 0.0018) * D * 0.018;
+        const bobY = reduceMotion ? 0 : Math.sin(now * 0.0018) * D * 0.018;
         botRef.current.style.transform = `translate3d(${(bx * D * 0.04).toFixed(2)}px,${(by * D * 0.04 + bobY).toFixed(2)}px,0) rotate(${rot.toFixed(2)}deg)`;
       }
 
@@ -342,7 +338,6 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       <button
         ref={botRef}
         type="button"
-        tabIndex={0}
         data-reaction={reactionLabel}
         onClick={handleClick}
         aria-label={ariaLabel}

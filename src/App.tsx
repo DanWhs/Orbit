@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Coffee, Menu, MoonStar, Settings } from 'lucide-react';
+import { MoonStar, Settings } from 'lucide-react';
 import { BootSplash } from './components/BootSplash';
 import { CookieNoticeModal } from './components/CookieNoticeModal';
-import { DonationPopup } from './components/DonationPopup';
 import { FooterBar } from './components/FooterBar';
 import { LegalModal } from './components/LegalModal';
 import { BubbleButton } from './components/LiquidBubble';
 import { OrbitBot } from './components/OrbitBot';
-import { AttachedReferenceImage, OrbChatPanel } from './components/OrbChatPanel';
 import { SearchBlock } from './components/SearchBlock';
-import { SettingsModal, SettingsTabId } from './components/SettingsModal';
+import { SettingsModal } from './components/SettingsModal';
 import { StandbyOverlay } from './components/StandbyOverlay';
-import { SupportShowcaseOverlay } from './components/SupportShowcaseOverlay';
 import { resolveAccentTokens, hexToRgb } from './constants/accents';
 import {
   getCachedDictionary,
@@ -22,32 +19,15 @@ import {
 } from './i18n/translations';
 import {
   AccentValue,
-  AccessibilityPreferences,
-  AiAskResponse,
-  AiChatMessage,
-  AiChatTurn,
-  AiImageResponse,
-  AiStatusResponse,
   BootPhase,
   BotReactionType,
   ConsentState,
-  DonationPromptState,
-  GeminiRoleId,
-  ImageAspectRatio,
   LocaleRegionOption,
   QuickLink,
   ResolvedTheme,
   SearchSuggestion,
   ThemeMode,
 } from './types/orbit';
-import {
-  clearClientVault,
-  hasEncryptedClientBackup,
-  loadEncryptedClientBackup,
-  packClientTransportEnvelope,
-  saveEncryptedClientBackup,
-} from './utils/clientVault';
-import { installGlobalDiagnosticListeners, recordClientDiagnostic } from './utils/diagnostics';
 import { computeStageLayout } from './utils/layoutMath';
 import { playUiSound, unlockOrbitAudio } from './utils/orbSounds';
 import {
@@ -61,20 +41,15 @@ import {
 } from './utils/searchEngine';
 import {
   DEFAULT_QUICK_LINKS,
-  getDonationPromptState,
   getInitialAccent,
-  getInitialAccessibility,
   getInitialConsent,
   getInitialIntroPreferences,
   getInitialTheme,
   IntroPreferences,
   readStorage,
-  resolveEffectiveReducedMotion,
   resolveThemeMode,
-  sanitizeAccessibilityPreferences,
   sanitizeQuickLinks,
   shouldShowBootIntro,
-  shouldTriggerDonationPrompt,
   STORAGE_KEYS,
   writeStorage,
 } from './utils/storage';
@@ -93,29 +68,20 @@ export default function App() {
   const [localeOption, setLocaleOption] = useState<LocaleRegionOption>(getInitialLocaleOption);
   const [consent, setConsent] = useState<ConsentState>(getInitialConsent);
   const [introPrefs, setIntroPrefs] = useState<IntroPreferences>(getInitialIntroPreferences);
-  const [accessibilityPrefs, setAccessibilityPrefs] = useState<AccessibilityPreferences>(
-    getInitialAccessibility
-  );
-  const [osPrefersReduced, setOsPrefersReduced] = useState<boolean>(() =>
-    typeof window !== 'undefined'
-      ? Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-      : false
-  );
 
   const [bootPhase, setBootPhase] = useState<BootPhase>(() => {
     const autostart =
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('autostart') === '1';
-    const initialReduced = resolveEffectiveReducedMotion(
-      accessibilityPrefs.motionMode,
-      osPrefersReduced
-    );
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
     const shouldPlay = shouldShowBootIntro({
       introSeen: introPrefs.introSeen,
       alwaysShowIntro: introPrefs.alwaysShowIntro,
       consentDecided: consent.decided,
       autostart,
-      reducedMotion: initialReduced,
+      reducedMotion,
     });
     return shouldPlay ? 'word' : 'ready';
   });
@@ -124,39 +90,13 @@ export default function App() {
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>(() => getHistorySuggestions());
   const [caretRatio, setCaretRatio] = useState(0);
-  const [lastTypedTimestamp, setLastTypedTimestamp] = useState(0);
   const [reactionSignal, setReactionSignal] = useState<{ type: BotReactionType; nonce: number } | null>(
     null
   );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
-  const [legalInitialSectionId, setLegalInitialSectionId] = useState<string | null>(null);
   const [standbyMode, setStandbyMode] = useState(false);
-  const [supportShowcaseOpen, setSupportShowcaseOpen] = useState(false);
-  const [hamburgerOpen, setHamburgerOpen] = useState(false);
-  const [readingGuideY, setReadingGuideY] = useState<number | null>(null);
-  const [srAnnouncement, setSrAnnouncement] = useState('');
-
-  // Gemini BYOK AI chat + Nano Banana 2.1 image studio state
-  const [aiStatus, setAiStatus] = useState<AiStatusResponse>({
-    connected: false,
-    maskedHint: null,
-    layersActive: 0,
-  });
-  const [aiChatOpen, setAiChatOpen] = useState(false);
-  const [aiMode, setAiMode] = useState<'chat' | 'image'>('chat');
-  const [aiRole, setAiRole] = useState<GeminiRoleId>('auto');
-  const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>('1:1');
-  const [attachedImage, setAttachedImage] = useState<AttachedReferenceImage | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiMessages, setAiMessages] = useState<AiChatMessage[]>([]);
-
-  // Periodic donation prompt state
-  const [donationState, setDonationState] = useState<DonationPromptState>(getDonationPromptState);
-  const [donationPopupOpen, setDonationPopupOpen] = useState(false);
-  const [donationPreviewDismissed, setDonationPreviewDismissed] = useState(false);
 
   const [viewportMetrics, setViewportMetrics] = useState(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
@@ -181,7 +121,6 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const rulerRef = useRef<HTMLSpanElement>(null);
   const probeRef = useRef<HTMLDivElement>(null);
-  const hamburgerRef = useRef<HTMLDivElement>(null);
   const modifyParityRef = useRef(0);
   const pointerInSearchRef = useRef(false);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -194,30 +133,11 @@ export default function App() {
 
   const cookieNoticeOpen =
     bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen;
-  const otherModalOpen = settingsOpen || legalOpen || cookieNoticeOpen;
+  const overlayBackdropOpen = cookieNoticeOpen;
+  const isMenuOpen = settingsOpen || legalOpen || cookieNoticeOpen;
   const isDesktop = viewportMetrics.width >= 768;
-  const canUseDesktopStandby = isDesktop;
-  const activeSupportShowcase =
-    supportShowcaseOpen &&
-    !otherModalOpen &&
-    !(standbyMode && canUseDesktopStandby && bootPhase === 'ready') &&
-    bootPhase === 'ready';
-  const showDonationOverlay =
-    donationPopupOpen &&
-    !otherModalOpen &&
-    !activeSupportShowcase &&
-    !(standbyMode && canUseDesktopStandby && bootPhase === 'ready');
-  const overlayBackdropOpen = cookieNoticeOpen || showDonationOverlay;
-  const isMenuOpen = otherModalOpen || showDonationOverlay;
-  const activeStandby =
-    standbyMode && canUseDesktopStandby && !isMenuOpen && !activeSupportShowcase && bootPhase === 'ready';
-  const activeChatMode =
-    aiChatOpen && !isMenuOpen && !activeStandby && !activeSupportShowcase && bootPhase === 'ready';
-
-  const effectiveReducedMotion = useMemo(
-    () => resolveEffectiveReducedMotion(accessibilityPrefs.motionMode, osPrefersReduced),
-    [accessibilityPrefs.motionMode, osPrefersReduced]
-  );
+  const canUseDesktopStandby = isDesktop && !viewportMetrics.isMobile;
+  const activeStandby = standbyMode && canUseDesktopStandby && !isMenuOpen && bootPhase === 'ready';
 
   // Trigger judging or perplexed face whenever user modifies settings or preferences
   const triggerModifyReaction = useCallback(() => {
@@ -226,51 +146,9 @@ export default function App() {
     setReactionSignal({ type, nonce: Date.now() + Math.random() });
   }, []);
 
-  // Prewarm local translation cache and install global diagnostics collectors
+  // Prewarm local translation cache synchronously
   useEffect(() => {
     prewarmTranslationCache();
-    installGlobalDiagnosticListeners();
-  }, []);
-
-  // Hydrate encrypted Gemini vault status (with encrypted client vault fallback re-seal if cookie expired)
-  useEffect(() => {
-    let cancelled = false;
-    const hydrateAiVault = async () => {
-      try {
-        const res = await fetch('/api/ai/status');
-        if (!res.ok || cancelled) return;
-        const status = (await res.json()) as AiStatusResponse;
-        if (status.connected) {
-          if (!cancelled) setAiStatus(status);
-          return;
-        }
-        if (hasEncryptedClientBackup()) {
-          const recovered = await loadEncryptedClientBackup();
-          if (recovered && !cancelled) {
-            const clientEnvelope = await packClientTransportEnvelope(recovered);
-            const reseal = await fetch('/api/ai/key', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'OrbitSearch',
-              },
-              body: JSON.stringify(
-                clientEnvelope ? { clientEnvelope } : { apiKey: recovered }
-              ),
-            });
-            if (reseal.ok && !cancelled) {
-              setAiStatus((await reseal.json()) as AiStatusResponse);
-            }
-          }
-        }
-      } catch {
-        // Ignore offline errors cleanly
-      }
-    };
-    void hydrateAiVault();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   // Resolve active translation dictionary synchronously (zero flicker)
@@ -279,76 +157,19 @@ export default function App() {
     [localeOption.lang, localeOption.jurisdiction]
   );
 
-  // Follow OS prefers-color-scheme and prefers-reduced-motion live
+  // Follow OS prefers-color-scheme live when theme is set to 'system'
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
-    const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
-    const motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersDark(darkMq.matches);
-    setOsPrefersReduced(motionMq.matches);
-    const handleDark = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
-    const handleMotion = (e: MediaQueryListEvent) => setOsPrefersReduced(e.matches);
-    darkMq.addEventListener?.('change', handleDark);
-    motionMq.addEventListener?.('change', handleMotion);
-    return () => {
-      darkMq.removeEventListener?.('change', handleDark);
-      motionMq.removeEventListener?.('change', handleMotion);
-    };
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    setPrefersDark(mq.matches);
+    const handleChange = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', handleChange);
+      return () => mq.removeEventListener('change', handleChange);
+    }
+    mq.addListener(handleChange);
+    return () => mq.removeListener(handleChange);
   }, []);
-
-  // Apply Accessibility DOM attributes to <html>
-  useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.reduceMotion = effectiveReducedMotion ? 'reduce' : 'full';
-    root.dataset.highContrast = accessibilityPrefs.highContrast ? 'true' : 'false';
-    root.dataset.largeText =
-      accessibilityPrefs.largeText || accessibilityPrefs.textScale !== 'normal' ? 'true' : 'false';
-    root.dataset.textScale = accessibilityPrefs.textScale;
-    root.dataset.focusRings = accessibilityPrefs.focusRings ? 'true' : 'false';
-    root.dataset.reduceTransparency = accessibilityPrefs.reduceTransparency ? 'true' : 'false';
-    root.dataset.underlineLinks = accessibilityPrefs.underlineLinks ? 'true' : 'false';
-    root.dataset.dyslexiaFont = accessibilityPrefs.dyslexiaFont ? 'true' : 'false';
-    root.dataset.relaxedSpacing = accessibilityPrefs.relaxedSpacing ? 'true' : 'false';
-    root.dataset.largeTargets = accessibilityPrefs.largeTargets ? 'true' : 'false';
-    root.dataset.colorFilter = accessibilityPrefs.colorFilter;
-    writeStorage(STORAGE_KEYS.accessibility, accessibilityPrefs);
-  }, [accessibilityPrefs, effectiveReducedMotion]);
-
-  // Reading Guide horizontal ruler follows pointer smoothly when enabled
-  useEffect(() => {
-    if (!accessibilityPrefs.readingGuide) {
-      setReadingGuideY(null);
-      return;
-    }
-    const onMove = (e: PointerEvent) => setReadingGuideY(Math.round(e.clientY));
-    window.addEventListener('pointermove', onMove, { passive: true });
-    return () => window.removeEventListener('pointermove', onMove);
-  }, [accessibilityPrefs.readingGuide]);
-
-  // Close top-right Hamburger dropdown on outside click, Escape, or mode switch
-  useEffect(() => {
-    if (isMenuOpen || activeStandby || activeSupportShowcase) {
-      setHamburgerOpen(false);
-    }
-  }, [isMenuOpen, activeStandby, activeSupportShowcase]);
-
-  useEffect(() => {
-    if (!hamburgerOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (hamburgerRef.current && !hamburgerRef.current.contains(e.target as Node)) {
-        setHamburgerOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setHamburgerOpen(false);
-    };
-    window.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [hamburgerOpen]);
 
   const resolvedTheme: ResolvedTheme = useMemo(
     () => resolveThemeMode(theme, prefersDark),
@@ -504,49 +325,6 @@ export default function App() {
     };
   }, [activeStandby]);
 
-  // Periodic voluntary support prompt after active usage (or ?promptDonation=1 preview)
-  useEffect(() => {
-    const rawPreview =
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('promptDonation') === '1';
-    const forcePreview = rawPreview && !donationPreviewDismissed;
-    if (!bootPhase || bootPhase !== 'ready') return;
-    if (
-      !shouldTriggerDonationPrompt({
-        state: donationState,
-        nowMs: Date.now(),
-        consentDecided: consent.decided,
-        isMenuOpen: otherModalOpen || donationPopupOpen,
-        standbyMode: activeStandby,
-        forcePreview,
-      })
-    ) {
-      return;
-    }
-
-    const delayMs = forcePreview ? 450 : 45000;
-    const timer = setTimeout(() => {
-      setDonationPopupOpen(true);
-      if (!forcePreview) {
-        setDonationState((prev) => {
-          const next = { ...prev, lastShownAt: Date.now() };
-          writeStorage(STORAGE_KEYS.donationPrompt, next);
-          return next;
-        });
-      }
-    }, delayMs);
-
-    return () => clearTimeout(timer);
-  }, [
-    bootPhase,
-    consent.decided,
-    otherModalOpen,
-    donationPopupOpen,
-    donationPreviewDismissed,
-    activeStandby,
-    donationState,
-  ]);
-
   const stageLayout = useMemo(() => {
     const layout = computeStageLayout({
       viewportWidth: viewportMetrics.width,
@@ -555,57 +333,27 @@ export default function App() {
       safeTop: viewportMetrics.safeTop,
       safeBottom: viewportMetrics.safeBottom,
       isMobile: viewportMetrics.isMobile,
-      isFocused: isFocused && !isMenuOpen && !activeStandby && !activeSupportShowcase,
+      isFocused: isFocused && !isMenuOpen && !activeStandby,
       hasQuickLinks: quickLinks.length > 0,
       suggestionCount: suggestions.length,
     });
 
-    const isCompactHeight = viewportMetrics.height <= 620;
     const standbyBotSize = Math.round(
-      Math.max(190, Math.min(viewportMetrics.width * 0.36, viewportMetrics.height * 0.56, 500))
-    );
-    const supportBotSize = Math.round(
-      Math.max(180, Math.min(viewportMetrics.width * 0.34, viewportMetrics.height * 0.54, 440))
-    );
-    const chatBotSize = Math.round(
-      Math.max(
-        164,
-        Math.min(
-          viewportMetrics.width * 0.24,
-          viewportMetrics.height * (isCompactHeight ? 0.34 : 0.42),
-          320
-        )
-      )
+      Math.max(300, Math.min(viewportMetrics.width * 0.41, viewportMetrics.height * 0.66, 520))
     );
 
     const desiredBotSize = activeStandby
       ? standbyBotSize
-      : activeSupportShowcase
-        ? isDesktop
-          ? supportBotSize
-          : Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.13))
-        : activeChatMode
-          ? isDesktop
-            ? chatBotSize
-            : Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.13))
-          : overlayBackdropOpen && viewportMetrics.width < 768
-            ? Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.14))
-            : layout.botSize;
+      : cookieNoticeOpen && viewportMetrics.width < 768
+        ? Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.15))
+        : layout.botSize;
     const desiredBotCenterY = activeStandby
       ? viewportMetrics.height * 0.5
-      : activeSupportShowcase
-        ? isDesktop
-          ? viewportMetrics.height * 0.5
-          : Math.max(142, viewportMetrics.safeTop + Math.min(156, viewportMetrics.height * 0.185))
-        : activeChatMode
-          ? isDesktop
-            ? viewportMetrics.height * 0.5
-            : Math.max(66, viewportMetrics.safeTop + Math.min(84, viewportMetrics.height * 0.11))
-          : overlayBackdropOpen && viewportMetrics.width >= 768
-            ? viewportMetrics.height * 0.5
-            : overlayBackdropOpen && viewportMetrics.width < 768
-              ? Math.max(82, viewportMetrics.safeTop + Math.min(120, viewportMetrics.height * 0.165))
-              : layout.botCenterY;
+      : overlayBackdropOpen && viewportMetrics.width >= 768
+        ? viewportMetrics.height * 0.5
+        : cookieNoticeOpen && viewportMetrics.width < 768
+          ? Math.max(90, viewportMetrics.safeTop + Math.min(132, viewportMetrics.height * 0.175))
+          : layout.botCenterY;
 
     return {
       ...layout,
@@ -618,10 +366,8 @@ export default function App() {
     isFocused,
     isMenuOpen,
     activeStandby,
-    activeSupportShowcase,
-    activeChatMode,
-    isDesktop,
     overlayBackdropOpen,
+    cookieNoticeOpen,
     quickLinks.length,
     suggestions.length,
   ]);
@@ -764,420 +510,41 @@ export default function App() {
     setSuggestions(trimmed ? buildSuggestions(trimmed, []) : []);
   }, [query]);
 
-  const handleOpenSettings = useCallback((initialTab: SettingsTabId | null = null) => {
+  const handleOpenSettings = useCallback(() => {
     inputRef.current?.blur();
-    setHamburgerOpen(false);
-    setSupportShowcaseOpen(false);
     setStandbyMode(false);
-    setDonationPopupOpen(false);
-    setSettingsInitialTab(initialTab);
     playUiSound('menu-open');
     setSettingsOpen(true);
-    setSrAnnouncement(dict.settingsTitle);
-  }, [dict.settingsTitle]);
+  }, []);
 
   const handleEnterStandby = useCallback(() => {
     if (!canUseDesktopStandby) return;
     inputRef.current?.blur();
-    setHamburgerOpen(false);
-    setSupportShowcaseOpen(false);
     setIsFocused(false);
     standbyEnteredAtRef.current = performance.now();
     playUiSound('standby-enter');
     setStandbyMode(true);
-    setSrAnnouncement(dict.standbyButtonLabel);
-  }, [canUseDesktopStandby, dict.standbyButtonLabel]);
+  }, [canUseDesktopStandby]);
 
   const handleCloseSettings = useCallback(() => {
     playUiSound('menu-close');
     setSettingsOpen(false);
-    setSettingsInitialTab(null);
   }, []);
   const handleCloseLegal = useCallback(() => {
     playUiSound('menu-close');
     setLegalOpen(false);
-    setLegalInitialSectionId(null);
   }, []);
   const handleOpenLegalFromFooter = useCallback(() => {
     inputRef.current?.blur();
-    setLegalInitialSectionId(null);
     playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
   const handleOpenLegalFromNotice = useCallback(() => {
-    setLegalInitialSectionId(null);
     playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
-  const handleOpenLegalFromSettings = useCallback((sectionId?: string) => {
+  const handleOpenLegalFromSettings = useCallback(() => {
     setSettingsOpen(false);
-    setSettingsInitialTab(null);
-    setLegalInitialSectionId(sectionId ?? null);
-    setLegalOpen(true);
-  }, []);
-
-  const handleQueryChange = useCallback((nextVal: string) => {
-    setQuery(nextVal);
-    setLastTypedTimestamp(performance.now());
-  }, []);
-
-  const handleSaveAiKey = useCallback(
-    async (apiKey: string, rememberDevice: boolean): Promise<{ ok: boolean; error?: string }> => {
-      try {
-        const clientEnvelope = await packClientTransportEnvelope(apiKey);
-        const res = await fetch('/api/ai/key', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'OrbitSearch',
-          },
-          body: JSON.stringify(clientEnvelope ? { clientEnvelope } : { apiKey }),
-        });
-        if (!res.ok) {
-          const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-          return { ok: false, error: errBody.error || dict.aiKeyInvalidError };
-        }
-        const status = (await res.json()) as AiStatusResponse;
-        setAiStatus(status);
-        if (rememberDevice) {
-          await saveEncryptedClientBackup(apiKey);
-        } else {
-          await clearClientVault();
-        }
-        return { ok: true };
-      } catch {
-        return { ok: false, error: dict.aiKeyInvalidError };
-      }
-    },
-    [dict.aiKeyInvalidError]
-  );
-
-  const handleDisconnectAiKey = useCallback(async () => {
-    try {
-      await fetch('/api/ai/key', {
-        method: 'DELETE',
-        headers: { 'X-Requested-With': 'OrbitSearch' },
-      });
-    } catch {
-      // Proceed clearing local state cleanly
-    }
-    await clearClientVault();
-    setAiStatus({ connected: false, maskedHint: null, layersActive: 0 });
-  }, []);
-
-  const sendChatPrompt = useCallback(
-    async (rawPrompt: string) => {
-      const prompt = rawPrompt.trim();
-      if (!prompt || aiLoading) return;
-
-      const userMsg: AiChatMessage = {
-        id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        role: 'user',
-        text: prompt,
-        mode: 'chat',
-      };
-      const priorHistory: AiChatTurn[] = aiMessages
-        .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim().length > 0)
-        .slice(-8)
-        .map((m) => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          text: m.text,
-        }));
-
-      setAiMessages((prev) => [...prev, userMsg]);
-      setAiChatOpen(true);
-
-      if (!aiStatus.connected) {
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'error',
-            text: dict.aiAnswerNeedKey,
-            needKey: true,
-          },
-        ]);
-        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-        return;
-      }
-
-      setAiLoading(true);
-      setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
-
-      try {
-        const res = await fetch('/api/ai/ask', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'OrbitSearch',
-          },
-          body: JSON.stringify({
-            prompt,
-            lang: localeOption.lang,
-            role: aiRole,
-            history: priorHistory,
-          }),
-        });
-        if (!res.ok) {
-          const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
-          const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
-          setAiMessages((prev) => [
-            ...prev,
-            {
-              id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              role: 'error',
-              text:
-                errData.code === 'KEY_MISSING'
-                  ? dict.aiAnswerNeedKey
-                  : errData.error || dict.aiAnswerNeedKey,
-              needKey,
-            },
-          ]);
-          setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-          return;
-        }
-        const data = (await res.json()) as AiAskResponse;
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'assistant',
-            text: data.answer,
-            model: data.model,
-            roleBadge: data.roleUsed,
-            mode: 'chat',
-          },
-        ]);
-        setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
-      } catch {
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'error',
-            text: dict.aiAnswerNeedKey,
-            needKey: !aiStatus.connected,
-          },
-        ]);
-        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-      } finally {
-        setAiLoading(false);
-      }
-    },
-    [aiLoading, aiMessages, aiRole, aiStatus.connected, dict.aiAnswerNeedKey, localeOption.lang]
-  );
-
-  const sendImagePrompt = useCallback(
-    async (rawPrompt: string) => {
-      const prompt = rawPrompt.trim();
-      if (!prompt || aiLoading) return;
-
-      const sourceImg = attachedImage;
-      const userMsg: AiChatMessage = {
-        id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        role: 'user',
-        text: prompt,
-        sourceImageUrl: sourceImg?.dataUrl,
-        mode: 'image',
-      };
-
-      setAiMessages((prev) => [...prev, userMsg]);
-      setAiChatOpen(true);
-
-      if (!aiStatus.connected) {
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'error',
-            text: dict.aiAnswerNeedKey,
-            needKey: true,
-          },
-        ]);
-        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-        return;
-      }
-
-      setAiLoading(true);
-      setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
-
-      try {
-        const res = await fetch('/api/ai/image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'OrbitSearch',
-          },
-          body: JSON.stringify({
-            prompt,
-            aspectRatio: imageAspectRatio,
-            imageBase64: sourceImg?.base64,
-            mimeType: sourceImg?.mimeType,
-          }),
-        });
-        if (!res.ok) {
-          const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
-          const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
-          setAiMessages((prev) => [
-            ...prev,
-            {
-              id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              role: 'error',
-              text:
-                errData.code === 'KEY_MISSING'
-                  ? dict.aiAnswerNeedKey
-                  : errData.error || dict.aiAnswerNeedKey,
-              needKey,
-            },
-          ]);
-          setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-          return;
-        }
-        const data = (await res.json()) as AiImageResponse;
-        setAttachedImage(null);
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'assistant',
-            text: data.text || '',
-            imageUrl: data.imageUrl,
-            model: data.model,
-            mode: 'image',
-          },
-        ]);
-        setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
-      } catch {
-        setAiMessages((prev) => [
-          ...prev,
-          {
-            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            role: 'error',
-            text: dict.aiAnswerNeedKey,
-            needKey: !aiStatus.connected,
-          },
-        ]);
-        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
-      } finally {
-        setAiLoading(false);
-      }
-    },
-    [aiLoading, aiStatus.connected, attachedImage, dict.aiAnswerNeedKey, imageAspectRatio]
-  );
-
-  const handleDispatchAiPrompt = useCallback(
-    (rawPrompt: string) => {
-      if (aiMode === 'image') {
-        void sendImagePrompt(rawPrompt);
-      } else {
-        void sendChatPrompt(rawPrompt);
-      }
-    },
-    [aiMode, sendChatPrompt, sendImagePrompt]
-  );
-
-  const handleStartEditGeneratedImage = useCallback((imageUrl: string) => {
-    const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(imageUrl);
-    if (!match) return;
-    setAttachedImage({
-      dataUrl: imageUrl,
-      mimeType: match[1] as AttachedReferenceImage['mimeType'],
-      base64: match[2],
-    });
-    setAiMode('image');
-  }, []);
-
-  const handleAskAi = useCallback(() => {
-    const prompt = query.trim();
-    if (!prompt) return;
-    inputRef.current?.blur();
-    setAiMode('chat');
-    void sendChatPrompt(prompt);
-  }, [query, sendChatPrompt]);
-
-  const handleExitAiChat = useCallback(() => {
-    setAiChatOpen(false);
-    playUiSound('menu-close');
-  }, []);
-
-  const handleAccessibilityChange = useCallback((next: AccessibilityPreferences) => {
-    setAccessibilityPrefs(sanitizeAccessibilityPreferences(next));
-  }, []);
-
-  const handleDonationLater = useCallback(() => {
-    setDonationPreviewDismissed(true);
-    setDonationPopupOpen(false);
-    setDonationState((prev) => {
-      const next: DonationPromptState = {
-        ...prev,
-        dismissedCount: prev.dismissedCount + 1,
-        lastShownAt: Date.now(),
-      };
-      writeStorage(STORAGE_KEYS.donationPrompt, next);
-      return next;
-    });
-  }, []);
-
-  const handleDonationNever = useCallback(() => {
-    setDonationPreviewDismissed(true);
-    setDonationPopupOpen(false);
-    setDonationState((prev) => {
-      const next: DonationPromptState = {
-        ...prev,
-        neverShow: true,
-        lastShownAt: Date.now(),
-      };
-      writeStorage(STORAGE_KEYS.donationPrompt, next);
-      return next;
-    });
-  }, []);
-
-  const handleDonateClick = useCallback(() => {
-    setDonationPreviewDismissed(true);
-    setDonationPopupOpen(false);
-    setDonationState((prev) => {
-      const next: DonationPromptState = {
-        ...prev,
-        donatedClicked: true,
-        lastShownAt: Date.now(),
-      };
-      writeStorage(STORAGE_KEYS.donationPrompt, next);
-      return next;
-    });
-  }, []);
-
-  const handleOpenSupportShowcase = useCallback(() => {
-    inputRef.current?.blur();
-    setIsFocused(false);
-    setHamburgerOpen(false);
-    setStandbyMode(false);
-    setDonationPopupOpen(false);
-    setSettingsOpen(false);
-    setSettingsInitialTab(null);
-    setLegalOpen(false);
-    playUiSound('menu-open');
-    setSupportShowcaseOpen(true);
-    setSrAnnouncement(dict.settingsTabSupport);
-    recordClientDiagnostic({
-      level: 'info',
-      source: 'client',
-      event: 'support.showcase.open',
-      message: 'Opened full-screen Supporta Orb showcase.',
-    });
-  }, [dict.settingsTabSupport]);
-
-  const handleCloseSupportShowcase = useCallback(() => {
-    playUiSound('menu-close');
-    setSupportShowcaseOpen(false);
-  }, []);
-
-  const handleOpenDonationsLegal = useCallback(() => {
-    setDonationPopupOpen(false);
-    setSupportShowcaseOpen(false);
-    setSettingsOpen(false);
-    setHamburgerOpen(false);
-    setLegalInitialSectionId('donazioni-volontarie');
-    playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
 
@@ -1204,20 +571,7 @@ export default function App() {
   }, []);
 
   const isUiReady = bootPhase === 'ready';
-  const headerVisible =
-    isUiReady &&
-    !stageLayout.keyboardActive &&
-    !isMenuOpen &&
-    !activeStandby &&
-    !activeSupportShowcase;
-  const botHorizontalPercent =
-    activeSupportShowcase && isDesktop
-      ? 74
-      : activeStandby
-        ? 27
-        : (overlayBackdropOpen || activeChatMode) && isDesktop
-          ? 24
-          : 50;
+  const botHorizontalPercent = activeStandby ? 27 : overlayBackdropOpen && isDesktop ? 24 : 50;
 
   return (
     <div
@@ -1228,8 +582,6 @@ export default function App() {
       data-keyboard-active={stageLayout.keyboardActive ? 'true' : 'false'}
       data-menu-open={isMenuOpen ? 'true' : 'false'}
       data-standby={activeStandby ? 'true' : 'false'}
-      data-support-showcase={activeSupportShowcase ? 'true' : 'false'}
-      data-ai-chat={activeChatMode ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
       className="fixed left-0 top-0 w-full overflow-hidden select-none"
       style={{
@@ -1250,58 +602,8 @@ export default function App() {
         }, 180);
       }}
     >
-      {/* Hidden SVG Color Vision Deficiency Filters */}
-      <svg aria-hidden="true" className="fixed w-0 h-0 pointer-events-none" focusable="false">
-        <defs>
-          <filter id="orbit-filter-protanopia">
-            <feColorMatrix
-              type="matrix"
-              values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"
-            />
-          </filter>
-          <filter id="orbit-filter-deuteranopia">
-            <feColorMatrix
-              type="matrix"
-              values="0.625 0.375 0 0 0  0.700 0.300 0 0 0  0 0.300 0.700 0 0  0 0 0 1 0"
-            />
-          </filter>
-          <filter id="orbit-filter-tritanopia">
-            <feColorMatrix
-              type="matrix"
-              values="0.950 0.050 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"
-            />
-          </filter>
-        </defs>
-      </svg>
-
       {/* Subtle atmospheric glow + micro-dot background pattern */}
       <div className="orbit-ambient-bg" aria-hidden="true" />
-
-      {/* Horizontal Accessibility Reading Guide Ruler */}
-      {accessibilityPrefs.readingGuide && readingGuideY !== null && (
-        <div
-          aria-hidden="true"
-          data-testid="accessibility-reading-guide"
-          className="fixed left-0 right-0 h-[2px] z-[60] pointer-events-none"
-          style={{
-            top: `${readingGuideY}px`,
-            backgroundColor: 'var(--acc)',
-            boxShadow: '0 0 12px 2px rgba(var(--acc-rgb), 0.45)',
-          }}
-        />
-      )}
-
-      {/* Polite Screen-Reader Live Announcements */}
-      {accessibilityPrefs.screenReaderHints && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="sr-only"
-          data-testid="accessibility-sr-live"
-        >
-          {srAnnouncement}
-        </div>
-      )}
 
       {/* Safe area probe */}
       <div
@@ -1321,12 +623,15 @@ export default function App() {
         aria-hidden="true"
       />
 
-      {/* Top-Right Desktop Standby Pill + Hamburger Menu Dropdown */}
+      {/* Top-Right Desktop Standby Pill + Settings Gear Button */}
       <header
         className="fixed left-0 right-0 top-0 z-30 flex items-center justify-end gap-2 px-4 pt-[calc(var(--st)+14px)] pointer-events-none"
         style={{
-          opacity: headerVisible ? 1 : 0,
-          transform: headerVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, -8px, 0)',
+          opacity: isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 1 : 0,
+          transform:
+            isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby
+              ? 'translate3d(0, 0, 0)'
+              : 'translate3d(0, -8px, 0)',
           transition:
             'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
@@ -1334,7 +639,6 @@ export default function App() {
         {canUseDesktopStandby && (
           <BubbleButton
             variant="glass"
-            tabIndex={headerVisible ? 0 : -1}
             data-testid="standby-btn"
             aria-label={dict.standbyAriaLabel}
             onClick={handleEnterStandby}
@@ -1351,79 +655,21 @@ export default function App() {
           </BubbleButton>
         )}
 
-        <div ref={hamburgerRef} className={`relative ${headerVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-          <BubbleButton
-            variant="glass"
-            tabIndex={headerVisible ? 0 : -1}
-            data-testid="hamburger-menu-btn"
-            aria-haspopup="menu"
-            aria-expanded={hamburgerOpen}
-            aria-label={dict.menuButtonAria}
-            onClick={() => {
-              unlockOrbitAudio();
-              setHamburgerOpen((prev) => !prev);
-            }}
-            contentClassName="grid place-items-center w-full h-full"
-            className="w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-            style={{
-              backgroundColor: hamburgerOpen ? 'var(--glass2)' : 'var(--glass)',
-              color: 'var(--fg)',
-              boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
-            }}
-          >
-            <Menu className="w-5 h-5" />
-          </BubbleButton>
-
-          <AnimatePresence>
-            {hamburgerOpen && headerVisible && (
-              <motion.div
-                role="menu"
-                aria-label={dict.menuButtonAria}
-                data-testid="hamburger-dropdown"
-                initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute right-0 mt-2.5 w-56 rounded-2xl p-1.5 backdrop-blur-2xl shadow-2xl origin-top-right z-40"
-                style={{
-                  backgroundColor: 'var(--menu-glass)',
-                  boxShadow:
-                    '0 20px 50px rgba(0, 0, 0, 0.28), inset 0 0 0 1px var(--border-subtle)',
-                }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  tabIndex={0}
-                  data-testid="menu-item-settings"
-                  onClick={() => handleOpenSettings(null)}
-                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-[13px] font-medium cursor-pointer transition-colors hover:bg-[var(--glass2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-                  style={{ color: 'var(--fg)' }}
-                >
-                  <Settings className="w-4 h-4 opacity-80 shrink-0" aria-hidden="true" />
-                  <span>{dict.menuSettingsItem}</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="menuitem"
-                  tabIndex={0}
-                  data-testid="menu-item-support"
-                  onClick={handleOpenSupportShowcase}
-                  className="mt-1 w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-[13px] font-semibold cursor-pointer transition-colors hover:bg-[var(--glass2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-                  style={{
-                    color: 'var(--acc-text)',
-                    backgroundColor: 'rgba(var(--acc-rgb), 0.10)',
-                    boxShadow: 'inset 0 0 0 1px rgba(var(--acc-rgb), 0.24)',
-                  }}
-                >
-                  <Coffee className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span>{dict.menuSupportItem}</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <BubbleButton
+          variant="glass"
+          data-testid="settings-btn"
+          aria-label={dict.settingsAria}
+          onClick={handleOpenSettings}
+          contentClassName="grid place-items-center w-full h-full"
+          className="pointer-events-auto w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+          style={{
+            backgroundColor: 'var(--glass)',
+            color: 'var(--fg)',
+            boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+          }}
+        >
+          <Settings className="w-5 h-5" />
+        </BubbleButton>
       </header>
 
       {/* Smooth blurred background layer behind Orb when Legal or Cookie notice is open */}
@@ -1449,7 +695,7 @@ export default function App() {
       {/* Boot Splash Sequence */}
       <BootSplash phase={bootPhase} centerY={stageLayout.botCenterY} />
 
-      {/* Central Mascot with Single Crisp Orbital Ring */}
+      {/* Central Mascot with Single Crisp Orbital Ring (stays z-40 above backdrop blur on PC, grows huge in Standby, fades cleanly behind Settings) */}
       <main>
         <OrbitBot
           bootPhase={bootPhase}
@@ -1459,17 +705,14 @@ export default function App() {
           horizontalPercent={botHorizontalPercent}
           viewportWidth={viewportMetrics.width}
           scale={stageLayout.scale}
-          animateStageTransition={animateStageTransition && !effectiveReducedMotion}
+          animateStageTransition={animateStageTransition}
           menuOpen={isMenuOpen}
           paused={settingsOpen || legalOpen}
           hidden={settingsOpen || legalOpen}
           standbyMode={activeStandby}
-          supportMode={activeSupportShowcase}
-          isFocused={isFocused && !isMenuOpen && !activeStandby && !activeSupportShowcase}
+          isFocused={isFocused && !isMenuOpen && !activeStandby}
           hasQuery={query.trim().length > 0}
           caretRatio={caretRatio}
-          lastTypedTimestamp={lastTypedTimestamp}
-          reduceMotion={effectiveReducedMotion}
           reactionSignal={reactionSignal}
           ariaLabel={dict.botAriaLabel}
         />
@@ -1482,84 +725,30 @@ export default function App() {
           onExit={handleExitStandby}
         />
 
-        {/* Full-Screen Supporta Orb Showcase with Happy Orb on Right */}
-        <SupportShowcaseOverlay
-          open={activeSupportShowcase}
-          dict={dict}
-          onClose={handleCloseSupportShowcase}
-          onDonateClick={handleDonateClick}
-          onOpenDonationsLegal={handleOpenDonationsLegal}
-        />
-
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
-          visible={
-            isUiReady &&
-            !activeStandby &&
-            !settingsOpen &&
-            !legalOpen &&
-            !activeChatMode &&
-            !activeSupportShowcase
-          }
+          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen}
           uiTopY={stageLayout.uiTopY}
-          animateStageTransition={animateStageTransition && !effectiveReducedMotion}
+          animateStageTransition={animateStageTransition}
           query={query}
-          isFocused={
-            isFocused &&
-            !isMenuOpen &&
-            !activeStandby &&
-            !activeChatMode &&
-            !activeSupportShowcase
-          }
+          isFocused={isFocused && !isMenuOpen && !activeStandby}
           quickLinks={quickLinks}
           suggestions={suggestions}
           visibleSuggestions={stageLayout.visibleSuggestions}
           dict={dict}
           inputRef={inputRef}
-          aiStatus={aiStatus}
-          onQueryChange={handleQueryChange}
+          onQueryChange={setQuery}
           onFocus={handleSearchFocus}
           onBlur={handleSearchBlur}
           onSubmit={handleSubmit}
-          onAskAi={handleAskAi}
           onCaretMove={measureCaret}
           onClearHistory={handleClearHistory}
-        />
-
-        {/* Gemini Multi-Model Chatbot & Nano Banana 2.1 Image Studio */}
-        <OrbChatPanel
-          open={activeChatMode}
-          mode={aiMode}
-          role={aiRole}
-          aspectRatio={imageAspectRatio}
-          attachedImage={attachedImage}
-          messages={aiMessages}
-          loading={aiLoading}
-          aiStatus={aiStatus}
-          dict={dict}
-          onModeChange={setAiMode}
-          onRoleChange={setAiRole}
-          onAspectRatioChange={setImageAspectRatio}
-          onAttachImage={setAttachedImage}
-          onSendMessage={handleDispatchAiPrompt}
-          onStartEditGeneratedImage={handleStartEditGeneratedImage}
-          onBackToSearch={handleExitAiChat}
-          onOpenAiSettings={() => handleOpenSettings('ai')}
         />
       </main>
 
       {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
       <FooterBar
-        visible={
-          isUiReady &&
-          !stageLayout.keyboardActive &&
-          !activeStandby &&
-          !settingsOpen &&
-          !legalOpen &&
-          !showDonationOverlay &&
-          !activeChatMode &&
-          !activeSupportShowcase
-        }
+        visible={isUiReady && !stageLayout.keyboardActive && !activeStandby && !settingsOpen && !legalOpen}
         localeOption={localeOption}
         dict={dict}
         onOpenLegal={handleOpenLegalFromFooter}
@@ -1576,21 +765,9 @@ export default function App() {
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Periodic Experience & Voluntary Support Popup */}
-      <DonationPopup
-        open={showDonationOverlay}
-        dict={dict}
-        onLater={handleDonationLater}
-        onNever={handleDonationNever}
-        onDonateClick={handleDonateClick}
-        onOpenSupportSection={handleOpenSupportShowcase}
-        onOpenDonationsLegal={handleOpenDonationsLegal}
-      />
-
       {/* Full-Screen Settings Panel */}
       <SettingsModal
         open={settingsOpen}
-        initialTab={settingsInitialTab}
         theme={theme}
         resolvedTheme={resolvedTheme}
         accentId={accentId}
@@ -1599,9 +776,6 @@ export default function App() {
         dict={dict}
         consent={consent}
         alwaysShowIntro={introPrefs.alwaysShowIntro}
-        accessibilityPrefs={accessibilityPrefs}
-        reduceMotion={effectiveReducedMotion}
-        aiStatus={aiStatus}
         reactionSignal={reactionSignal}
         onClose={handleCloseSettings}
         onThemeChange={setTheme}
@@ -1610,25 +784,18 @@ export default function App() {
         onUpdateConsent={handleUpdateConsent}
         onToggleAlwaysShowIntro={handleToggleAlwaysShowIntro}
         onSelectLocaleRegion={handleLocaleChange}
-        onAccessibilityChange={handleAccessibilityChange}
-        onSaveAiKey={handleSaveAiKey}
-        onDisconnectAiKey={handleDisconnectAiKey}
         onOpenLegal={handleOpenLegalFromSettings}
-        onOpenSupportShowcase={handleOpenSupportShowcase}
-        onDonateClick={handleDonateClick}
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Full-Screen Legal & Privacy 2026 Panel */}
+      {/* Full-Screen Legal & Privacy 2026 Panel (mirrors Settings layout) */}
       <LegalModal
         open={legalOpen}
-        initialSectionId={legalInitialSectionId}
         lang={localeOption.lang}
         jurisdiction={localeOption.jurisdiction}
         jurisdictionLabel={localeOption.fullLabel}
         dict={dict}
         consent={consent}
-        reduceMotion={effectiveReducedMotion}
         reactionSignal={reactionSignal}
         onClose={handleCloseLegal}
         onUpdateConsent={handleUpdateConsent}

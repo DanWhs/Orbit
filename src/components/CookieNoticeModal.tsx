@@ -59,7 +59,7 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
             animate={{ opacity: 1, x: 0, y: 0 }}
             exit={{ opacity: 0, x: 14, y: 10 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 pointer-events-auto w-full max-w-[460px] max-h-[68vh] md:max-h-[82vh] flex flex-col rounded-[28px] overflow-hidden backdrop-blur-xl"
+            className="relative z-10 pointer-events-auto w-full max-w-[460px] max-h-[64vh] md:max-h-[84vh] flex flex-col rounded-[28px] overflow-hidden"
             style={{
               backgroundColor: 'color-mix(in srgb, var(--bg) 74%, var(--menu-glass))',
               color: 'var(--fg)',
@@ -68,7 +68,7 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
               contain: 'layout style paint',
             }}
           >
-            <div className="p-4 sm:p-6 overflow-y-auto orbit-scroll space-y-3.5 sm:space-y-4">
+            <div className="p-5 sm:p-6 overflow-y-auto orbit-scroll space-y-4">
               <div className="space-y-1.5">
                 <div
                   className="inline-flex items-center gap-1.5 text-xs font-semibold"
@@ -101,7 +101,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <BubbleButton
                   variant="solid"
-                  tabIndex={0}
                   data-testid="cookie-notice-accept-all"
                   onClick={() => commitConsent(true, true, false)}
                   className="h-11 px-4 rounded-full text-[13px] font-semibold cursor-pointer active:scale-[0.98]"
@@ -115,7 +114,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
 
                 <BubbleButton
                   variant="glass"
-                  tabIndex={0}
                   data-testid="cookie-notice-reject-all"
                   onClick={() => commitConsent(false, false, true)}
                   className="h-11 px-4 rounded-full text-[13px] font-semibold cursor-pointer hover:bg-[var(--glass2)] active:scale-[0.98]"
@@ -132,7 +130,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
               <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
                 <BubbleButton
                   variant="glass"
-                  tabIndex={0}
                   data-testid="cookie-notice-customize-btn"
                   onClick={() => {
                     setShowCustom((v) => !v);
@@ -151,10 +148,9 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
 
                 <button
                   type="button"
-                  tabIndex={0}
                   data-testid="cookie-notice-read-policy"
                   onClick={onOpenLegal}
-                  className="text-xs font-semibold underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+                  className="text-xs font-semibold underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity"
                   style={{ color: 'var(--acc-text)' }}
                 >
                   {dict.cookieNoticeOpenPolicy}
@@ -175,7 +171,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
                       <span>{dict.cookieFunctionalToggle}</span>
                       <input
                         type="checkbox"
-                        tabIndex={0}
                         data-testid="cookie-notice-functional-toggle"
                         checked={consent.gpcDetected ? false : draftFunctional}
                         disabled={consent.gpcDetected}
@@ -190,7 +185,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
                       <span>{dict.cookieAnalyticsToggle}</span>
                       <input
                         type="checkbox"
-                        tabIndex={0}
                         data-testid="cookie-notice-analytics-toggle"
                         checked={consent.gpcDetected ? false : draftAnalytics}
                         disabled={consent.gpcDetected}
@@ -203,7 +197,6 @@ export const CookieNoticeModal = memo(function CookieNoticeModal({
                     </label>
                     <BubbleButton
                       variant="solid"
-                      tabIndex={0}
                       data-testid="cookie-notice-save-custom"
                       onClick={() => commitConsent(draftFunctional, draftAnalytics, false)}
                       className="h-10 px-4 rounded-full text-xs font-semibold cursor-pointer active:scale-[0.98]"

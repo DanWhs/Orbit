@@ -63,32 +63,26 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
 
   const baseH = Math.max(viewportHeight, fullHeight || viewportHeight);
   const baseBotSize = computeBaseBotSize(viewportWidth, baseH);
-  const isCompactHeight = viewportHeight <= 620;
 
   // Detect active virtual keyboard via visualViewport shrink or mobile input focus
   const viewportShrunk = baseH > 0 && viewportHeight < baseH * 0.84;
   const keyboardActive = isMobile && (isFocused || viewportShrunk);
 
-  const topReserve = safeTop + (isMobile ? (isCompactHeight ? 42 : 54) : isCompactHeight ? 48 : 62);
-  const bottomReserve = keyboardActive
-    ? 10
-    : safeBottom + (isMobile ? (isCompactHeight ? 44 : 54) : isCompactHeight ? 46 : 58);
+  const topReserve = safeTop + (isMobile ? 54 : 62);
+  const bottomReserve = keyboardActive ? 10 : safeBottom + (isMobile ? 54 : 58);
   const usableHeight = Math.max(180, viewportHeight - topReserve - bottomReserve);
 
-  // Bot orbital ring extends ~13.6% outside botSize; guarantee clear space above search bar on mobile, smarthome & desktop
+  // Bot orbital ring extends ~13.6% outside botSize; guarantee clear space above search bar on mobile & desktop
   const botBarGap = isMobile
-    ? Math.max(38, Math.round(baseBotSize * ORB_RING_OVERHANG_RATIO) + 16)
-    : isCompactHeight
-      ? 36
-      : 48;
+    ? Math.max(44, Math.round(baseBotSize * ORB_RING_OVERHANG_RATIO) + 18)
+    : 48;
   const quickH = hasQuickLinks ? QUICK_LINKS_HEIGHT : 0;
 
   if (!keyboardActive) {
-    // IDLE / CENTERED STATE (Desktop, Smart Home Displays & Mobile):
+    // IDLE / CENTERED STATE (Desktop & Mobile):
     // Center the entire group [bot + gap + searchBar + quickLinks] vertically within the viewport.
-    // On desktop/smarthome, reserve space consistently for available suggestions so focusing/blurring never jumps the stage.
-    const maxSugs = isCompactHeight ? 1 : 2;
-    const reservedSugCount = !isMobile ? Math.min(maxSugs, suggestionCount) : 0;
+    // On desktop, reserve space consistently for available suggestions so focusing/blurring never jumps the stage.
+    const reservedSugCount = !isMobile ? Math.min(2, suggestionCount) : 0;
     const activeSugCount = !isMobile && isFocused ? reservedSugCount : 0;
     const sugH =
       reservedSugCount > 0
@@ -99,10 +93,9 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
     // Ensure the bot fits comfortably within usableHeight while keeping proportions balanced
     const maxBotRoom = Math.max(64, usableHeight - botBarGap - BAR_HEIGHT - underBarH);
     const botSize = Math.min(baseBotSize, maxBotRoom);
-    const minRingSafeGap = Math.max(24, Math.round(botSize * ORB_RING_OVERHANG_RATIO) + 14);
     const effectiveGap = isMobile
       ? Math.max(36, Math.round(botSize * ORB_RING_OVERHANG_RATIO) + 18)
-      : Math.max(botBarGap, minRingSafeGap);
+      : botBarGap;
     const groupTotalHeight = botSize + effectiveGap + BAR_HEIGHT + quickH;
 
     // Exact vertical center in the full viewport, clamped safely against top/bottom bars
