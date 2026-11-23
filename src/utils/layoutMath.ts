@@ -25,14 +25,6 @@ export interface DamperState {
   v: number;
 }
 
-export const ORB_RING_SCALE = 1.26;
-export const ORB_RING_RADIUS_VB = 49;
-export const ORB_RING_STROKE_VB = 2.25;
-// Outer radius of orbital ring relative to sphere diameter: ((49 + 2.25 / 2) / 100) * 1.26 = 0.631575
-export const ORB_RING_OUTER_RADIUS_RATIO =
-  ((ORB_RING_RADIUS_VB + ORB_RING_STROKE_VB / 2) / 100) * ORB_RING_SCALE;
-const ORB_RING_OVERHANG_RATIO = ORB_RING_OUTER_RADIUS_RATIO - 0.5;
-
 const BAR_HEIGHT = 58;
 const QUICK_LINKS_HEIGHT = 52; // 10px top gap + 42px row height
 const SUGGESTION_ROW_HEIGHT = 46;
@@ -72,10 +64,8 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
   const bottomReserve = keyboardActive ? 10 : safeBottom + (isMobile ? 54 : 58);
   const usableHeight = Math.max(180, viewportHeight - topReserve - bottomReserve);
 
-  // Bot orbital ring extends ~13.6% outside botSize; guarantee clear space above search bar on mobile & desktop
-  const botBarGap = isMobile
-    ? Math.max(44, Math.round(baseBotSize * ORB_RING_OVERHANG_RATIO) + 18)
-    : 48;
+  // Bot orbital ring extends 13% outside botSize (~24px-30px), so keep gap generous
+  const botBarGap = isMobile ? 34 : 42;
   const quickH = hasQuickLinks ? QUICK_LINKS_HEIGHT : 0;
 
   if (!keyboardActive) {
@@ -93,10 +83,7 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
     // Ensure the bot fits comfortably within usableHeight while keeping proportions balanced
     const maxBotRoom = Math.max(64, usableHeight - botBarGap - BAR_HEIGHT - underBarH);
     const botSize = Math.min(baseBotSize, maxBotRoom);
-    const effectiveGap = isMobile
-      ? Math.max(36, Math.round(botSize * ORB_RING_OVERHANG_RATIO) + 18)
-      : botBarGap;
-    const groupTotalHeight = botSize + effectiveGap + BAR_HEIGHT + quickH;
+    const groupTotalHeight = botSize + botBarGap + BAR_HEIGHT + quickH;
 
     // Exact vertical center in the full viewport, clamped safely against top/bottom bars
     const idealTop = (viewportHeight - groupTotalHeight) / 2;
@@ -107,7 +94,7 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
     return {
       botSize,
       botCenterY: groupTop + botSize / 2,
-      uiTopY: groupTop + botSize + effectiveGap,
+      uiTopY: groupTop + botSize + botBarGap,
       scale: botSize / baseBotSize,
       baseBotSize,
       visibleSuggestions: !isMobile && isFocused ? activeSugCount : 0,
@@ -117,22 +104,21 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
 
   // MOBILE KEYBOARD OPEN STATE:
   // Translate the group smoothly upward inside the remaining visualViewport height
-  // keeping bot + orbital ring + search bar + (suggestions or quick links) 100% visible with zero ring overlap.
+  // keeping bot + search bar + (suggestions or quick links) 100% visible and unclipped.
+  const compactGap = 24;
   const minBot = 60;
-  const availableTop = safeTop + 14;
+  const availableTop = safeTop + 12;
   const availableBottom = viewportHeight - 10;
   const roomTotal = Math.max(150, availableBottom - availableTop);
-  const reserveGapEstimate = Math.max(32, Math.round(baseBotSize * 0.72 * ORB_RING_OVERHANG_RATIO) + 16);
 
   // Try fitting up to 2 suggestions (if typing/focused), otherwise drop to 1 or 0
   const maxSugWanted = Math.min(2, suggestionCount);
   for (let n = maxSugWanted; n >= 0; n--) {
     const sugH =
       n > 0 ? SUGGESTION_TOP_GAP + n * SUGGESTION_ROW_HEIGHT + (n - 1) * SUGGESTION_GAP : quickH;
-    const roomForBot = roomTotal - reserveGapEstimate - BAR_HEIGHT - sugH;
+    const roomForBot = roomTotal - compactGap - BAR_HEIGHT - sugH;
     if (roomForBot >= minBot || n === 0) {
       const botSize = Math.max(48, Math.min(baseBotSize * 0.72, roomForBot));
-      const compactGap = Math.max(30, Math.round(botSize * ORB_RING_OVERHANG_RATIO) + 16);
       const totalBlock = botSize + compactGap + BAR_HEIGHT + sugH;
       const top = Math.max(availableTop, availableTop + (roomTotal - totalBlock) * 0.35);
 
@@ -148,11 +134,10 @@ export function computeStageLayout(input: StageLayoutInput): StageLayoutResult {
     }
   }
 
-  const fallbackGap = Math.max(30, Math.round(minBot * ORB_RING_OVERHANG_RATIO) + 16);
   return {
     botSize: minBot,
     botCenterY: availableTop + minBot / 2,
-    uiTopY: availableTop + minBot + fallbackGap,
+    uiTopY: availableTop + minBot + compactGap,
     scale: minBot / baseBotSize,
     baseBotSize,
     visibleSuggestions: 0,

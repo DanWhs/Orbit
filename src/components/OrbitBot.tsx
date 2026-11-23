@@ -7,7 +7,7 @@ import type {
   OrbStepEvent,
   OrbStepResponse,
 } from '../types/orbit';
-import { damp, ORB_RING_RADIUS_VB, ORB_RING_STROKE_VB } from '../utils/layoutMath';
+import { damp } from '../utils/layoutMath';
 import { playPresenceSound, playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
 
 interface OrbitBotProps {
@@ -713,7 +713,7 @@ export const OrbitBot = memo(function OrbitBot({
           className={`relative w-full h-full ${bootPhase === 'pop' ? 'animate-bot-pop' : ''}`}
           style={{ ['--k' as string]: innerBubbleScale.toFixed(4) }}
         >
-          {/* Single crisp proportional orbital ring */}
+          {/* Single crisp fixed orbital ring with non-scaling stroke for razor-sharp GPU scaling */}
           <svg
             data-testid="orbit-single-ring"
             viewBox="0 0 100 100"
@@ -723,11 +723,12 @@ export const OrbitBot = memo(function OrbitBot({
             <circle
               cx="50"
               cy="50"
-              r={ORB_RING_RADIUS_VB}
+              r="49.5"
               fill="none"
-              strokeWidth={ORB_RING_STROKE_VB}
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
               style={{
-                stroke: 'color-mix(in srgb, var(--acc) 82%, transparent)',
+                stroke: 'color-mix(in srgb, var(--acc) 72%, transparent)',
                 transition: 'stroke 0.45s var(--soft)',
               }}
             />

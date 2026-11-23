@@ -5,7 +5,7 @@ import type {
   OrbStepEvent,
   OrbStepResponse,
 } from '../types/orbit';
-import { damp, ORB_RING_RADIUS_VB, ORB_RING_STROKE_VB } from '../utils/layoutMath';
+import { damp } from '../utils/layoutMath';
 import { playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
 
 interface LiveOrbMarkProps {
@@ -261,9 +261,9 @@ export const LiveOrbMark = memo(function LiveOrbMark({
         }
       }
 
-      const eW = D * 0.188;
-      const eH = D * 0.405;
-      const baseGap = D * 0.278;
+      const eW = D * 0.19;
+      const eH = D * 0.41;
+      const baseGap = D * 0.28;
       const thx = sx * 0.94;
       const thy = sy * 0.9;
       const offX = Math.sin(thx) * D * 0.19;
@@ -317,24 +317,7 @@ export const LiveOrbMark = memo(function LiveOrbMark({
       className="relative shrink-0"
       style={{ width: `${size}px`, height: `${size}px` }}
     >
-      <svg
-        data-testid="settings-orb-ring"
-        viewBox="0 0 100 100"
-        aria-hidden="true"
-        className="absolute left-1/2 top-1/2 w-[126%] h-[126%] -translate-x-1/2 -translate-y-1/2 pointer-events-none overflow-visible"
-      >
-        <circle
-          cx="50"
-          cy="50"
-          r={ORB_RING_RADIUS_VB}
-          fill="none"
-          strokeWidth={ORB_RING_STROKE_VB}
-          style={{
-            stroke: 'color-mix(in srgb, var(--acc) 82%, transparent)',
-            transition: 'stroke 0.45s var(--soft)',
-          }}
-        />
-      </svg>
+      <div className="orbit-ring-track" aria-hidden="true" />
       <button
         ref={botRef}
         type="button"

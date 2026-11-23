@@ -133,8 +133,8 @@ export default function App() {
 
   const cookieNoticeOpen =
     bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen;
-  const overlayBackdropOpen = cookieNoticeOpen;
-  const isMenuOpen = settingsOpen || legalOpen || cookieNoticeOpen;
+  const overlayBackdropOpen = legalOpen || cookieNoticeOpen;
+  const isMenuOpen = settingsOpen || overlayBackdropOpen;
   const isDesktop = viewportMetrics.width >= 768;
   const canUseDesktopStandby = isDesktop && !viewportMetrics.isMobile;
   const activeStandby = standbyMode && canUseDesktopStandby && !isMenuOpen && bootPhase === 'ready';
@@ -707,8 +707,8 @@ export default function App() {
           scale={stageLayout.scale}
           animateStageTransition={animateStageTransition}
           menuOpen={isMenuOpen}
-          paused={settingsOpen || legalOpen}
-          hidden={settingsOpen || legalOpen}
+          paused={settingsOpen}
+          hidden={settingsOpen}
           standbyMode={activeStandby}
           isFocused={isFocused && !isMenuOpen && !activeStandby}
           hasQuery={query.trim().length > 0}
@@ -727,7 +727,7 @@ export default function App() {
 
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
-          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen}
+          visible={isUiReady && !activeStandby && !settingsOpen}
           uiTopY={stageLayout.uiTopY}
           animateStageTransition={animateStageTransition}
           query={query}
@@ -748,7 +748,7 @@ export default function App() {
 
       {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
       <FooterBar
-        visible={isUiReady && !stageLayout.keyboardActive && !activeStandby && !settingsOpen && !legalOpen}
+        visible={isUiReady && !stageLayout.keyboardActive && !activeStandby && !settingsOpen}
         localeOption={localeOption}
         dict={dict}
         onOpenLegal={handleOpenLegalFromFooter}
@@ -788,7 +788,7 @@ export default function App() {
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Full-Screen Legal & Privacy 2026 Panel (mirrors Settings layout) */}
+      {/* Legal & Privacy 2026 Interactive Drawer / Modal */}
       <LegalModal
         open={legalOpen}
         lang={localeOption.lang}
@@ -796,7 +796,6 @@ export default function App() {
         jurisdictionLabel={localeOption.fullLabel}
         dict={dict}
         consent={consent}
-        reactionSignal={reactionSignal}
         onClose={handleCloseLegal}
         onUpdateConsent={handleUpdateConsent}
         onUserModify={triggerModifyReaction}

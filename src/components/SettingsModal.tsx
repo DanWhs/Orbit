@@ -279,7 +279,7 @@ export const SettingsModal = memo(function SettingsModal({
           >
             {/* Brand Row: Live Interactive Orbit Mascot + Settings Title */}
             <div className="flex items-center justify-between gap-3 px-5 sm:px-7 pt-[calc(var(--st)+18px)] md:pt-[calc(var(--st)+26px)] pb-4 md:pb-8">
-              <div className="flex items-center gap-4 min-w-0">
+              <div className="flex items-center gap-3.5 min-w-0">
                 <LiveOrbMark
                   size={38}
                   reactionSignal={reactionSignal}

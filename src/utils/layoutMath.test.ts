@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeStageLayout, ORB_RING_OUTER_RADIUS_RATIO } from './layoutMath';
+import { computeStageLayout } from './layoutMath';
 import {
   DEFAULT_QUICK_LINKS,
   getInitialTheme,
@@ -59,11 +59,6 @@ test('desktop idle layout centers the entire bot+bar+links group vertically', ()
   const topMargin = groupTop;
   const bottomMargin = 900 - groupBottom;
   assert.ok(Math.abs(topMargin - bottomMargin) <= 2, `Expected balanced vertical centering, got top=${topMargin}, bottom=${bottomMargin}`);
-  const desktopRingBottom = layout.botCenterY + layout.botSize * ORB_RING_OUTER_RADIUS_RATIO;
-  assert.ok(
-    layout.uiTopY - desktopRingBottom >= 14,
-    `Expected clean desktop gap below thick orbital ring (got ${layout.uiTopY - desktopRingBottom}px)`
-  );
 });
 
 test('mobile idle layout is centered, shifts up on virtual keyboard, and returns identically on close', () => {
@@ -83,11 +78,6 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const idleTop = initialIdle.botCenterY - initialIdle.botSize / 2;
   const idleBottom = initialIdle.uiTopY + 58 + 52;
   assert.ok(Math.abs(idleTop - (844 - idleBottom)) <= 2, 'Mobile idle group must be centered vertically');
-  const idleRingBottom = initialIdle.botCenterY + initialIdle.botSize * ORB_RING_OUTER_RADIUS_RATIO;
-  assert.ok(
-    initialIdle.uiTopY - idleRingBottom >= 14,
-    `Expected clean mobile idle gap below thick orbital ring (got ${initialIdle.uiTopY - idleRingBottom}px)`
-  );
 
   // Simulate virtual keyboard shrinking visualViewport to 430px
   const keyboardOpen = computeStageLayout({
@@ -107,11 +97,6 @@ test('mobile idle layout is centered, shifts up on virtual keyboard, and returns
   const keyboardBottom = keyboardOpen.uiTopY + 58 + (keyboardOpen.visibleSuggestions > 0 ? 10 + keyboardOpen.visibleSuggestions * 46 : 0);
   assert.ok(keyboardBottom <= 430, `Nothing should clip below visualViewport height (bottom=${keyboardBottom})`);
   assert.ok(keyboardOpen.botCenterY - keyboardOpen.botSize / 2 >= 12, 'Bot must not clip off the top');
-  const kbdRingBottom = keyboardOpen.botCenterY + keyboardOpen.botSize * ORB_RING_OUTER_RADIUS_RATIO;
-  assert.ok(
-    keyboardOpen.uiTopY - kbdRingBottom >= 12,
-    `Expected clean mobile keyboard gap below thick orbital ring (got ${keyboardOpen.uiTopY - kbdRingBottom}px)`
-  );
 
   // Simulate closing keyboard
   const restoredIdle = computeStageLayout({

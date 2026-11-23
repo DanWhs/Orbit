@@ -43,7 +43,6 @@ export interface UiDictionary {
   footerLegalLink: string;
   regionSelectorAria: string;
   legalModalTitle: string;
-  legalBreadcrumbLabel: string;
   legalJurisdictionBadge: string;
   legalSearchPlaceholder: string;
   legalSearchClear: string;
@@ -140,7 +139,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Note Legali e Informativa Privacy',
     regionSelectorAria: 'Seleziona lingua e giurisdizione legale',
     legalModalTitle: 'Note Legali, Privacy e Conformità 2026',
-    legalBreadcrumbLabel: 'Note legali',
     legalJurisdictionBadge: 'Giurisdizione attiva',
     legalSearchPlaceholder: 'Cerca nel documento (es. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Pulisci ricerca',
@@ -225,7 +223,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Legal Notice & Privacy Policy',
     regionSelectorAria: 'Select language and legal jurisdiction',
     legalModalTitle: 'Legal Notice, Privacy & 2026 Compliance',
-    legalBreadcrumbLabel: 'Legal Notice',
     legalJurisdictionBadge: 'Active Jurisdiction',
     legalSearchPlaceholder: 'Search document (e.g. cookie, GitHub, open-source, AI, CCPA)...',
     legalSearchClear: 'Clear search',
@@ -310,7 +307,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Mentions Légales et Confidentialité',
     regionSelectorAria: 'Sélectionner la langue et la juridiction',
     legalModalTitle: 'Mentions Légales, Confidentialité et Conformité 2026',
-    legalBreadcrumbLabel: 'Mentions légales',
     legalJurisdictionBadge: 'Juridiction active',
     legalSearchPlaceholder: 'Rechercher (ex. cookie, GitHub, open-source, IA, CCPA)...',
     legalSearchClear: 'Effacer',
@@ -395,7 +391,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Rechtliche Hinweise & Datenschutz',
     regionSelectorAria: 'Sprache und Rechtsraum wählen',
     legalModalTitle: 'Rechtliche Hinweise, Datenschutz & Compliance 2026',
-    legalBreadcrumbLabel: 'Rechtliches',
     legalJurisdictionBadge: 'Aktiver Rechtsraum',
     legalSearchPlaceholder: 'Dokument durchsuchen (z. B. Cookie, GitHub, Open-Source, KI, CCPA)...',
     legalSearchClear: 'Suche löschen',
@@ -480,7 +475,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     footerLegalLink: 'Notas Legales y Política de Privacidad',
     regionSelectorAria: 'Seleccionar idioma y jurisdicción legal',
     legalModalTitle: 'Notas Legales, Privacidad y Cumplimiento 2026',
-    legalBreadcrumbLabel: 'Aviso legal',
     legalJurisdictionBadge: 'Jurisdicción activa',
     legalSearchPlaceholder: 'Buscar en el documento (ej. cookie, GitHub, código abierto, IA, CCPA)...',
     legalSearchClear: 'Limpiar',
@@ -579,7 +573,7 @@ export function getInitialLocaleOption(): LocaleRegionOption {
 }
 
 export function getCachedDictionary(lang: LanguageCode, jurisdiction: JurisdictionCode): UiDictionary {
-  const cacheKey = `${lang}:${jurisdiction}:v8`;
+  const cacheKey = `${lang}:${jurisdiction}:v7`;
   const memHit = memoryCache.get(cacheKey);
   if (memHit) return memHit;
 
@@ -599,7 +593,7 @@ export function getCachedDictionary(lang: LanguageCode, jurisdiction: Jurisdicti
 export function prewarmTranslationCache(): void {
   const bundle: Record<string, UiDictionary> = {};
   for (const opt of LOCALE_REGION_OPTIONS) {
-    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v8`;
+    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v7`;
     const dict = DICTIONARIES[opt.lang] ?? DICTIONARIES.en;
     memoryCache.set(cacheKey, dict);
     bundle[cacheKey] = dict;
