@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeStageLayout } from './layoutMath';
 import {
-  DEFAULT_QUICK_LINKS,
   getInitialTheme,
   isValidQuickLinkInput,
   normalizeUrl,
@@ -12,31 +11,22 @@ import {
   STORAGE_KEYS,
 } from './storage';
 import { ACCENT_PRESETS, hexToRgb, normalizeHexColor, resolveAccentTokens } from '../constants/accents';
-import {
-  buildSuggestions,
-  clearSearchHistory,
-  getHistorySuggestions,
-  getSearchHistory,
-  saveSearchHistory,
-} from './searchEngine';
+import { clearSearchHistory, getHistorySuggestions, getSearchHistory, saveSearchHistory } from './searchEngine';
 import {
   AWAY_BORED_TO_SLEEP_MS,
-  getAudioProfilePayload,
+  evaluatePresenceState,
   TOUCH_INACTIVITY_MS,
   WAKE_HAPPY_DURATION_MS,
-} from '../../server/orbPersonality';
+} from './idleSleepState';
 import {
   computeAwaySeriousMotion,
   computeSleepingMotion,
   computeWakingHappyMotion,
-  evaluatePresenceState,
-  stepOrbEngine,
-} from '../../server/orbMotionEngine';
+} from './orbMotionMath';
 import {
   playPresenceSound,
   playReactionSound,
   playUiSound,
-  setLoadedAudioProfile,
   unlockOrbitAudio,
 } from './orbSounds';
 
@@ -131,33 +121,6 @@ test('quick links sanitization enforces max 4 links and valid URLs', () => {
   ]);
   assert.equal(sanitized.length, 4);
   assert.equal(sanitized[0].url, 'https://one.com');
-
-  // Default quick links now ship with Threads and Instagram instead of Maps and Wikipedia
-  assert.deepEqual(
-    DEFAULT_QUICK_LINKS.map((l) => l.title),
-    ['YouTube', 'Gmail', 'Threads', 'Instagram']
-  );
-
-  // Untouched legacy factory defaults migrate seamlessly
-  const migrated = sanitizeQuickLinks([
-    { id: 'ql-youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
-    { id: 'ql-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
-    { id: 'ql-maps', title: 'Maps', url: 'https://maps.google.com/' },
-    { id: 'ql-wikipedia', title: 'Wikipedia', url: 'https://it.wikipedia.org/' },
-  ]);
-  assert.deepEqual(
-    migrated.map((l) => l.title),
-    ['YouTube', 'Gmail', 'Threads', 'Instagram']
-  );
-});
-
-test('buildSuggestions returns only history, URLs, and real network suggestions without fake suffix padding', () => {
-  assert.deepEqual(buildSuggestions('meteo', []), []);
-  assert.deepEqual(buildSuggestions('openai.com', []), [{ text: 'openai.com', kind: 'url' }]);
-  assert.deepEqual(buildSuggestions('meteo', ['meteo roma', 'meteo milano']), [
-    { text: 'meteo roma', kind: 'search' },
-    { text: 'meteo milano', kind: 'search' },
-  ]);
 });
 
 test('hexToRgb converts 6-digit hex accents to comma-separated RGB channels', () => {
@@ -291,46 +254,6 @@ test('presence state machine transitions away-serious -> sleeping -> waking-happ
   });
   assert.equal(t2.nextState, 'away-serious');
   assert.equal(t2.stopAllAnimations, true);
-
-  // Desktop Standby mode: keeps Orb awake and stops away-serious/sleep even when pointerOutside is true
-  const s1 = evaluatePresenceState({
-    currentState: 'awake',
-    stateEnteredAt: 0,
-    now: 5000,
-    bootReady: true,
-    menuOpen: false,
-    standbyMode: true,
-    hasQuery: false,
-    isTouchMode: false,
-    pointerOutside: true,
-    lastActivityAt: 0,
-  });
-  assert.equal(s1.nextState, 'awake');
-  assert.equal(s1.stopAllAnimations, false);
-
-  const stepRes = stepOrbEngine({
-    sessionId: 'standby-test',
-    variant: 'main',
-    nowMs: 12000,
-    botSize: 440,
-    bootReady: true,
-    menuOpen: false,
-    standbyMode: true,
-    hasQuery: false,
-    isFocused: false,
-    caretRatio: 0,
-    drag: false,
-    reduceMotion: false,
-    isTouchMode: false,
-    pointerOutside: true,
-    pointerDx: -0.9,
-    pointerDy: 0.7,
-    lastActivityAgoMs: 10000,
-    lastPtrAgoMs: 10000,
-  });
-  assert.equal(stepRes.presenceState, 'awake');
-  assert.equal(stepRes.poseTarget.followPointerLive, false);
-  assert.ok(stepRes.poseTarget.dx > 0.7, 'Standby Orb must gaze right toward the clock and ignore pointer');
 });
 
 test('desktop stage layout remains identical when blurring search input on compact viewports with suggestions', () => {
@@ -436,19 +359,17 @@ test('orbSounds plays tones cleanly for all reactions, presence states, and UI i
     AudioContext: MockAudioContext,
   };
   try {
-    setLoadedAudioProfile(getAudioProfilePayload());
     unlockOrbitAudio();
     playPresenceSound('away-serious');
     playPresenceSound('sleeping');
     playPresenceSound('waking-happy');
     playUiSound('menu-open');
     playUiSound('menu-close');
-    playUiSound('standby-enter');
     playUiSound('clear-history');
     playUiSound('quicklink-tap');
     playReactionSound('peek', true);
     playReactionSound('happy');
-    assert.ok(oscillatorsStarted >= 15, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
+    assert.ok(oscillatorsStarted >= 13, `Expected multi-tone cues to schedule oscillators, got ${oscillatorsStarted}`);
   } finally {
     (globalThis as unknown as { window?: unknown }).window = prevWindow;
   }

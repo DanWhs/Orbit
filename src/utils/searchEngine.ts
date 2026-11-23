@@ -1,4 +1,4 @@
-import { SearchSuggestion } from '../types/orbit';
+import { LanguageCode, SearchSuggestion } from '../types/orbit';
 import { readStorage, removeStorage, STORAGE_KEYS, writeStorage } from './storage';
 
 export interface SearchEngineInfo {
@@ -6,7 +6,16 @@ export interface SearchEngineInfo {
   searchUrl: string;
 }
 
+const LOCAL_SUFFIXES: Record<LanguageCode, string[]> = {
+  it: ['significato', 'traduzione', 'cos’è', 'prezzo', 'recensioni', 'wikipedia', 'news', 'mappa'],
+  en: ['meaning', 'definition', 'translate', 'reviews', 'wikipedia', 'news', 'map', 'guide'],
+  fr: ['définition', 'traduction', 'prix', 'avis', 'wikipédia', 'actualités', 'carte', 'guide'],
+  de: ['bedeutung', 'übersetzung', 'preis', 'bewertung', 'wikipedia', 'nachrichten', 'karte', 'guide'],
+  es: ['significado', 'traducción', 'precio', 'reseñas', 'wikipedia', 'noticias', 'mapa', 'guía'],
+};
+
 const suggestionCache = new Map<string, string[]>();
+let consecutiveFailures = 0;
 
 export function detectSearchEngine(): SearchEngineInfo {
   if (typeof navigator === 'undefined') {
@@ -28,6 +37,14 @@ export function isLikelyUrl(input: string): boolean {
     /^https?:\/\/\S+$/i.test(trimmed) ||
     /^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(\/\S*)?$/i.test(trimmed)
   );
+}
+
+function hashString(s: string): number {
+  let h = 0;
+  for (const ch of s) {
+    h = (h * 31 + ch.charCodeAt(0)) | 0;
+  }
+  return Math.abs(h);
 }
 
 export function getSearchHistory(): string[] {
@@ -59,7 +76,8 @@ export function getHistorySuggestions(): SearchSuggestion[] {
 
 export function buildSuggestions(
   query: string,
-  networkSuggestions: string[]
+  networkSuggestions: string[],
+  lang: LanguageCode
 ): SearchSuggestion[] {
   const trimmed = query.trim();
   if (!trimmed) return getHistorySuggestions();
@@ -68,7 +86,7 @@ export function buildSuggestions(
   const out: SearchSuggestion[] = [];
   const add = (text: string | undefined, kind: SearchSuggestion['kind']) => {
     if (
-      out.length < 3 &&
+      out.length < 2 &&
       text &&
       text.toLowerCase() !== lower &&
       !out.some((item) => item.text.toLowerCase() === text.toLowerCase())
@@ -81,54 +99,84 @@ export function buildSuggestions(
     out.push({ text: trimmed, kind: 'url' });
   }
 
+  add(networkSuggestions[0], 'search');
   add(
     getSearchHistory().find((item) => item.toLowerCase().startsWith(lower)),
     'history'
   );
-  for (const s of networkSuggestions) {
-    add(s, 'search');
+  add(networkSuggestions[1], 'search');
+  add(networkSuggestions[2], 'search');
+
+  const suffixes = LOCAL_SUFFIXES[lang] ?? LOCAL_SUFFIXES.en;
+  const startIndex = hashString(lower);
+  for (let i = 0; i < suffixes.length && out.length < 2; i++) {
+    add(`${trimmed} ${suffixes[(startIndex + i) % suffixes.length]}`, 'search');
   }
 
   return out;
 }
 
-export async function fetchExternalSuggestions(
-  query: string,
-  lang: string,
-  allowExternal: boolean
-): Promise<string[] | null> {
-  // Preventive blocking: do not request autocomplete suggestions unless user opted into functionalExternal
-  if (!allowExternal) return null;
-
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-
-  const key = `${lang}:${trimmed.toLowerCase()}`;
-  const cached = suggestionCache.get(key);
-  if (cached) return cached;
-
+async function fetchJsonWithTimeout<T>(url: string, pick: (data: unknown) => T | null): Promise<T | null> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1800);
+  const timer = setTimeout(() => controller.abort(), 1400);
   try {
-    const res = await fetch(
-      `/api/suggest?q=${encodeURIComponent(trimmed)}&lang=${encodeURIComponent(lang)}`,
-      { signal: controller.signal }
-    );
+    const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) return null;
-    const data = (await res.json()) as { suggestions?: unknown };
-    const list = Array.isArray(data?.suggestions)
-      ? data.suggestions.filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
-      : [];
-    if (list.length > 0) {
-      suggestionCache.set(key, list);
-      return list;
-    }
-    return null;
+    const data: unknown = await res.json();
+    return pick(data);
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function fetchExternalSuggestions(
+  query: string,
+  lang: LanguageCode,
+  allowExternal: boolean
+): Promise<string[] | null> {
+  // Preventive blocking: do not contact third-party suggestion APIs unless user opted into functionalExternal
+  if (!allowExternal) return null;
+
+  const key = `${lang}:${query.toLowerCase()}`;
+  const cached = suggestionCache.get(key);
+  if (cached) return cached;
+  if (consecutiveFailures >= 2) return null;
+
+  const encoded = encodeURIComponent(query);
+  const providers: Array<() => Promise<string[] | null>> = [
+    () =>
+      fetchJsonWithTimeout<string[]>(
+        `https://en.wikipedia.org/w/api.php?action=opensearch&limit=3&format=json&origin=*&search=${encoded}`.replace(
+          'https://en.',
+          `https://${lang === 'it' || lang === 'fr' || lang === 'de' || lang === 'es' ? lang : 'en'}.`
+        ),
+        (d) => (Array.isArray(d) && Array.isArray(d[1]) ? (d[1] as string[]) : null)
+      ),
+    () =>
+      fetchJsonWithTimeout<string[]>(
+        `https://duckduckgo.com/ac/?q=${encoded}`,
+        (d) => {
+          if (!Array.isArray(d)) return null;
+          if (typeof d[0] === 'string' && Array.isArray(d[1])) return d[1] as string[];
+          return d
+            .map((x) => (x && typeof x === 'object' && 'phrase' in x ? String((x as { phrase: unknown }).phrase) : ''))
+            .filter(Boolean);
+        }
+      ),
+  ];
+
+  for (const run of providers) {
+    const result = await run();
+    if (result && result.length > 0) {
+      consecutiveFailures = 0;
+      suggestionCache.set(key, result);
+      return result;
+    }
+  }
+  consecutiveFailures++;
+  return null;
 }
 
 export function resolveDestinationUrl(query: string, engine: SearchEngineInfo): string {

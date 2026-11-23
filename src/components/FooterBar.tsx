@@ -21,13 +21,10 @@ export const FooterBar = memo(function FooterBar({
   return (
     <footer
       data-testid="minimal-footer"
-      className="fixed left-0 right-0 bottom-0 z-20 px-4 pb-[max(12px,var(--sb))] pt-2 flex justify-center"
+      className="fixed left-0 right-0 bottom-0 z-20 px-4 pb-[max(12px,var(--sb))] pt-2 flex justify-center transition-opacity duration-300"
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translate3d(0, 0, 0)' : 'translate3d(0, 10px, 0)',
         pointerEvents: visible ? 'auto' : 'none',
-        transition:
-          'opacity 340ms cubic-bezier(0.16, 1, 0.3, 1), transform 420ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-center text-xs sm:text-[13px]">

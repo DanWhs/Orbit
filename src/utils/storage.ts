@@ -16,11 +16,9 @@ export const MAX_QUICK_LINKS = 4;
 export const DEFAULT_QUICK_LINKS: QuickLink[] = [
   { id: 'ql-youtube', title: 'YouTube', url: 'https://www.youtube.com/' },
   { id: 'ql-gmail', title: 'Gmail', url: 'https://mail.google.com/' },
-  { id: 'ql-threads', title: 'Threads', url: 'https://www.threads.net/' },
-  { id: 'ql-instagram', title: 'Instagram', url: 'https://www.instagram.com/' },
+  { id: 'ql-maps', title: 'Maps', url: 'https://maps.google.com/' },
+  { id: 'ql-wikipedia', title: 'Wikipedia', url: 'https://it.wikipedia.org/' },
 ];
-
-const LEGACY_FACTORY_QUICK_LINK_IDS = ['ql-youtube', 'ql-gmail', 'ql-maps', 'ql-wikipedia'] as const;
 
 export function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -87,16 +85,6 @@ export function sanitizeQuickLinks(links: unknown): QuickLink[] {
     }
     if (cleaned.length >= MAX_QUICK_LINKS) break;
   }
-
-  // Upgrade untouched legacy factory defaults cleanly to include Threads and Instagram
-  if (
-    cleaned.length === 4 &&
-    cleaned.every((item, idx) => item.id === LEGACY_FACTORY_QUICK_LINK_IDS[idx])
-  ) {
-    writeStorage(STORAGE_KEYS.quickLinks, DEFAULT_QUICK_LINKS);
-    return DEFAULT_QUICK_LINKS;
-  }
-
   return cleaned;
 }
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectLocaleAndJurisdiction, getCachedDictionary } from './translations';
-import { filterLegalSections, getLegalSections } from '../../server/legalContentServer';
+import { filterLegalSections, getLegalSections } from './legalContent';
 
 test('auto-detection maps browser language and timezone to IT, EU, UK, US, and Global jurisdictions', () => {
   assert.equal(detectLocaleAndJurisdiction('it-IT', 'Europe/Rome').id, 'it-IT');
@@ -34,19 +34,11 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.settingsTabAppearance.length > 0, `Missing settingsTabAppearance for ${lang}`);
     assert.ok(d.settingsTabExperience.length > 0, `Missing settingsTabExperience for ${lang}`);
     assert.ok(d.settingsTabQuickLinks.length > 0, `Missing settingsTabQuickLinks for ${lang}`);
-    assert.ok(d.settingsTabAi.length > 0, `Missing settingsTabAi for ${lang}`);
     assert.ok(d.settingsTabPrivacy.length > 0, `Missing settingsTabPrivacy for ${lang}`);
-    assert.equal(d.aiComingSoonTitle, 'coming soon...');
-    assert.ok(d.aiComingSoonDesc.length > 20, `Missing aiComingSoonDesc for ${lang}`);
-    assert.ok(d.standbyButtonLabel.length > 0, `Missing standbyButtonLabel for ${lang}`);
-    assert.ok(d.weatherClear.length > 0, `Missing weatherClear for ${lang}`);
     assert.ok(d.themeSystem.length > 0, `Missing themeSystem for ${lang}`);
     assert.ok(d.alwaysShowIntroLabel.length > 0, `Missing alwaysShowIntroLabel for ${lang}`);
     assert.ok(d.betaTag.length > 0, `Missing betaTag for ${lang}`);
-    assert.ok(d.standbyExitHint.length > 0, `Missing standbyExitHint for ${lang}`);
   }
-  assert.ok(itDict.standbyExitHint.toLowerCase().includes('clicca'));
-  assert.ok(getCachedDictionary('en', 'EU').standbyExitHint.toLowerCase().includes('click'));
 });
 
 test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, accurate private open-source attribution, and keyword filtering', () => {

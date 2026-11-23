@@ -13,7 +13,6 @@ export interface UiDictionary {
   settingsTabAppearance: string;
   settingsTabExperience: string;
   settingsTabQuickLinks: string;
-  settingsTabAi: string;
   settingsTabPrivacy: string;
   themeLabel: string;
   themeSystem: string;
@@ -72,17 +71,6 @@ export interface UiDictionary {
   settingsCookieTitle: string;
   settingsCookieSubtitle: string;
   botAriaLabel: string;
-  aiComingSoonTitle: string;
-  aiComingSoonDesc: string;
-  standbyButtonLabel: string;
-  standbyAriaLabel: string;
-  standbyExitHint: string;
-  weatherClear: string;
-  weatherCloudy: string;
-  weatherFog: string;
-  weatherRain: string;
-  weatherSnow: string;
-  weatherStorm: string;
 }
 
 export const LOCALE_REGION_OPTIONS: LocaleRegionOption[] = [
@@ -109,7 +97,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabAppearance: 'Aspetto',
     settingsTabExperience: 'Esperienza',
     settingsTabQuickLinks: 'Link rapidi',
-    settingsTabAi: 'Features AI',
     settingsTabPrivacy: 'Privacy',
     themeLabel: 'Tema interfaccia',
     themeSystem: 'In base al dispositivo',
@@ -153,7 +140,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Rifiuta non essenziali',
     cookieCustomize: 'Personalizza scelte',
     cookieSaveCustom: 'Salva preferenze',
-    cookieFunctionalToggle: 'Suggerimenti di ricerca esterni (DuckDuckGo / Google Suggest)',
+    cookieFunctionalToggle: 'Suggerimenti di ricerca esterni (Wikipedia / DuckDuckGo API)',
     cookieAnalyticsToggle: 'Diagnostica anonima locale',
     cookieRevisitHint: 'Puoi modificare o revocare le tue scelte in qualsiasi momento da questo pannello senza alcuna penalizzazione.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information (Opt-Out USA)',
@@ -168,18 +155,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Preferenze Cookie e Privacy',
     settingsCookieSubtitle: 'Modifica in qualsiasi momento le scelte sui cookie salvate localmente.',
     botAriaLabel: 'Assistente Orbit interattivo, clicca per una reazione',
-    aiComingSoonTitle: 'coming soon...',
-    aiComingSoonDesc:
-      'Orb non sarà più soltanto una mascotte interattiva, ma diventerà anche un vero segretario personale e aiutante intelligente in tutte le tue attività quotidiane e ricerche sul web.',
-    standbyButtonLabel: 'Modalità standby',
-    standbyAriaLabel: 'Attiva modalità standby desktop',
-    standbyExitHint: 'Clicca per uscire',
-    weatherClear: 'Sereno',
-    weatherCloudy: 'Nuvoloso',
-    weatherFog: 'Nebbia',
-    weatherRain: 'Pioggia',
-    weatherSnow: 'Neve',
-    weatherStorm: 'Temporale',
   },
   en: {
     searchPlaceholder: 'Search or enter a web address',
@@ -193,7 +168,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabAppearance: 'Appearance',
     settingsTabExperience: 'Experience',
     settingsTabQuickLinks: 'Quick Links',
-    settingsTabAi: 'AI Features',
     settingsTabPrivacy: 'Privacy',
     themeLabel: 'Interface Theme',
     themeSystem: 'Match device',
@@ -237,7 +211,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Reject Non-Essential',
     cookieCustomize: 'Customize Choices',
     cookieSaveCustom: 'Save Preferences',
-    cookieFunctionalToggle: 'External search autocomplete suggestions (DuckDuckGo / Google Suggest)',
+    cookieFunctionalToggle: 'External search autocomplete suggestions (Wikipedia / DuckDuckGo API)',
     cookieAnalyticsToggle: 'Local diagnostic metrics',
     cookieRevisitHint: 'You may review, modify, or withdraw your consent at any time from this panel with zero friction.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information (US Opt-Out)',
@@ -252,18 +226,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Cookie & Privacy Preferences',
     settingsCookieSubtitle: 'Update your locally saved cookie preferences at any time.',
     botAriaLabel: 'Interactive Orbit mascot, click for a reaction',
-    aiComingSoonTitle: 'coming soon...',
-    aiComingSoonDesc:
-      'Orb will evolve beyond being just an interactive mascot — becoming a personal secretary and dedicated assistant across all your tasks and web searches.',
-    standbyButtonLabel: 'Standby mode',
-    standbyAriaLabel: 'Enter desktop standby mode',
-    standbyExitHint: 'Click to exit',
-    weatherClear: 'Clear',
-    weatherCloudy: 'Cloudy',
-    weatherFog: 'Fog',
-    weatherRain: 'Rain',
-    weatherSnow: 'Snow',
-    weatherStorm: 'Storm',
   },
   fr: {
     searchPlaceholder: 'Rechercher ou saisir une adresse web',
@@ -277,7 +239,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabAppearance: 'Apparence',
     settingsTabExperience: 'Expérience',
     settingsTabQuickLinks: 'Accès rapides',
-    settingsTabAi: 'Fonctionnalités IA',
     settingsTabPrivacy: 'Confidentialité',
     themeLabel: 'Thème de l’interface',
     themeSystem: 'Selon l’appareil',
@@ -321,7 +282,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Tout refuser',
     cookieCustomize: 'Personnaliser',
     cookieSaveCustom: 'Enregistrer',
-    cookieFunctionalToggle: 'Suggestions de recherche externes (DuckDuckGo / Google Suggest)',
+    cookieFunctionalToggle: 'Suggestions de recherche externes (API Wikipedia / DuckDuckGo)',
     cookieAnalyticsToggle: 'Métriques de diagnostic locales',
     cookieRevisitHint: 'Vous pouvez modifier ou retirer votre consentement à tout moment ici.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -336,18 +297,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Préférences Cookies & Confidentialité',
     settingsCookieSubtitle: 'Modifiez à tout moment vos choix enregistrés localement.',
     botAriaLabel: 'Mascotte Orbit interactive, cliquer pour une réaction',
-    aiComingSoonTitle: 'coming soon...',
-    aiComingSoonDesc:
-      'Orb ne sera pas seulement une mascotte, mais aussi un véritable secrétaire personnel et assistant dans toutes vos activités et recherches.',
-    standbyButtonLabel: 'Mode veille',
-    standbyAriaLabel: 'Activer le mode veille bureau',
-    standbyExitHint: 'Cliquez pour quitter',
-    weatherClear: 'Dégagé',
-    weatherCloudy: 'Nuageux',
-    weatherFog: 'Brouillard',
-    weatherRain: 'Pluie',
-    weatherSnow: 'Neige',
-    weatherStorm: 'Orage',
   },
   de: {
     searchPlaceholder: 'Suchen oder Webadresse eingeben',
@@ -361,7 +310,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabAppearance: 'Design',
     settingsTabExperience: 'Erlebnis',
     settingsTabQuickLinks: 'Schnellzugriffe',
-    settingsTabAi: 'KI-Funktionen',
     settingsTabPrivacy: 'Datenschutz',
     themeLabel: 'Erscheinungsbild',
     themeSystem: 'Wie Gerät',
@@ -405,7 +353,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Nicht notwendige ablehnen',
     cookieCustomize: 'Anpassen',
     cookieSaveCustom: 'Auswahl speichern',
-    cookieFunctionalToggle: 'Externe Suchvorschläge (DuckDuckGo / Google Suggest)',
+    cookieFunctionalToggle: 'Externe Suchvorschläge (Wikipedia / DuckDuckGo API)',
     cookieAnalyticsToggle: 'Lokale Diagnosedaten',
     cookieRevisitHint: 'Sie können Ihre Einwilligung jederzeit hier einsehen oder widerrufen.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -420,18 +368,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Cookie- & Datenschutzeinstellungen',
     settingsCookieSubtitle: 'Passe deine lokal gespeicherte Einwilligung jederzeit an.',
     botAriaLabel: 'Interaktives Orbit-Maskottchen, klicken für eine Reaktion',
-    aiComingSoonTitle: 'coming soon...',
-    aiComingSoonDesc:
-      'Orb wird nicht nur ein Maskottchen bleiben, sondern auch dein persönlicher Sekretär und Helfer bei allen Aufgaben und Websuchen werden.',
-    standbyButtonLabel: 'Standby-Modus',
-    standbyAriaLabel: 'Desktop-Standby-Modus aktivieren',
-    standbyExitHint: 'Klicken zum Beenden',
-    weatherClear: 'Klar',
-    weatherCloudy: 'Bewölkt',
-    weatherFog: 'Nebel',
-    weatherRain: 'Regen',
-    weatherSnow: 'Schnee',
-    weatherStorm: 'Gewitter',
   },
   es: {
     searchPlaceholder: 'Buscar o escribir una dirección web',
@@ -445,7 +381,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabAppearance: 'Apariencia',
     settingsTabExperience: 'Experiencia',
     settingsTabQuickLinks: 'Enlaces rápidos',
-    settingsTabAi: 'Funciones IA',
     settingsTabPrivacy: 'Privacidad',
     themeLabel: 'Tema de interfaz',
     themeSystem: 'Según el dispositivo',
@@ -489,7 +424,7 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     cookieRejectAll: 'Rechazar no esenciales',
     cookieCustomize: 'Personalizar',
     cookieSaveCustom: 'Guardar preferencias',
-    cookieFunctionalToggle: 'Sugerencias de búsqueda externas (DuckDuckGo / Google Suggest)',
+    cookieFunctionalToggle: 'Sugerencias de búsqueda externas (API Wikipedia / DuckDuckGo)',
     cookieAnalyticsToggle: 'Métricas locales de diagnóstico',
     cookieRevisitHint: 'Puedes revisar o revocar tus elecciones en cualquier momento desde este panel.',
     usDoNotSellLabel: 'Do Not Sell or Share My Personal Information',
@@ -504,18 +439,6 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsCookieTitle: 'Preferencias de Cookies y Privacidad',
     settingsCookieSubtitle: 'Modifica en cualquier momento tus preferencias guardadas localmente.',
     botAriaLabel: 'Mascota interactiva Orbit, haz clic para ver una reacción',
-    aiComingSoonTitle: 'coming soon...',
-    aiComingSoonDesc:
-      'Orb dejará de ser solo una mascota interactiva para convertirse también en tu secretario personal y ayudante en todas tus tareas y búsquedas.',
-    standbyButtonLabel: 'Modo espera',
-    standbyAriaLabel: 'Activar modo espera de escritorio',
-    standbyExitHint: 'Haz clic para salir',
-    weatherClear: 'Despejado',
-    weatherCloudy: 'Nublado',
-    weatherFog: 'Niebla',
-    weatherRain: 'Lluvia',
-    weatherSnow: 'Nieve',
-    weatherStorm: 'Tormenta',
   },
 };
 
@@ -573,7 +496,7 @@ export function getInitialLocaleOption(): LocaleRegionOption {
 }
 
 export function getCachedDictionary(lang: LanguageCode, jurisdiction: JurisdictionCode): UiDictionary {
-  const cacheKey = `${lang}:${jurisdiction}:v7`;
+  const cacheKey = `${lang}:${jurisdiction}:v5`;
   const memHit = memoryCache.get(cacheKey);
   if (memHit) return memHit;
 
@@ -593,7 +516,7 @@ export function getCachedDictionary(lang: LanguageCode, jurisdiction: Jurisdicti
 export function prewarmTranslationCache(): void {
   const bundle: Record<string, UiDictionary> = {};
   for (const opt of LOCALE_REGION_OPTIONS) {
-    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v7`;
+    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v5`;
     const dict = DICTIONARIES[opt.lang] ?? DICTIONARIES.en;
     memoryCache.set(cacheKey, dict);
     bundle[cacheKey] = dict;

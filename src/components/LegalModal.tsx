@@ -1,8 +1,9 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CheckCircle2, Search, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { filterLegalSections, getLegalSections } from '../i18n/legalContent';
 import { UiDictionary } from '../i18n/translations';
-import { ConsentState, JurisdictionCode, LanguageCode, LegalSection } from '../types/orbit';
+import { ConsentState, JurisdictionCode, LanguageCode } from '../types/orbit';
 import { BubbleButton, LiquidBubbleLayers, useLiquidBubble } from './LiquidBubble';
 
 interface LegalModalProps {
@@ -15,19 +16,6 @@ interface LegalModalProps {
   onClose: () => void;
   onUpdateConsent: (next: ConsentState) => void;
   onUserModify?: () => void;
-}
-
-const legalClientCache = new Map<string, LegalSection[]>();
-
-function filterSections(sections: LegalSection[], query: string): LegalSection[] {
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) return sections;
-  return sections.filter(
-    (s) =>
-      s.title.toLowerCase().includes(trimmed) ||
-      s.body.toLowerCase().includes(trimmed) ||
-      s.number.toLowerCase().includes(trimmed)
-  );
 }
 
 function renderHighlightedText(text: string, query: string) {
@@ -62,9 +50,6 @@ export const LegalModal = memo(function LegalModal({
   const [showCustomPanel, setShowCustomPanel] = useState(false);
   const [draftFunctional, setDraftFunctional] = useState(consent.functionalExternal);
   const [draftAnalytics, setDraftAnalytics] = useState(consent.analytics);
-  const [allSections, setAllSections] = useState<LegalSection[]>(
-    () => legalClientCache.get(`${lang}:${jurisdiction}`) ?? []
-  );
   const bodyRef = useRef<HTMLDivElement>(null);
   const legalSearchBubble = useLiquidBubble({ variant: 'glass', scope: 'self' });
 
@@ -72,33 +57,6 @@ export const LegalModal = memo(function LegalModal({
     setDraftFunctional(consent.functionalExternal);
     setDraftAnalytics(consent.analytics);
   }, [consent.functionalExternal, consent.analytics]);
-
-  // Load localized 2026 legal corpus from backend API when modal opens or locale changes
-  useEffect(() => {
-    if (!open) return;
-    const key = `${lang}:${jurisdiction}`;
-    const hit = legalClientCache.get(key);
-    if (hit) {
-      setAllSections(hit);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/legal?lang=${encodeURIComponent(lang)}&jurisdiction=${encodeURIComponent(jurisdiction)}`)
-      .then(async (res) => {
-        if (!res.ok) return null;
-        return (await res.json()) as { sections?: LegalSection[] };
-      })
-      .then((data) => {
-        if (!cancelled && Array.isArray(data?.sections)) {
-          legalClientCache.set(key, data.sections);
-          setAllSections(data.sections);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [open, lang, jurisdiction]);
 
   useEffect(() => {
     if (!open) {
@@ -113,8 +71,9 @@ export const LegalModal = memo(function LegalModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  const allSections = useMemo(() => getLegalSections(lang, jurisdiction), [lang, jurisdiction]);
   const visibleSections = useMemo(
-    () => filterSections(allSections, searchQuery),
+    () => filterLegalSections(allSections, searchQuery),
     [allSections, searchQuery]
   );
 
@@ -230,7 +189,7 @@ export const LegalModal = memo(function LegalModal({
                 </BubbleButton>
               </div>
 
-              {/* Internal Keyword Search Bar */}
+              {/* Internal Keyword Search Bar (signature Orbit pill + LiquidBubble perimeter) */}
               <div
                 {...legalSearchBubble.dataProps}
                 onPointerEnter={legalSearchBubble.onPointerEnter}
@@ -285,7 +244,7 @@ export const LegalModal = memo(function LegalModal({
               ref={bodyRef}
               className="flex-1 overflow-y-auto orbit-scroll px-6 sm:px-7 py-6 space-y-7"
             >
-              {/* Clean Architectural Index */}
+              {/* Clean Architectural Index (no boxed card clutter) */}
               <nav
                 data-testid="legal-toc"
                 aria-label={dict.legalTocTitle}
@@ -321,7 +280,7 @@ export const LegalModal = memo(function LegalModal({
               {/* Legal Chapters (0..9) */}
               {visibleSections.length === 0 ? (
                 <p className="text-sm py-10 text-center" style={{ color: 'var(--mut)' }}>
-                  {allSections.length > 0 ? dict.legalNoMatches : '...'}
+                  {dict.legalNoMatches}
                 </p>
               ) : (
                 <div className="space-y-6">

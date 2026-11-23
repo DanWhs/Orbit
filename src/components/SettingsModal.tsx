@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowUpRight,
-  Bot,
   Check,
   Globe,
   Link2,
@@ -23,7 +22,6 @@ import { ACCENT_PRESETS, normalizeHexColor, resolveAccentTokens } from '../const
 import { LOCALE_REGION_OPTIONS, UiDictionary } from '../i18n/translations';
 import {
   AccentValue,
-  BotReactionType,
   ConsentState,
   LocaleRegionOption,
   QuickLink,
@@ -38,8 +36,9 @@ import {
 } from '../utils/storage';
 import { BubbleButton } from './LiquidBubble';
 import { LiveOrbMark } from './LiveOrbMark';
+import { BotReactionType } from './OrbitBot';
 
-export type SettingsTabId = 'appearance' | 'experience' | 'quicklinks' | 'ai' | 'privacy';
+export type SettingsTabId = 'appearance' | 'experience' | 'quicklinks' | 'privacy';
 
 interface SettingsModalProps {
   open: boolean;
@@ -243,7 +242,6 @@ export const SettingsModal = memo(function SettingsModal({
       icon: Link2,
       count: `${quickLinks.length}/${MAX_QUICK_LINKS}`,
     },
-    { id: 'ai', label: dict.settingsTabAi, icon: Bot },
     { id: 'privacy', label: dict.settingsTabPrivacy, icon: ShieldCheck },
   ];
 
@@ -255,15 +253,10 @@ export const SettingsModal = memo(function SettingsModal({
           aria-modal="true"
           aria-labelledby="settings-modal-title"
           data-testid="settings-modal"
-          initial={{ opacity: 0, y: 14, scale: 0.985 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{
-            opacity: 0,
-            y: 10,
-            scale: 0.988,
-            transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
-          }}
-          transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, scale: 0.99 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.99 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="fixed inset-0 z-50 flex flex-col md:flex-row overflow-hidden"
           style={{
             backgroundColor: 'var(--bg)',
@@ -378,13 +371,7 @@ export const SettingsModal = memo(function SettingsModal({
 
             {/* Scrollable Panel Body */}
             <div className="flex-1 overflow-y-auto orbit-scroll px-5 sm:px-10 md:px-14 pt-6 md:pt-4 pb-[max(32px,var(--sb))]">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="max-w-[640px]"
-              >
+              <div className="max-w-[640px]">
                 {/* SUB-PANEL 1: APPEARANCE */}
                 {activeTab === 'appearance' && (
                   <div
@@ -855,44 +842,7 @@ export const SettingsModal = memo(function SettingsModal({
                   </section>
                 )}
 
-                {/* SUB-PANEL 4: FEATURES AI */}
-                {activeTab === 'ai' && (
-                  <section
-                    id="settings-tabpanel-ai"
-                    role="tabpanel"
-                    data-testid="settings-panel-ai"
-                    className="py-6 sm:py-10 space-y-5"
-                  >
-                    <div
-                      className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.06em]"
-                      style={{ color: 'var(--acc-text)' }}
-                    >
-                      <Bot className="w-4 h-4 shrink-0" aria-hidden="true" />
-                      <span>{dict.settingsTabAi}</span>
-                    </div>
-
-                    <h3
-                      data-testid="ai-coming-soon-title"
-                      className="font-display font-bold tracking-[-0.035em] leading-[1.02]"
-                      style={{
-                        fontSize: 'clamp(36px, 5.4vw, 60px)',
-                        color: 'var(--fg)',
-                      }}
-                    >
-                      {dict.aiComingSoonTitle}
-                    </h3>
-
-                    <p
-                      data-testid="ai-coming-soon-desc"
-                      className="max-w-[490px] text-[15px] sm:text-base leading-[1.68]"
-                      style={{ color: 'var(--mut)' }}
-                    >
-                      {dict.aiComingSoonDesc}
-                    </p>
-                  </section>
-                )}
-
-                {/* SUB-PANEL 5: PRIVACY */}
+                {/* SUB-PANEL 4: PRIVACY */}
                 {activeTab === 'privacy' && (
                   <section
                     id="settings-tabpanel-privacy"
@@ -1047,7 +997,7 @@ export const SettingsModal = memo(function SettingsModal({
                     )}
                   </section>
                 )}
-              </motion.div>
+              </div>
             </div>
           </div>
         </motion.div>
