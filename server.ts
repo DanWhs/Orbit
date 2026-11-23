@@ -8,6 +8,24 @@ import { fetchFreeUnlimitedSuggestions } from './server/suggestProxy.ts';
 import { getLocalWeather } from './server/weatherService.ts';
 import { getLegalSections } from './server/legalContentServer.ts';
 import {
+  clearDiagnostics,
+  diagnosticsMiddleware,
+  getDiagnosticsSnapshot,
+  isValidDiagnosticLevel,
+  isValidDiagnosticSource,
+  recordServerDiagnostic,
+} from './server/diagnostics.ts';
+import {
+  addFeedbackEntry,
+  buildFeedbackRssXml,
+  dispatchDailyFeedbackDigest,
+  getFeedbackDigestSummary,
+  getTodayDayKey,
+  listFeedbackEntries,
+  startDailyDigestScheduler,
+  validateFeedbackInput,
+} from './server/feedbackService.ts';
+import {
   clearSealedVaultCookie,
   isValidGeminiKeyFormat,
   maskApiKey,
@@ -38,6 +56,7 @@ async function startServer() {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+  startDailyDigestScheduler();
 
   const defaultJson = express.json({ limit: '32kb' });
   const imageJson = express.json({ limit: '10mb' });
@@ -54,6 +73,135 @@ async function startServer() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
+  });
+
+  app.use(diagnosticsMiddleware());
+
+  // Health & real diagnostics endpoints (strictly redacted; never expose keys or PII)
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      ok: true,
+      uptimeSec: Math.round(process.uptime()),
+      serverTime: new Date().toISOString(),
+    });
+  });
+
+  app.get('/api/diagnostics', (_req, res) => {
+    res.json(getDiagnosticsSnapshot());
+  });
+
+  app.post('/api/diagnostics', (req, res) => {
+    if (!verifySameOriginRequest(req)) {
+      res.status(403).json({ error: 'Invalid request origin' });
+      return;
+    }
+    const body = req.body as {
+      level?: unknown;
+      source?: unknown;
+      event?: unknown;
+      message?: unknown;
+      statusCode?: unknown;
+      durationMs?: unknown;
+    } | null;
+    if (!body || typeof body !== 'object' || typeof body.message !== 'string') {
+      res.status(400).json({ error: 'Invalid diagnostic event payload' });
+      return;
+    }
+    const entry = recordServerDiagnostic({
+      level: isValidDiagnosticLevel(body.level) ? body.level : 'info',
+      source: isValidDiagnosticSource(body.source) ? body.source : 'client',
+      event: typeof body.event === 'string' ? body.event : 'client.event',
+      message: body.message,
+      statusCode: typeof body.statusCode === 'number' ? body.statusCode : undefined,
+      durationMs: typeof body.durationMs === 'number' ? body.durationMs : undefined,
+    });
+    res.status(201).json({ entry });
+  });
+
+  app.delete('/api/diagnostics', (req, res) => {
+    if (!verifySameOriginRequest(req)) {
+      res.status(403).json({ error: 'Invalid request origin' });
+      return;
+    }
+    clearDiagnostics();
+    res.json(getDiagnosticsSnapshot());
+  });
+
+  // Feedback collection & daily digest API
+  app.get('/api/feedback', async (_req, res) => {
+    try {
+      const summary = await getFeedbackDigestSummary();
+      res.json(summary);
+    } catch {
+      res.status(500).json({ error: 'Unable to load feedback summary' });
+    }
+  });
+
+  app.post('/api/feedback', async (req, res) => {
+    if (!verifySameOriginRequest(req)) {
+      res.status(403).json({ error: 'Invalid request origin' });
+      return;
+    }
+    const check = validateFeedbackInput(req.body);
+    if (!check.ok) {
+      res.status(400).json({ error: check.error });
+      return;
+    }
+    try {
+      const entry = await addFeedbackEntry(check.data);
+      const summary = await getFeedbackDigestSummary();
+      res.status(201).json({ entry, summary });
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : 'Unable to save feedback',
+      });
+    }
+  });
+
+  app.get('/api/feedback/digest', async (req, res) => {
+    const format = typeof req.query.format === 'string' ? req.query.format.toLowerCase() : 'json';
+    try {
+      if (format === 'rss') {
+        const store = await listFeedbackEntries();
+        const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+        const host = req.headers.host || 'localhost:3000';
+        const rss = buildFeedbackRssXml(store.entries, `${proto}://${host}`);
+        res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8');
+        res.send(rss);
+        return;
+      }
+      const dayKey =
+        typeof req.query.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.day)
+          ? req.query.day
+          : getTodayDayKey();
+      const summary = await getFeedbackDigestSummary(dayKey);
+      if (format === 'txt') {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.send(summary.digestText);
+        return;
+      }
+      res.json(summary);
+    } catch {
+      res.status(500).json({ error: 'Unable to compile daily feedback digest' });
+    }
+  });
+
+  app.post('/api/feedback/digest/send', async (req, res) => {
+    if (!verifySameOriginRequest(req)) {
+      res.status(403).json({ error: 'Invalid request origin' });
+      return;
+    }
+    try {
+      const result = await dispatchDailyFeedbackDigest();
+      res.status(result.ok ? 200 : 502).json(result);
+    } catch (err) {
+      res.status(500).json({
+        ok: false,
+        channel: 'archive-only',
+        dispatchedCount: 0,
+        message: err instanceof Error ? err.message : 'Dispatch error',
+      });
+    }
   });
 
   // Proprietary Orb mascot audio recipes (not bundled in client JS)
@@ -76,6 +224,7 @@ async function startServer() {
       bootReady: Boolean(body.bootReady),
       menuOpen: Boolean(body.menuOpen),
       standbyMode: Boolean(body.standbyMode),
+      supportMode: Boolean(body.supportMode),
       hasQuery: Boolean(body.hasQuery),
       isFocused: Boolean(body.isFocused),
       caretRatio: typeof body.caretRatio === 'number' ? body.caretRatio : 0,

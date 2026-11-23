@@ -1,10 +1,12 @@
 import {
   AccentValue,
   AccessibilityPreferences,
+  ColorFilterMode,
   ConsentState,
   DonationPromptState,
   QuickLink,
   ResolvedTheme,
+  TextScaleMode,
   ThemeMode,
 } from '../types/orbit';
 
@@ -20,6 +22,7 @@ export const STORAGE_KEYS = {
   accessibility: 'orbit_accessibility_v1',
   donationPrompt: 'orbit_support_prompt_v1',
   aiDeviceVault: 'orbit_ai_vault_v1',
+  diagnosticsLog: 'orbit_diag_v1',
 } as const;
 
 export const MAX_QUICK_LINKS = 4;
@@ -37,7 +40,16 @@ export const DEFAULT_ACCESSIBILITY_PREFS: AccessibilityPreferences = {
   motionMode: 'system',
   highContrast: false,
   largeText: false,
+  textScale: 'normal',
   focusRings: false,
+  reduceTransparency: false,
+  underlineLinks: false,
+  dyslexiaFont: false,
+  relaxedSpacing: false,
+  largeTargets: false,
+  colorFilter: 'none',
+  readingGuide: false,
+  screenReaderHints: false,
 };
 
 export function readStorage<T>(key: string, fallback: T): T {
@@ -140,11 +152,39 @@ export function sanitizeAccessibilityPreferences(raw: unknown): AccessibilityPre
     candidate.motionMode === 'reduce' || candidate.motionMode === 'full' || candidate.motionMode === 'system'
       ? candidate.motionMode
       : 'system';
+
+  let textScale: TextScaleMode = 'normal';
+  if (candidate.textScale === 'normal' || candidate.textScale === 'large' || candidate.textScale === 'xlarge') {
+    textScale = candidate.textScale;
+  } else if (candidate.largeText) {
+    textScale = 'large';
+  }
+
+  const validFilters: ColorFilterMode[] = [
+    'none',
+    'grayscale',
+    'protanopia',
+    'deuteranopia',
+    'tritanopia',
+  ];
+  const colorFilter: ColorFilterMode = validFilters.includes(candidate.colorFilter as ColorFilterMode)
+    ? (candidate.colorFilter as ColorFilterMode)
+    : 'none';
+
   return {
     motionMode,
     highContrast: Boolean(candidate.highContrast),
-    largeText: Boolean(candidate.largeText),
+    largeText: textScale !== 'normal',
+    textScale,
     focusRings: Boolean(candidate.focusRings),
+    reduceTransparency: Boolean(candidate.reduceTransparency),
+    underlineLinks: Boolean(candidate.underlineLinks),
+    dyslexiaFont: Boolean(candidate.dyslexiaFont),
+    relaxedSpacing: Boolean(candidate.relaxedSpacing),
+    largeTargets: Boolean(candidate.largeTargets),
+    colorFilter,
+    readingGuide: Boolean(candidate.readingGuide),
+    screenReaderHints: Boolean(candidate.screenReaderHints),
   };
 }
 

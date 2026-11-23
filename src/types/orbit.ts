@@ -146,6 +146,7 @@ export interface OrbStepRequest {
   bootReady: boolean;
   menuOpen: boolean;
   standbyMode: boolean;
+  supportMode?: boolean;
   hasQuery: boolean;
   isFocused: boolean;
   caretRatio: number;
@@ -181,12 +182,83 @@ export interface WeatherData {
 }
 
 export type MotionPreference = 'system' | 'reduce' | 'full';
+export type TextScaleMode = 'normal' | 'large' | 'xlarge';
+export type ColorFilterMode = 'none' | 'grayscale' | 'protanopia' | 'deuteranopia' | 'tritanopia';
 
 export interface AccessibilityPreferences {
   motionMode: MotionPreference;
   highContrast: boolean;
   largeText: boolean;
+  textScale: TextScaleMode;
   focusRings: boolean;
+  reduceTransparency: boolean;
+  underlineLinks: boolean;
+  dyslexiaFont: boolean;
+  relaxedSpacing: boolean;
+  largeTargets: boolean;
+  colorFilter: ColorFilterMode;
+  readingGuide: boolean;
+  screenReaderHints: boolean;
+}
+
+export type DiagnosticLevel = 'info' | 'warn' | 'error';
+export type DiagnosticSource = 'server' | 'client' | 'ai' | 'network';
+
+export interface DiagnosticEntry {
+  id: string;
+  ts: string;
+  level: DiagnosticLevel;
+  source: DiagnosticSource;
+  event: string;
+  message: string;
+  statusCode?: number;
+  durationMs?: number;
+}
+
+export interface DiagnosticsSnapshot {
+  serverStartedAt: string;
+  uptimeSec: number;
+  nodeVersion: string;
+  platform: string;
+  memoryRssMb: number;
+  heapUsedMb: number;
+  totalRecorded: number;
+  entries: DiagnosticEntry[];
+}
+
+export interface HealthProbeResult {
+  id: string;
+  label: string;
+  ok: boolean;
+  latencyMs: number;
+  detail: string;
+}
+
+export type FeedbackCategory = 'bug' | 'idea' | 'ux' | 'praise';
+
+export interface FeedbackEntry {
+  id: string;
+  createdAt: string;
+  dayKey: string;
+  category: FeedbackCategory;
+  rating: number;
+  message: string;
+  contactEmail?: string;
+  lang: LanguageCode;
+  includedInDigestAt?: string | null;
+}
+
+export interface FeedbackDigestSummary {
+  dayKey: string;
+  toEmail: string;
+  countToday: number;
+  totalCount: number;
+  averageRating: number;
+  autoEmailConfigured: boolean;
+  webhookConfigured: boolean;
+  lastAutoDispatchAt: string | null;
+  digestText: string;
+  entries: FeedbackEntry[];
 }
 
 export type GeminiChatModelId =

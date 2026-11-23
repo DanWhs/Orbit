@@ -463,6 +463,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
   const variant = req.variant === 'mini' ? 'mini' : 'main';
   const D = clamp(Number(req.botSize) || 180, 30, 620);
   const standbyMode = Boolean(req.standbyMode) && variant === 'main';
+  const supportMode = Boolean(req.supportMode) && variant === 'main' && !standbyMode;
   const menuOpen = Boolean(req.menuOpen);
   const hasQuery = Boolean(req.hasQuery);
   const isFocused = Boolean(req.isFocused);
@@ -521,7 +522,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     }
   }
 
-  // Evaluate desktop/mobile presence (disabled in mini mark & ignored for away/sleep during desktop standbyMode)
+  // Evaluate desktop/mobile presence (disabled in mini mark & ignored for away/sleep during desktop standbyMode or supportMode)
   let stopAllAnimations = false;
   if (variant === 'main') {
     const presenceEval = evaluatePresenceState({
@@ -530,7 +531,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       now,
       bootReady,
       menuOpen,
-      standbyMode,
+      standbyMode: standbyMode || supportMode,
       hasQuery,
       isTouchMode,
       pointerOutside,
@@ -552,10 +553,11 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     s.reaction.on = false;
   }
 
-  // Schedule periodic think (when user has a typed query or paused mid-typing) & random idle expressions (including desktop passive empty focus and Standby!)
+  // Schedule periodic think (when user has a typed query or paused mid-typing) & random idle expressions (including desktop passive empty focus and Standby/Support!)
   if (variant === 'main' && s.presence === 'awake') {
     if (
       !standbyMode &&
+      !supportMode &&
       hasQuery &&
       isFocused &&
       !menuOpen &&
@@ -567,23 +569,25 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       s.nextThinkAt = now + 5200 + Math.random() * 4400;
     } else if (
       bootReady &&
-      (!isFocused || passiveEmptyFocus || standbyMode) &&
+      (!isFocused || passiveEmptyFocus || standbyMode || supportMode) &&
       !activelyTyping &&
       !menuOpen &&
       !drag &&
       !s.reaction.on &&
       !reduceMotion &&
-      (standbyMode || now - s.lastPtrMoveAt > 2000) &&
+      (standbyMode || supportMode || now - s.lastPtrMoveAt > 2000) &&
       now > s.nextIdleAt
     ) {
-      const idleType = IDLE_POOL[s.idlePoolIdx % IDLE_POOL.length];
+      const idleType: BotReactionType = supportMode
+        ? (['happy', 'content', 'wink'] as const)[s.idlePoolIdx % 3]
+        : IDLE_POOL[s.idlePoolIdx % IDLE_POOL.length];
       s.idlePoolIdx = (s.idlePoolIdx + 1) % IDLE_POOL.length;
-      const idleDir = standbyMode ? 1 : s.idlePoolIdx % 2 === 0 ? 1 : -1;
+      const idleDir = standbyMode || supportMode ? 1 : s.idlePoolIdx % 2 === 0 ? 1 : -1;
       s.reaction = { on: true, type: idleType, t0: now, dur: durTable[idleType], dir: idleDir };
       if (!soundCue) {
         soundCue = { channel: 'reaction', id: idleType, ambient: true };
       }
-      const gapBase = standbyMode ? 3400 : 4000;
+      const gapBase = standbyMode || supportMode ? 3600 : 4000;
       s.nextIdleAt = now + durTable[idleType] + gapBase + Math.random() * 3200;
     }
   }
@@ -598,14 +602,29 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
     }
   }
 
+  // Support showcase gaze smoothly alternates between reading the letter on the left and smiling at the viewer
+  const supportGlance = Math.max(0, Math.sin(now * 0.00062));
+  const supportDx = -0.62 * (1 - supportGlance * 0.78) + Math.sin(now * 0.0009) * 0.04;
+  const supportDy = -0.02 + Math.sin(now * 0.00075) * 0.04;
+
   // Base pose target
   const br = reduceMotion ? 0 : Math.sin(now * 0.0021);
   const pose: OrbPoseTarget = {
-    dx: standbyMode ? 0.84 + Math.sin(now * 0.00055) * 0.025 : tx,
-    dy: standbyMode ? -0.02 + Math.sin(now * 0.00072) * 0.022 : ty,
+    dx: standbyMode
+      ? 0.84 + Math.sin(now * 0.00055) * 0.025
+      : supportMode
+        ? supportDx
+        : tx,
+    dy: standbyMode
+      ? -0.02 + Math.sin(now * 0.00072) * 0.022
+      : supportMode
+        ? supportDy
+        : ty,
     tRot:
       s.presence === 'awake' && !menuOpen && !reduceMotion && !s.reaction.on
-        ? Math.sin(now * 0.00085) * 1.45
+        ? supportMode
+          ? -2.2 + Math.sin(now * 0.00095) * 1.6
+          : Math.sin(now * 0.00085) * 1.45
         : 0,
     tScX: 1 + br * 0.006,
     tScY: 1 - br * 0.006,
@@ -626,6 +645,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
         ? !s.reaction.on
         : s.presence === 'awake' &&
           !standbyMode &&
+          !supportMode &&
           !menuOpen &&
           !(hasQuery && isFocused) &&
           !s.reaction.on &&
@@ -701,7 +721,18 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       pose.tArcBottom = 0.95;
       pose.followPointerLive = true;
     } else {
-      if (!standbyMode) {
+      if (supportMode) {
+        // Warm smiling happy eyes gazing toward the letter and viewer
+        pose.tLW *= 1.18;
+        pose.tRW *= 1.18;
+        pose.tLH *= 0.62;
+        pose.tRH *= 0.62;
+        pose.tLY = -D * 0.018;
+        pose.tRY = -D * 0.018;
+        pose.tLTBias = -6;
+        pose.tRTBias = 6;
+        pose.tArcBottom = 0.92;
+      } else if (!standbyMode) {
         if (menuOpen && now - s.lastPtrMoveAt > 1600) {
           pose.dx = 0.72;
           pose.dy = Math.sin(now * 0.0008) * 0.08;
@@ -730,7 +761,7 @@ export function stepOrbEngine(req: OrbStepRequest): OrbStepResponse {
       }
 
       if (rt >= 0) {
-        applyReactionExpression(s.reaction.type, rt, s.reaction.dir, D, standbyMode, pose);
+        applyReactionExpression(s.reaction.type, rt, s.reaction.dir, D, standbyMode || supportMode, pose);
       }
     }
   } else {

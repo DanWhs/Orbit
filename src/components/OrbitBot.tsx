@@ -23,6 +23,7 @@ interface OrbitBotProps {
   paused?: boolean;
   hidden?: boolean;
   standbyMode?: boolean;
+  supportMode?: boolean;
   isFocused: boolean;
   hasQuery?: boolean;
   caretRatio: number;
@@ -68,6 +69,7 @@ export const OrbitBot = memo(function OrbitBot({
   paused = false,
   hidden = false,
   standbyMode = false,
+  supportMode = false,
   isFocused,
   hasQuery = false,
   caretRatio,
@@ -107,6 +109,7 @@ export const OrbitBot = memo(function OrbitBot({
     menuOpen,
     paused,
     standbyMode,
+    supportMode,
   });
   propsRef.current = {
     bootPhase,
@@ -122,6 +125,7 @@ export const OrbitBot = memo(function OrbitBot({
     menuOpen,
     paused,
     standbyMode,
+    supportMode,
   };
 
   const sessionIdRef = useRef<string>(
@@ -170,7 +174,7 @@ export const OrbitBot = memo(function OrbitBot({
       resumeLoopRef.current();
       urgentSyncRef.current();
     }
-  }, [standbyMode, menuOpen, paused, bootPhase, hasQuery]);
+  }, [standbyMode, supportMode, menuOpen, paused, bootPhase, hasQuery]);
 
   // Holiday snow + hat check (Dec 1 – Jan 6 or #natale)
   useEffect(() => {
@@ -266,6 +270,7 @@ export const OrbitBot = memo(function OrbitBot({
             bootReady: cur.bootPhase === 'ready',
             menuOpen: cur.menuOpen,
             standbyMode: cur.standbyMode,
+            supportMode: cur.supportMode,
             hasQuery: cur.hasQuery,
             isFocused: cur.isFocused,
             caretRatio: cur.caretRatio,
@@ -759,6 +764,7 @@ export const OrbitBot = memo(function OrbitBot({
             data-reaction={activeReactionLabel}
             data-presence={presenceState}
             data-standby={standbyMode ? 'true' : 'false'}
+            data-support={supportMode ? 'true' : 'false'}
             onClick={handleClick}
             aria-label={ariaLabel}
             className="relative w-full h-full rounded-full border-0 p-0 flex items-center justify-center cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--acc)]"

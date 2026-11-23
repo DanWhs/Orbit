@@ -543,27 +543,94 @@ html[data-reduce-motion="reduce"] .orbit-scroll {
   scroll-behavior: auto;
 }
 
-html[data-large-text="true"] {
+html[data-large-text="true"],
+html[data-text-scale="large"] {
   font-size: 18px;
 }
 
+html[data-text-scale="xlarge"] {
+  font-size: 20px;
+}
+
 html[data-high-contrast="true"]:not(.dark) {
-  --mut: rgba(13, 17, 29, 0.84);
-  --glass: rgba(13, 17, 29, 0.1);
-  --glass2: rgba(13, 17, 29, 0.18);
-  --border-subtle: rgba(13, 17, 29, 0.34);
+  --mut: rgba(13, 17, 29, 0.88);
+  --glass: rgba(13, 17, 29, 0.11);
+  --glass2: rgba(13, 17, 29, 0.2);
+  --border-subtle: rgba(13, 17, 29, 0.42);
 }
 
 html[data-high-contrast="true"].dark {
-  --mut: rgba(242, 244, 255, 0.84);
-  --glass: rgba(255, 255, 255, 0.14);
-  --glass2: rgba(255, 255, 255, 0.22);
-  --border-subtle: rgba(242, 244, 255, 0.34);
+  --mut: rgba(242, 244, 255, 0.88);
+  --glass: rgba(255, 255, 255, 0.15);
+  --glass2: rgba(255, 255, 255, 0.24);
+  --border-subtle: rgba(242, 244, 255, 0.42);
 }
 
 html[data-focus-rings="true"] :focus-visible {
   outline: 3px solid var(--acc) !important;
   outline-offset: 3px !important;
+}
+
+html[data-reduce-transparency="true"]:not(.dark) {
+  --glass: #eaeef5;
+  --glass2: #dde4ef;
+  --menu-glass: #f4f6fa;
+  --surface: #ffffff;
+}
+
+html[data-reduce-transparency="true"].dark {
+  --glass: #151a28;
+  --glass2: #1e2538;
+  --menu-glass: #10141f;
+  --surface: #10141f;
+}
+
+html[data-reduce-transparency="true"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-underline-links="true"] a,
+html[data-underline-links="true"] [role="link"] {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+html[data-dyslexia-font="true"] body,
+html[data-dyslexia-font="true"] button,
+html[data-dyslexia-font="true"] input,
+html[data-dyslexia-font="true"] textarea,
+html[data-dyslexia-font="true"] select {
+  font-family: Verdana, "Trebuchet MS", "Segoe UI", Arial, sans-serif !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.09em;
+}
+
+html[data-relaxed-spacing="true"] body {
+  letter-spacing: 0.02em;
+  line-height: 1.72;
+}
+
+html[data-large-targets="true"] button,
+html[data-large-targets="true"] [role="button"],
+html[data-large-targets="true"] a[href] {
+  min-height: 44px;
+}
+
+html[data-color-filter="grayscale"] {
+  filter: grayscale(1);
+}
+
+html[data-color-filter="protanopia"] {
+  filter: url(#orbit-filter-protanopia);
+}
+
+html[data-color-filter="deuteranopia"] {
+  filter: url(#orbit-filter-deuteranopia);
+}
+
+html[data-color-filter="tritanopia"] {
+  filter: url(#orbit-filter-tritanopia);
 }
 
 /* Highlighted Settings Tab (Support / Buy Me a Coffee) — liquid sweep shimmer matching button hover */

@@ -651,27 +651,77 @@ test('Orb fires idle reactions during passive empty focus and animates typing ca
   assert.ok(typingStep.poseTarget.tRot > 2.5, 'Typing pose should tilt attentively toward caret');
 });
 
-test('accessibility preferences sanitize safely and resolve reduced motion overrides cleanly', () => {
+test('accessibility preferences sanitize safely across all 13 controls and resolve reduced motion cleanly', () => {
   const clean = sanitizeAccessibilityPreferences({
     motionMode: 'reduce',
     highContrast: 1,
     largeText: true,
     focusRings: true,
+    dyslexiaFont: true,
+    colorFilter: 'deuteranopia',
+    readingGuide: true,
   });
   assert.deepEqual(clean, {
     motionMode: 'reduce',
     highContrast: true,
     largeText: true,
+    textScale: 'large',
     focusRings: true,
+    reduceTransparency: false,
+    underlineLinks: false,
+    dyslexiaFont: true,
+    relaxedSpacing: false,
+    largeTargets: false,
+    colorFilter: 'deuteranopia',
+    readingGuide: true,
+    screenReaderHints: false,
   });
 
-  const fallback = sanitizeAccessibilityPreferences({ motionMode: 'invalid' });
+  const xlarge = sanitizeAccessibilityPreferences({ textScale: 'xlarge' });
+  assert.equal(xlarge.textScale, 'xlarge');
+  assert.equal(xlarge.largeText, true);
+
+  const fallback = sanitizeAccessibilityPreferences({
+    motionMode: 'invalid',
+    colorFilter: 'unknown',
+    textScale: 'giant',
+  });
   assert.equal(fallback.motionMode, 'system');
+  assert.equal(fallback.colorFilter, 'none');
+  assert.equal(fallback.textScale, 'normal');
 
   assert.equal(resolveEffectiveReducedMotion('reduce', false), true);
   assert.equal(resolveEffectiveReducedMotion('full', true), false);
   assert.equal(resolveEffectiveReducedMotion('system', true), true);
   assert.equal(resolveEffectiveReducedMotion('system', false), false);
+});
+
+test('supportMode keeps Orb happily looking left toward text and viewer without falling asleep', () => {
+  const stepRes = stepOrbEngine({
+    sessionId: 'support-showcase-test',
+    variant: 'main',
+    nowMs: 14000,
+    botSize: 360,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    supportMode: true,
+    hasQuery: false,
+    isFocused: false,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: true,
+    pointerDx: 0.9,
+    pointerDy: 0.8,
+    lastActivityAgoMs: 15000,
+    lastPtrAgoMs: 15000,
+  });
+  assert.equal(stepRes.presenceState, 'awake');
+  assert.equal(stepRes.poseTarget.followPointerLive, false);
+  assert.ok(stepRes.poseTarget.dx < 0, `Expected supportMode Orb to look left, got dx=${stepRes.poseTarget.dx}`);
+  assert.ok(stepRes.poseTarget.tArcBottom > 0.8, `Expected happy arched eyes, got tArcBottom=${stepRes.poseTarget.tArcBottom}`);
 });
 
 test('donation prompt respects consent, cooldown, neverShow, and preview flag', () => {

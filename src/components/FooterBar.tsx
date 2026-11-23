@@ -2,14 +2,12 @@ import { memo } from 'react';
 import { Globe } from 'lucide-react';
 import { LOCALE_REGION_OPTIONS, UiDictionary } from '../i18n/translations';
 import { LocaleRegionOption } from '../types/orbit';
-import { BuyMeCoffeeButton } from './BuyMeCoffeeButton';
 
 interface FooterBarProps {
   visible: boolean;
   localeOption: LocaleRegionOption;
   dict: UiDictionary;
   onOpenLegal: () => void;
-  onDonateClick?: () => void;
   onSelectLocaleRegion: (optionId: string) => void;
 }
 
@@ -18,7 +16,6 @@ export const FooterBar = memo(function FooterBar({
   localeOption,
   dict,
   onOpenLegal,
-  onDonateClick,
   onSelectLocaleRegion,
 }: FooterBarProps) {
   return (
@@ -70,8 +67,6 @@ export const FooterBar = memo(function FooterBar({
             ))}
           </select>
         </label>
-
-        <BuyMeCoffeeButton compact variant="glass" testId="footer-coffee-btn" onClick={onDonateClick} />
       </div>
     </footer>
   );

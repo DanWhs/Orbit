@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { MoonStar, Settings } from 'lucide-react';
+import { Coffee, Menu, MoonStar, Settings } from 'lucide-react';
 import { BootSplash } from './components/BootSplash';
 import { CookieNoticeModal } from './components/CookieNoticeModal';
 import { DonationPopup } from './components/DonationPopup';
@@ -12,6 +12,7 @@ import { AttachedReferenceImage, OrbChatPanel } from './components/OrbChatPanel'
 import { SearchBlock } from './components/SearchBlock';
 import { SettingsModal, SettingsTabId } from './components/SettingsModal';
 import { StandbyOverlay } from './components/StandbyOverlay';
+import { SupportShowcaseOverlay } from './components/SupportShowcaseOverlay';
 import { resolveAccentTokens, hexToRgb } from './constants/accents';
 import {
   getCachedDictionary,
@@ -46,6 +47,7 @@ import {
   packClientTransportEnvelope,
   saveEncryptedClientBackup,
 } from './utils/clientVault';
+import { installGlobalDiagnosticListeners, recordClientDiagnostic } from './utils/diagnostics';
 import { computeStageLayout } from './utils/layoutMath';
 import { playUiSound, unlockOrbitAudio } from './utils/orbSounds';
 import {
@@ -132,6 +134,10 @@ export default function App() {
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalInitialSectionId, setLegalInitialSectionId] = useState<string | null>(null);
   const [standbyMode, setStandbyMode] = useState(false);
+  const [supportShowcaseOpen, setSupportShowcaseOpen] = useState(false);
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
+  const [readingGuideY, setReadingGuideY] = useState<number | null>(null);
+  const [srAnnouncement, setSrAnnouncement] = useState('');
 
   // Gemini BYOK AI chat + Nano Banana 2.1 image studio state
   const [aiStatus, setAiStatus] = useState<AiStatusResponse>({
@@ -175,6 +181,7 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const rulerRef = useRef<HTMLSpanElement>(null);
   const probeRef = useRef<HTMLDivElement>(null);
+  const hamburgerRef = useRef<HTMLDivElement>(null);
   const modifyParityRef = useRef(0);
   const pointerInSearchRef = useRef(false);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,12 +197,22 @@ export default function App() {
   const otherModalOpen = settingsOpen || legalOpen || cookieNoticeOpen;
   const isDesktop = viewportMetrics.width >= 768;
   const canUseDesktopStandby = isDesktop;
+  const activeSupportShowcase =
+    supportShowcaseOpen &&
+    !otherModalOpen &&
+    !(standbyMode && canUseDesktopStandby && bootPhase === 'ready') &&
+    bootPhase === 'ready';
   const showDonationOverlay =
-    donationPopupOpen && !otherModalOpen && !(standbyMode && canUseDesktopStandby && bootPhase === 'ready');
+    donationPopupOpen &&
+    !otherModalOpen &&
+    !activeSupportShowcase &&
+    !(standbyMode && canUseDesktopStandby && bootPhase === 'ready');
   const overlayBackdropOpen = cookieNoticeOpen || showDonationOverlay;
   const isMenuOpen = otherModalOpen || showDonationOverlay;
-  const activeStandby = standbyMode && canUseDesktopStandby && !isMenuOpen && bootPhase === 'ready';
-  const activeChatMode = aiChatOpen && !isMenuOpen && !activeStandby && bootPhase === 'ready';
+  const activeStandby =
+    standbyMode && canUseDesktopStandby && !isMenuOpen && !activeSupportShowcase && bootPhase === 'ready';
+  const activeChatMode =
+    aiChatOpen && !isMenuOpen && !activeStandby && !activeSupportShowcase && bootPhase === 'ready';
 
   const effectiveReducedMotion = useMemo(
     () => resolveEffectiveReducedMotion(accessibilityPrefs.motionMode, osPrefersReduced),
@@ -209,9 +226,10 @@ export default function App() {
     setReactionSignal({ type, nonce: Date.now() + Math.random() });
   }, []);
 
-  // Prewarm local translation cache synchronously
+  // Prewarm local translation cache and install global diagnostics collectors
   useEffect(() => {
     prewarmTranslationCache();
+    installGlobalDiagnosticListeners();
   }, []);
 
   // Hydrate encrypted Gemini vault status (with encrypted client vault fallback re-seal if cookie expired)
@@ -283,10 +301,54 @@ export default function App() {
     const root = document.documentElement;
     root.dataset.reduceMotion = effectiveReducedMotion ? 'reduce' : 'full';
     root.dataset.highContrast = accessibilityPrefs.highContrast ? 'true' : 'false';
-    root.dataset.largeText = accessibilityPrefs.largeText ? 'true' : 'false';
+    root.dataset.largeText =
+      accessibilityPrefs.largeText || accessibilityPrefs.textScale !== 'normal' ? 'true' : 'false';
+    root.dataset.textScale = accessibilityPrefs.textScale;
     root.dataset.focusRings = accessibilityPrefs.focusRings ? 'true' : 'false';
+    root.dataset.reduceTransparency = accessibilityPrefs.reduceTransparency ? 'true' : 'false';
+    root.dataset.underlineLinks = accessibilityPrefs.underlineLinks ? 'true' : 'false';
+    root.dataset.dyslexiaFont = accessibilityPrefs.dyslexiaFont ? 'true' : 'false';
+    root.dataset.relaxedSpacing = accessibilityPrefs.relaxedSpacing ? 'true' : 'false';
+    root.dataset.largeTargets = accessibilityPrefs.largeTargets ? 'true' : 'false';
+    root.dataset.colorFilter = accessibilityPrefs.colorFilter;
     writeStorage(STORAGE_KEYS.accessibility, accessibilityPrefs);
   }, [accessibilityPrefs, effectiveReducedMotion]);
+
+  // Reading Guide horizontal ruler follows pointer smoothly when enabled
+  useEffect(() => {
+    if (!accessibilityPrefs.readingGuide) {
+      setReadingGuideY(null);
+      return;
+    }
+    const onMove = (e: PointerEvent) => setReadingGuideY(Math.round(e.clientY));
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [accessibilityPrefs.readingGuide]);
+
+  // Close top-right Hamburger dropdown on outside click, Escape, or mode switch
+  useEffect(() => {
+    if (isMenuOpen || activeStandby || activeSupportShowcase) {
+      setHamburgerOpen(false);
+    }
+  }, [isMenuOpen, activeStandby, activeSupportShowcase]);
+
+  useEffect(() => {
+    if (!hamburgerOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (hamburgerRef.current && !hamburgerRef.current.contains(e.target as Node)) {
+        setHamburgerOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setHamburgerOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [hamburgerOpen]);
 
   const resolvedTheme: ResolvedTheme = useMemo(
     () => resolveThemeMode(theme, prefersDark),
@@ -493,7 +555,7 @@ export default function App() {
       safeTop: viewportMetrics.safeTop,
       safeBottom: viewportMetrics.safeBottom,
       isMobile: viewportMetrics.isMobile,
-      isFocused: isFocused && !isMenuOpen && !activeStandby,
+      isFocused: isFocused && !isMenuOpen && !activeStandby && !activeSupportShowcase,
       hasQuickLinks: quickLinks.length > 0,
       suggestionCount: suggestions.length,
     });
@@ -501,6 +563,9 @@ export default function App() {
     const isCompactHeight = viewportMetrics.height <= 620;
     const standbyBotSize = Math.round(
       Math.max(190, Math.min(viewportMetrics.width * 0.36, viewportMetrics.height * 0.56, 500))
+    );
+    const supportBotSize = Math.round(
+      Math.max(180, Math.min(viewportMetrics.width * 0.34, viewportMetrics.height * 0.54, 440))
     );
     const chatBotSize = Math.round(
       Math.max(
@@ -515,24 +580,32 @@ export default function App() {
 
     const desiredBotSize = activeStandby
       ? standbyBotSize
-      : activeChatMode
+      : activeSupportShowcase
         ? isDesktop
-          ? chatBotSize
-          : Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.13))
-        : overlayBackdropOpen && viewportMetrics.width < 768
-          ? Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.14))
-          : layout.botSize;
+          ? supportBotSize
+          : Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.13))
+        : activeChatMode
+          ? isDesktop
+            ? chatBotSize
+            : Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.13))
+          : overlayBackdropOpen && viewportMetrics.width < 768
+            ? Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.14))
+            : layout.botSize;
     const desiredBotCenterY = activeStandby
       ? viewportMetrics.height * 0.5
-      : activeChatMode
+      : activeSupportShowcase
         ? isDesktop
           ? viewportMetrics.height * 0.5
-          : Math.max(66, viewportMetrics.safeTop + Math.min(84, viewportMetrics.height * 0.11))
-        : overlayBackdropOpen && viewportMetrics.width >= 768
-          ? viewportMetrics.height * 0.5
-          : overlayBackdropOpen && viewportMetrics.width < 768
-            ? Math.max(82, viewportMetrics.safeTop + Math.min(120, viewportMetrics.height * 0.165))
-            : layout.botCenterY;
+          : Math.max(142, viewportMetrics.safeTop + Math.min(156, viewportMetrics.height * 0.185))
+        : activeChatMode
+          ? isDesktop
+            ? viewportMetrics.height * 0.5
+            : Math.max(66, viewportMetrics.safeTop + Math.min(84, viewportMetrics.height * 0.11))
+          : overlayBackdropOpen && viewportMetrics.width >= 768
+            ? viewportMetrics.height * 0.5
+            : overlayBackdropOpen && viewportMetrics.width < 768
+              ? Math.max(82, viewportMetrics.safeTop + Math.min(120, viewportMetrics.height * 0.165))
+              : layout.botCenterY;
 
     return {
       ...layout,
@@ -545,6 +618,7 @@ export default function App() {
     isFocused,
     isMenuOpen,
     activeStandby,
+    activeSupportShowcase,
     activeChatMode,
     isDesktop,
     overlayBackdropOpen,
@@ -692,21 +766,27 @@ export default function App() {
 
   const handleOpenSettings = useCallback((initialTab: SettingsTabId | null = null) => {
     inputRef.current?.blur();
+    setHamburgerOpen(false);
+    setSupportShowcaseOpen(false);
     setStandbyMode(false);
     setDonationPopupOpen(false);
     setSettingsInitialTab(initialTab);
     playUiSound('menu-open');
     setSettingsOpen(true);
-  }, []);
+    setSrAnnouncement(dict.settingsTitle);
+  }, [dict.settingsTitle]);
 
   const handleEnterStandby = useCallback(() => {
     if (!canUseDesktopStandby) return;
     inputRef.current?.blur();
+    setHamburgerOpen(false);
+    setSupportShowcaseOpen(false);
     setIsFocused(false);
     standbyEnteredAtRef.current = performance.now();
     playUiSound('standby-enter');
     setStandbyMode(true);
-  }, [canUseDesktopStandby]);
+    setSrAnnouncement(dict.standbyButtonLabel);
+  }, [canUseDesktopStandby, dict.standbyButtonLabel]);
 
   const handleCloseSettings = useCallback(() => {
     playUiSound('menu-close');
@@ -1066,13 +1146,36 @@ export default function App() {
     });
   }, []);
 
-  const handleOpenSupportSection = useCallback(() => {
-    handleOpenSettings('support');
-  }, [handleOpenSettings]);
+  const handleOpenSupportShowcase = useCallback(() => {
+    inputRef.current?.blur();
+    setIsFocused(false);
+    setHamburgerOpen(false);
+    setStandbyMode(false);
+    setDonationPopupOpen(false);
+    setSettingsOpen(false);
+    setSettingsInitialTab(null);
+    setLegalOpen(false);
+    playUiSound('menu-open');
+    setSupportShowcaseOpen(true);
+    setSrAnnouncement(dict.settingsTabSupport);
+    recordClientDiagnostic({
+      level: 'info',
+      source: 'client',
+      event: 'support.showcase.open',
+      message: 'Opened full-screen Supporta Orb showcase.',
+    });
+  }, [dict.settingsTabSupport]);
+
+  const handleCloseSupportShowcase = useCallback(() => {
+    playUiSound('menu-close');
+    setSupportShowcaseOpen(false);
+  }, []);
 
   const handleOpenDonationsLegal = useCallback(() => {
     setDonationPopupOpen(false);
+    setSupportShowcaseOpen(false);
     setSettingsOpen(false);
+    setHamburgerOpen(false);
     setLegalInitialSectionId('donazioni-volontarie');
     playUiSound('menu-open');
     setLegalOpen(true);
@@ -1101,11 +1204,20 @@ export default function App() {
   }, []);
 
   const isUiReady = bootPhase === 'ready';
-  const botHorizontalPercent = activeStandby
-    ? 27
-    : (overlayBackdropOpen || activeChatMode) && isDesktop
-      ? 24
-      : 50;
+  const headerVisible =
+    isUiReady &&
+    !stageLayout.keyboardActive &&
+    !isMenuOpen &&
+    !activeStandby &&
+    !activeSupportShowcase;
+  const botHorizontalPercent =
+    activeSupportShowcase && isDesktop
+      ? 74
+      : activeStandby
+        ? 27
+        : (overlayBackdropOpen || activeChatMode) && isDesktop
+          ? 24
+          : 50;
 
   return (
     <div
@@ -1116,6 +1228,7 @@ export default function App() {
       data-keyboard-active={stageLayout.keyboardActive ? 'true' : 'false'}
       data-menu-open={isMenuOpen ? 'true' : 'false'}
       data-standby={activeStandby ? 'true' : 'false'}
+      data-support-showcase={activeSupportShowcase ? 'true' : 'false'}
       data-ai-chat={activeChatMode ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
       className="fixed left-0 top-0 w-full overflow-hidden select-none"
@@ -1137,8 +1250,58 @@ export default function App() {
         }, 180);
       }}
     >
+      {/* Hidden SVG Color Vision Deficiency Filters */}
+      <svg aria-hidden="true" className="fixed w-0 h-0 pointer-events-none" focusable="false">
+        <defs>
+          <filter id="orbit-filter-protanopia">
+            <feColorMatrix
+              type="matrix"
+              values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0"
+            />
+          </filter>
+          <filter id="orbit-filter-deuteranopia">
+            <feColorMatrix
+              type="matrix"
+              values="0.625 0.375 0 0 0  0.700 0.300 0 0 0  0 0.300 0.700 0 0  0 0 0 1 0"
+            />
+          </filter>
+          <filter id="orbit-filter-tritanopia">
+            <feColorMatrix
+              type="matrix"
+              values="0.950 0.050 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0"
+            />
+          </filter>
+        </defs>
+      </svg>
+
       {/* Subtle atmospheric glow + micro-dot background pattern */}
       <div className="orbit-ambient-bg" aria-hidden="true" />
+
+      {/* Horizontal Accessibility Reading Guide Ruler */}
+      {accessibilityPrefs.readingGuide && readingGuideY !== null && (
+        <div
+          aria-hidden="true"
+          data-testid="accessibility-reading-guide"
+          className="fixed left-0 right-0 h-[2px] z-[60] pointer-events-none"
+          style={{
+            top: `${readingGuideY}px`,
+            backgroundColor: 'var(--acc)',
+            boxShadow: '0 0 12px 2px rgba(var(--acc-rgb), 0.45)',
+          }}
+        />
+      )}
+
+      {/* Polite Screen-Reader Live Announcements */}
+      {accessibilityPrefs.screenReaderHints && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="sr-only"
+          data-testid="accessibility-sr-live"
+        >
+          {srAnnouncement}
+        </div>
+      )}
 
       {/* Safe area probe */}
       <div
@@ -1158,15 +1321,12 @@ export default function App() {
         aria-hidden="true"
       />
 
-      {/* Top-Right Desktop Standby Pill + Settings Gear Button */}
+      {/* Top-Right Desktop Standby Pill + Hamburger Menu Dropdown */}
       <header
         className="fixed left-0 right-0 top-0 z-30 flex items-center justify-end gap-2 px-4 pt-[calc(var(--st)+14px)] pointer-events-none"
         style={{
-          opacity: isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 1 : 0,
-          transform:
-            isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby
-              ? 'translate3d(0, 0, 0)'
-              : 'translate3d(0, -8px, 0)',
+          opacity: headerVisible ? 1 : 0,
+          transform: headerVisible ? 'translate3d(0, 0, 0)' : 'translate3d(0, -8px, 0)',
           transition:
             'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
@@ -1174,7 +1334,7 @@ export default function App() {
         {canUseDesktopStandby && (
           <BubbleButton
             variant="glass"
-            tabIndex={isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 0 : -1}
+            tabIndex={headerVisible ? 0 : -1}
             data-testid="standby-btn"
             aria-label={dict.standbyAriaLabel}
             onClick={handleEnterStandby}
@@ -1191,22 +1351,79 @@ export default function App() {
           </BubbleButton>
         )}
 
-        <BubbleButton
-          variant="glass"
-          tabIndex={isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 0 : -1}
-          data-testid="settings-btn"
-          aria-label={dict.settingsAria}
-          onClick={() => handleOpenSettings(null)}
-          contentClassName="grid place-items-center w-full h-full"
-          className="pointer-events-auto w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-          style={{
-            backgroundColor: 'var(--glass)',
-            color: 'var(--fg)',
-            boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
-          }}
-        >
-          <Settings className="w-5 h-5" />
-        </BubbleButton>
+        <div ref={hamburgerRef} className={`relative ${headerVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          <BubbleButton
+            variant="glass"
+            tabIndex={headerVisible ? 0 : -1}
+            data-testid="hamburger-menu-btn"
+            aria-haspopup="menu"
+            aria-expanded={hamburgerOpen}
+            aria-label={dict.menuButtonAria}
+            onClick={() => {
+              unlockOrbitAudio();
+              setHamburgerOpen((prev) => !prev);
+            }}
+            contentClassName="grid place-items-center w-full h-full"
+            className="w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+            style={{
+              backgroundColor: hamburgerOpen ? 'var(--glass2)' : 'var(--glass)',
+              color: 'var(--fg)',
+              boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+            }}
+          >
+            <Menu className="w-5 h-5" />
+          </BubbleButton>
+
+          <AnimatePresence>
+            {hamburgerOpen && headerVisible && (
+              <motion.div
+                role="menu"
+                aria-label={dict.menuButtonAria}
+                data-testid="hamburger-dropdown"
+                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute right-0 mt-2.5 w-56 rounded-2xl p-1.5 backdrop-blur-2xl shadow-2xl origin-top-right z-40"
+                style={{
+                  backgroundColor: 'var(--menu-glass)',
+                  boxShadow:
+                    '0 20px 50px rgba(0, 0, 0, 0.28), inset 0 0 0 1px var(--border-subtle)',
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={0}
+                  data-testid="menu-item-settings"
+                  onClick={() => handleOpenSettings(null)}
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-[13px] font-medium cursor-pointer transition-colors hover:bg-[var(--glass2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+                  style={{ color: 'var(--fg)' }}
+                >
+                  <Settings className="w-4 h-4 opacity-80 shrink-0" aria-hidden="true" />
+                  <span>{dict.menuSettingsItem}</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={0}
+                  data-testid="menu-item-support"
+                  onClick={handleOpenSupportShowcase}
+                  className="mt-1 w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-[13px] font-semibold cursor-pointer transition-colors hover:bg-[var(--glass2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
+                  style={{
+                    color: 'var(--acc-text)',
+                    backgroundColor: 'rgba(var(--acc-rgb), 0.10)',
+                    boxShadow: 'inset 0 0 0 1px rgba(var(--acc-rgb), 0.24)',
+                  }}
+                >
+                  <Coffee className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span>{dict.menuSupportItem}</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       {/* Smooth blurred background layer behind Orb when Legal or Cookie notice is open */}
@@ -1247,7 +1464,8 @@ export default function App() {
           paused={settingsOpen || legalOpen}
           hidden={settingsOpen || legalOpen}
           standbyMode={activeStandby}
-          isFocused={isFocused && !isMenuOpen && !activeStandby}
+          supportMode={activeSupportShowcase}
+          isFocused={isFocused && !isMenuOpen && !activeStandby && !activeSupportShowcase}
           hasQuery={query.trim().length > 0}
           caretRatio={caretRatio}
           lastTypedTimestamp={lastTypedTimestamp}
@@ -1264,13 +1482,35 @@ export default function App() {
           onExit={handleExitStandby}
         />
 
+        {/* Full-Screen Supporta Orb Showcase with Happy Orb on Right */}
+        <SupportShowcaseOverlay
+          open={activeSupportShowcase}
+          dict={dict}
+          onClose={handleCloseSupportShowcase}
+          onDonateClick={handleDonateClick}
+          onOpenDonationsLegal={handleOpenDonationsLegal}
+        />
+
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
-          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen && !activeChatMode}
+          visible={
+            isUiReady &&
+            !activeStandby &&
+            !settingsOpen &&
+            !legalOpen &&
+            !activeChatMode &&
+            !activeSupportShowcase
+          }
           uiTopY={stageLayout.uiTopY}
           animateStageTransition={animateStageTransition && !effectiveReducedMotion}
           query={query}
-          isFocused={isFocused && !isMenuOpen && !activeStandby && !activeChatMode}
+          isFocused={
+            isFocused &&
+            !isMenuOpen &&
+            !activeStandby &&
+            !activeChatMode &&
+            !activeSupportShowcase
+          }
           quickLinks={quickLinks}
           suggestions={suggestions}
           visibleSuggestions={stageLayout.visibleSuggestions}
@@ -1308,7 +1548,7 @@ export default function App() {
         />
       </main>
 
-      {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector + Support Coffee */}
+      {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
       <FooterBar
         visible={
           isUiReady &&
@@ -1317,12 +1557,12 @@ export default function App() {
           !settingsOpen &&
           !legalOpen &&
           !showDonationOverlay &&
-          !activeChatMode
+          !activeChatMode &&
+          !activeSupportShowcase
         }
         localeOption={localeOption}
         dict={dict}
         onOpenLegal={handleOpenLegalFromFooter}
-        onDonateClick={handleDonateClick}
         onSelectLocaleRegion={handleLocaleChange}
       />
 
@@ -1343,7 +1583,7 @@ export default function App() {
         onLater={handleDonationLater}
         onNever={handleDonationNever}
         onDonateClick={handleDonateClick}
-        onOpenSupportSection={handleOpenSupportSection}
+        onOpenSupportSection={handleOpenSupportShowcase}
         onOpenDonationsLegal={handleOpenDonationsLegal}
       />
 
@@ -1374,6 +1614,7 @@ export default function App() {
         onSaveAiKey={handleSaveAiKey}
         onDisconnectAiKey={handleDisconnectAiKey}
         onOpenLegal={handleOpenLegalFromSettings}
+        onOpenSupportShowcase={handleOpenSupportShowcase}
         onDonateClick={handleDonateClick}
         onUserModify={triggerModifyReaction}
       />

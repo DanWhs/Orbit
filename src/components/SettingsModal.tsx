@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Accessibility,
+  Activity,
   ArrowUpRight,
   Bot,
   Check,
@@ -14,6 +15,7 @@ import {
   KeyRound,
   Link2,
   Lock,
+  MessageSquareHeart,
   MonitorSmartphone,
   Moon,
   Palette,
@@ -41,6 +43,7 @@ import {
   ThemeMode,
 } from '../types/orbit';
 import {
+  DEFAULT_ACCESSIBILITY_PREFS,
   DEFAULT_QUICK_LINKS,
   isValidQuickLinkInput,
   MAX_QUICK_LINKS,
@@ -49,6 +52,8 @@ import {
 import { BuyMeCoffeeButton } from './BuyMeCoffeeButton';
 import { BubbleAnchor, BubbleButton } from './LiquidBubble';
 import { LiveOrbMark } from './LiveOrbMark';
+import { SettingsDiagnosticsPanel } from './SettingsDiagnosticsPanel';
+import { SettingsFeedbackPanel } from './SettingsFeedbackPanel';
 
 export type SettingsTabId =
   | 'appearance'
@@ -56,6 +61,8 @@ export type SettingsTabId =
   | 'quicklinks'
   | 'ai'
   | 'accessibility'
+  | 'diagnostics'
+  | 'feedback'
   | 'changelog'
   | 'support'
   | 'privacy';
@@ -86,6 +93,7 @@ interface SettingsModalProps {
   onSaveAiKey: (apiKey: string, rememberDevice: boolean) => Promise<{ ok: boolean; error?: string }>;
   onDisconnectAiKey: () => Promise<void>;
   onOpenLegal?: (sectionId?: string) => void;
+  onOpenSupportShowcase?: () => void;
   onDonateClick?: () => void;
   onUserModify?: () => void;
 }
@@ -136,6 +144,7 @@ export const SettingsModal = memo(function SettingsModal({
   onSaveAiKey,
   onDisconnectAiKey,
   onOpenLegal,
+  onOpenSupportShowcase,
   onDonateClick,
   onUserModify,
 }: SettingsModalProps) {
@@ -333,6 +342,8 @@ export const SettingsModal = memo(function SettingsModal({
     },
     { id: 'ai', label: dict.settingsTabAi, icon: Bot, badge: dict.betaTag },
     { id: 'accessibility', label: dict.settingsTabAccessibility, icon: Accessibility },
+    { id: 'diagnostics', label: dict.settingsTabDiagnostics, icon: Activity },
+    { id: 'feedback', label: dict.settingsTabFeedback, icon: MessageSquareHeart },
     { id: 'changelog', label: dict.settingsTabChangelog, icon: History },
     { id: 'support', label: dict.settingsTabSupport, icon: Coffee, highlighted: true },
     { id: 'privacy', label: dict.settingsTabPrivacy, icon: ShieldCheck },
@@ -417,59 +428,79 @@ export const SettingsModal = memo(function SettingsModal({
                 const isActive = activeTab === tab.id;
                 const isHighlighted = Boolean(tab.highlighted);
                 return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    tabIndex={0}
-                    aria-selected={isActive}
-                    aria-controls={`settings-tabpanel-${tab.id}`}
-                    data-testid={`settings-tab-${tab.id}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`h-10 px-3.5 rounded-xl flex items-center justify-between gap-2.5 text-[13.5px] cursor-pointer shrink-0 transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)] ${
-                      isHighlighted ? 'support-tab-highlight' : ''
-                    }`}
-                    style={{
-                      backgroundColor: isHighlighted
-                        ? isActive
-                          ? 'rgba(var(--acc-rgb), 0.2)'
-                          : undefined
-                        : isActive
-                          ? 'rgba(var(--acc-rgb), 0.11)'
-                          : 'transparent',
-                      color: isActive || isHighlighted ? 'var(--acc-text)' : 'var(--mut)',
-                      fontWeight: isActive || isHighlighted ? 600 : 500,
-                    }}
-                  >
-                    {isHighlighted && <span className="support-tab-shimmer" aria-hidden="true" />}
-                    <span className="relative z-[1] inline-flex items-center gap-2.5 whitespace-nowrap">
-                      <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                      <span>{tab.label}</span>
-                    </span>
-                    {tab.badge && (
-                      <span
-                        className="relative z-[1] text-[9.5px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-md shrink-0"
-                        style={{
-                          backgroundColor: 'rgba(var(--acc-rgb), 0.16)',
-                          color: 'var(--acc-text)',
-                        }}
-                      >
-                        {tab.badge}
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      tabIndex={0}
+                      aria-selected={isActive}
+                      aria-controls={`settings-tabpanel-${tab.id}`}
+                      data-testid={`settings-tab-${tab.id}`}
+                      onClick={() => {
+                        if (tab.id === 'support' && onOpenSupportShowcase) {
+                          onOpenSupportShowcase();
+                          return;
+                        }
+                        setActiveTab(tab.id);
+                      }}
+                      className={`h-10 px-3.5 rounded-xl flex items-center justify-between gap-2.5 text-[13.5px] cursor-pointer shrink-0 transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)] ${
+                        isHighlighted ? 'support-tab-highlight' : ''
+                      }`}
+                      style={{
+                        backgroundColor: isHighlighted
+                          ? isActive
+                            ? 'rgba(var(--acc-rgb), 0.2)'
+                            : undefined
+                          : isActive
+                            ? 'rgba(var(--acc-rgb), 0.11)'
+                            : 'transparent',
+                        color: isActive || isHighlighted ? 'var(--acc-text)' : 'var(--mut)',
+                        fontWeight: isActive || isHighlighted ? 600 : 500,
+                      }}
+                    >
+                      {isHighlighted && <span className="support-tab-shimmer" aria-hidden="true" />}
+                      <span className="relative z-[1] inline-flex items-center gap-2.5 whitespace-nowrap">
+                        <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                        <span>{tab.label}</span>
                       </span>
-                    )}
-                    {tab.count && (
-                      <span
-                        className="relative z-[1] text-[11px] tabular-nums opacity-70"
-                        style={{ color: isActive ? 'var(--acc-text)' : 'var(--mut)' }}
-                      >
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
+                      {tab.badge && (
+                        <span
+                          className="relative z-[1] text-[9.5px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-md shrink-0"
+                          style={{
+                            backgroundColor: 'rgba(var(--acc-rgb), 0.16)',
+                            color: 'var(--acc-text)',
+                          }}
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                      {tab.count && (
+                        <span
+                          className="relative z-[1] text-[11px] tabular-nums opacity-70"
+                          style={{ color: isActive ? 'var(--acc-text)' : 'var(--mut)' }}
+                        >
+                          {tab.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Buy Me a Coffee relocated from Main Page Footer into Settings */}
+              <div
+                className="hidden md:flex items-center px-4 py-4 mt-auto border-t"
+                style={{ borderColor: 'var(--border-subtle)' }}
+              >
+                <BuyMeCoffeeButton
+                  compact
+                  variant="glass"
+                  className="w-full"
+                  testId="settings-sidebar-coffee-btn"
+                  onClick={onDonateClick}
+                />
+              </div>
+            </aside>
 
           {/* Right Main Stage */}
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
@@ -1211,18 +1242,44 @@ export const SettingsModal = memo(function SettingsModal({
                   </section>
                 )}
 
-                {/* SUB-PANEL 5: ACCESSIBILITY */}
+                {/* SUB-PANEL 5: EXPANDED ACCESSIBILITY */}
                 {activeTab === 'accessibility' && (
                   <section
                     id="settings-tabpanel-accessibility"
                     role="tabpanel"
                     data-testid="settings-panel-accessibility"
-                    className="space-y-6 pb-4"
+                    className="space-y-6 pb-6"
                   >
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-medium" style={{ color: 'var(--mut)' }}>
-                        {dict.a11yMotionLabel}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="m-0 text-base font-semibold tracking-tight" style={{ color: 'var(--fg)' }}>
+                        {dict.a11ySectionTitle}
                       </h3>
+                      <BubbleButton
+                        variant="glass"
+                        tabIndex={0}
+                        data-testid="a11y-reset-btn"
+                        onClick={() => {
+                          onAccessibilityChange({ ...DEFAULT_ACCESSIBILITY_PREFS });
+                          onUserModify?.();
+                        }}
+                        contentClassName="inline-flex items-center gap-1.5"
+                        className="h-8 px-3 rounded-full text-[11px] font-medium cursor-pointer hover:bg-[var(--glass2)]"
+                        style={{
+                          backgroundColor: 'var(--glass)',
+                          color: 'var(--mut)',
+                          boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+                        }}
+                      >
+                        <RotateCcw className="w-3 h-3" aria-hidden="true" />
+                        <span>{dict.a11yResetAllBtn}</span>
+                      </BubbleButton>
+                    </div>
+
+                    {/* Motion Mode */}
+                    <div className="space-y-2.5">
+                      <h4 className="m-0 text-xs font-medium" style={{ color: 'var(--mut)' }}>
+                        {dict.a11yMotionLabel}
+                      </h4>
                       <div
                         className="grid grid-cols-1 sm:grid-cols-3 gap-1 p-1 rounded-2xl sm:rounded-full"
                         style={{
@@ -1264,6 +1321,103 @@ export const SettingsModal = memo(function SettingsModal({
                       </div>
                     </div>
 
+                    {/* Typography Scale */}
+                    <div className="space-y-2.5">
+                      <h4 className="m-0 text-xs font-medium" style={{ color: 'var(--mut)' }}>
+                        {dict.a11yTextScaleLabel}
+                      </h4>
+                      <div
+                        className="grid grid-cols-3 gap-1 p-1 rounded-full"
+                        style={{
+                          backgroundColor: 'var(--glass)',
+                          boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+                        }}
+                      >
+                        {(
+                          [
+                            ['normal', dict.a11yTextScaleNormal],
+                            ['large', dict.a11yTextScaleLarge],
+                            ['xlarge', dict.a11yTextScaleXLarge],
+                          ] as const
+                        ).map(([scaleMode, label]) => {
+                          const active = accessibilityPrefs.textScale === scaleMode;
+                          return (
+                            <BubbleButton
+                              key={scaleMode}
+                              variant="solid"
+                              tabIndex={0}
+                              data-testid={`a11y-scale-${scaleMode}`}
+                              aria-pressed={active}
+                              onClick={() => {
+                                if (accessibilityPrefs.textScale !== scaleMode) {
+                                  onAccessibilityChange({
+                                    ...accessibilityPrefs,
+                                    textScale: scaleMode,
+                                    largeText: scaleMode !== 'normal',
+                                  });
+                                  onUserModify?.();
+                                }
+                              }}
+                              className="h-9 px-3 rounded-full text-xs font-semibold cursor-pointer"
+                              style={{
+                                backgroundColor: active ? 'var(--acc)' : 'transparent',
+                                color: active ? 'var(--acc-fg)' : 'var(--fg)',
+                              }}
+                            >
+                              <span>{label}</span>
+                            </BubbleButton>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Color Vision Profile */}
+                    <div className="space-y-2.5">
+                      <h4 className="m-0 text-xs font-medium" style={{ color: 'var(--mut)' }}>
+                        {dict.a11yColorFilterLabel}
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                        {(
+                          [
+                            ['none', dict.a11yColorFilterNone],
+                            ['grayscale', dict.a11yColorFilterGrayscale],
+                            ['protanopia', dict.a11yColorFilterProtanopia],
+                            ['deuteranopia', dict.a11yColorFilterDeuteranopia],
+                            ['tritanopia', dict.a11yColorFilterTritanopia],
+                          ] as const
+                        ).map(([filterId, label]) => {
+                          const active = accessibilityPrefs.colorFilter === filterId;
+                          return (
+                            <button
+                              key={filterId}
+                              type="button"
+                              tabIndex={0}
+                              data-testid={`a11y-filter-${filterId}`}
+                              aria-pressed={active}
+                              onClick={() => {
+                                if (accessibilityPrefs.colorFilter !== filterId) {
+                                  onAccessibilityChange({
+                                    ...accessibilityPrefs,
+                                    colorFilter: filterId,
+                                  });
+                                  onUserModify?.();
+                                }
+                              }}
+                              className="h-9 px-2.5 rounded-full text-[11px] font-medium cursor-pointer transition-colors truncate"
+                              style={{
+                                backgroundColor: active ? 'var(--acc)' : 'var(--glass)',
+                                color: active ? 'var(--acc-fg)' : 'var(--fg)',
+                                boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--border-subtle)',
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Comprehensive Vision, Motor & Cognitive Switches */}
                     <div
                       className="rounded-2xl overflow-hidden divide-y"
                       style={{
@@ -1281,16 +1435,52 @@ export const SettingsModal = memo(function SettingsModal({
                             checked: accessibilityPrefs.highContrast,
                           },
                           {
-                            key: 'largeText',
-                            title: dict.a11yLargeTextLabel,
-                            desc: dict.a11yLargeTextDesc,
-                            checked: accessibilityPrefs.largeText,
-                          },
-                          {
                             key: 'focusRings',
                             title: dict.a11yFocusRingsLabel,
                             desc: dict.a11yFocusRingsDesc,
                             checked: accessibilityPrefs.focusRings,
+                          },
+                          {
+                            key: 'reduceTransparency',
+                            title: dict.a11yReduceTransparencyLabel,
+                            desc: dict.a11yReduceTransparencyDesc,
+                            checked: accessibilityPrefs.reduceTransparency,
+                          },
+                          {
+                            key: 'underlineLinks',
+                            title: dict.a11yUnderlineLinksLabel,
+                            desc: dict.a11yUnderlineLinksDesc,
+                            checked: accessibilityPrefs.underlineLinks,
+                          },
+                          {
+                            key: 'dyslexiaFont',
+                            title: dict.a11yDyslexiaFontLabel,
+                            desc: dict.a11yDyslexiaFontDesc,
+                            checked: accessibilityPrefs.dyslexiaFont,
+                          },
+                          {
+                            key: 'relaxedSpacing',
+                            title: dict.a11yRelaxedSpacingLabel,
+                            desc: dict.a11yRelaxedSpacingDesc,
+                            checked: accessibilityPrefs.relaxedSpacing,
+                          },
+                          {
+                            key: 'largeTargets',
+                            title: dict.a11yLargeTargetsLabel,
+                            desc: dict.a11yLargeTargetsDesc,
+                            checked: accessibilityPrefs.largeTargets,
+                          },
+                          {
+                            key: 'readingGuide',
+                            title: dict.a11yReadingGuideLabel,
+                            desc: dict.a11yReadingGuideDesc,
+                            checked: accessibilityPrefs.readingGuide,
+                          },
+                          {
+                            key: 'screenReaderHints',
+                            title: dict.a11yScreenReaderHintsLabel,
+                            desc: dict.a11yScreenReaderHintsDesc,
+                            checked: accessibilityPrefs.screenReaderHints,
                           },
                         ] as const
                       ).map((item) => (
@@ -1341,6 +1531,20 @@ export const SettingsModal = memo(function SettingsModal({
                       {dict.a11yKeyboardHint}
                     </p>
                   </section>
+                )}
+
+                {/* SUB-PANEL: REAL DIAGNOSTICS */}
+                {activeTab === 'diagnostics' && (
+                  <SettingsDiagnosticsPanel dict={dict} onUserModify={onUserModify} />
+                )}
+
+                {/* SUB-PANEL: FEEDBACK & DAILY DIGEST */}
+                {activeTab === 'feedback' && (
+                  <SettingsFeedbackPanel
+                    lang={localeOption.lang}
+                    dict={dict}
+                    onUserModify={onUserModify}
+                  />
                 )}
 
                 {/* SUB-PANEL 6: VERSION CHANGELOG */}
@@ -1429,7 +1633,7 @@ export const SettingsModal = memo(function SettingsModal({
                   </section>
                 )}
 
-                {/* SUB-PANEL 7: HIGHLIGHTED SUPPORT / BUY ME A COFFEE WITH ORBIT VFX */}
+                {/* SUB-PANEL 7: SUPPORT / BUY ME A COFFEE (No 3 boxes, opens huge showcase) */}
                 {activeTab === 'support' && (
                   <section
                     id="settings-tabpanel-support"
@@ -1438,24 +1642,7 @@ export const SettingsModal = memo(function SettingsModal({
                     className="space-y-5 pb-6"
                   >
                     <div className="support-vfx-stage rounded-[26px] p-5 sm:p-7 space-y-5">
-                      <span className="support-vfx-orbit-ring" aria-hidden="true" />
                       <span className="support-vfx-halo-sweep" aria-hidden="true" />
-                      <span
-                        className="support-vfx-particle w-4 h-4 top-6 right-16"
-                        style={{ animationDelay: '0s' }}
-                        aria-hidden="true"
-                      />
-                      <span
-                        className="support-vfx-particle w-2.5 h-2.5 bottom-10 right-28"
-                        style={{ animationDelay: '1.6s' }}
-                        aria-hidden="true"
-                      />
-                      <span
-                        className="support-vfx-particle w-3 h-3 top-20 left-8"
-                        style={{ animationDelay: '3.1s' }}
-                        aria-hidden="true"
-                      />
-
                       <div className="relative z-[1] flex items-center gap-4">
                         <div className="shrink-0">
                           <LiveOrbMark
@@ -1507,58 +1694,49 @@ export const SettingsModal = memo(function SettingsModal({
                         ))}
                       </div>
 
+                      <p
+                        className="relative z-[1] m-0 text-xs italic leading-relaxed"
+                        style={{ color: 'var(--mut)' }}
+                      >
+                        {dict.supportVoluntaryItalicPrefix}{' '}
+                        {onOpenLegal && (
+                          <button
+                            type="button"
+                            tabIndex={0}
+                            data-testid="settings-support-legal-link"
+                            onClick={() => onOpenLegal('donazioni-volontarie')}
+                            className="inline underline underline-offset-4 italic font-semibold cursor-pointer hover:opacity-80 transition-opacity"
+                            style={{ color: 'var(--acc-text)' }}
+                          >
+                            {dict.supportVoluntaryLegalLink}
+                          </button>
+                        )}
+                        {dict.supportVoluntaryItalicSuffix}
+                      </p>
+
                       <div className="relative z-[1] flex flex-wrap items-center gap-3 pt-1">
                         <BuyMeCoffeeButton
                           variant="accent"
                           testId="settings-support-coffee-btn"
                           onClick={onDonateClick}
                         />
+                        {onOpenSupportShowcase && (
+                          <BubbleButton
+                            variant="glass"
+                            tabIndex={0}
+                            data-testid="settings-open-support-showcase-btn"
+                            onClick={onOpenSupportShowcase}
+                            className="h-11 px-4 rounded-full text-xs font-medium cursor-pointer hover:bg-[var(--glass2)]"
+                            style={{
+                              backgroundColor: 'var(--glass2)',
+                              boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
+                            }}
+                          >
+                            <span>{dict.supportOpenShowcaseBtn}</span>
+                          </BubbleButton>
+                        )}
                       </div>
                     </div>
-
-                    {/* Structured Support Pillars */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      {dict.supportPillars.map((pillar, idx) => (
-                        <div
-                          key={idx}
-                          data-testid={`support-pillar-${idx}`}
-                          className="rounded-2xl p-3.5 space-y-1.5"
-                          style={{
-                            backgroundColor: 'var(--glass)',
-                            boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
-                          }}
-                        >
-                          <div
-                            className="text-xs font-semibold leading-snug"
-                            style={{ color: 'var(--acc-text)' }}
-                          >
-                            {pillar.title}
-                          </div>
-                          <p
-                            className="m-0 text-[12px] leading-relaxed"
-                            style={{ color: 'var(--mut)' }}
-                          >
-                            {pillar.desc}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {onOpenLegal && (
-                      <div>
-                        <button
-                          type="button"
-                          tabIndex={0}
-                          data-testid="settings-support-legal-link"
-                          onClick={() => onOpenLegal('donazioni-volontarie')}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
-                          style={{ color: 'var(--acc-text)' }}
-                        >
-                          <span>{dict.supportLegalLinkLabel}</span>
-                          <ArrowUpRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
                   </section>
                 )}
 

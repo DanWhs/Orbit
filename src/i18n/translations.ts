@@ -13,6 +13,9 @@ export interface UiDictionary {
   searchSubmitAria: string;
   clearHistoryLabel: string;
   settingsAria: string;
+  menuButtonAria: string;
+  menuSettingsItem: string;
+  menuSupportItem: string;
   settingsTitle: string;
   settingsBreadcrumbLabel: string;
   settingsSubtitle: string;
@@ -21,6 +24,8 @@ export interface UiDictionary {
   settingsTabQuickLinks: string;
   settingsTabAi: string;
   settingsTabAccessibility: string;
+  settingsTabDiagnostics: string;
+  settingsTabFeedback: string;
   settingsTabChangelog: string;
   settingsTabSupport: string;
   settingsTabPrivacy: string;
@@ -137,10 +142,83 @@ export interface UiDictionary {
   a11yFocusRingsLabel: string;
   a11yFocusRingsDesc: string;
   a11yKeyboardHint: string;
+  a11yTextScaleLabel: string;
+  a11yTextScaleNormal: string;
+  a11yTextScaleLarge: string;
+  a11yTextScaleXLarge: string;
+  a11yReduceTransparencyLabel: string;
+  a11yReduceTransparencyDesc: string;
+  a11yUnderlineLinksLabel: string;
+  a11yUnderlineLinksDesc: string;
+  a11yDyslexiaFontLabel: string;
+  a11yDyslexiaFontDesc: string;
+  a11yRelaxedSpacingLabel: string;
+  a11yRelaxedSpacingDesc: string;
+  a11yLargeTargetsLabel: string;
+  a11yLargeTargetsDesc: string;
+  a11yReadingGuideLabel: string;
+  a11yReadingGuideDesc: string;
+  a11yScreenReaderHintsLabel: string;
+  a11yScreenReaderHintsDesc: string;
+  a11yColorFilterLabel: string;
+  a11yColorFilterNone: string;
+  a11yColorFilterGrayscale: string;
+  a11yColorFilterProtanopia: string;
+  a11yColorFilterDeuteranopia: string;
+  a11yColorFilterTritanopia: string;
+  a11yResetAllBtn: string;
+  diagSectionTitle: string;
+  diagSubtitle: string;
+  diagRunHealthBtn: string;
+  diagRunningHealth: string;
+  diagRefreshBtn: string;
+  diagClearBtn: string;
+  diagExportBtn: string;
+  diagFilterAll: string;
+  diagFilterInfo: string;
+  diagFilterWarn: string;
+  diagFilterError: string;
+  diagMetricUptime: string;
+  diagMetricMemory: string;
+  diagMetricTotal: string;
+  diagEmptyLogs: string;
+  fbSectionTitle: string;
+  fbSubtitle: string;
+  fbCategoryLabel: string;
+  fbCategoryBug: string;
+  fbCategoryIdea: string;
+  fbCategoryUx: string;
+  fbCategoryPraise: string;
+  fbRatingLabel: string;
+  fbMessagePlaceholder: string;
+  fbEmailLabel: string;
+  fbEmailPlaceholder: string;
+  fbSubmitBtn: string;
+  fbSubmitting: string;
+  fbSuccessBanner: string;
+  fbValidationError: string;
+  fbDigestTitle: string;
+  fbDigestDesc: string;
+  fbTodayCountLabel: string;
+  fbAvgRatingLabel: string;
+  fbAutoStatusReady: string;
+  fbAutoStatusArchive: string;
+  fbSendEmailDigestBtn: string;
+  fbCopyRssBtn: string;
+  fbCopiedRss: string;
+  fbTriggerServerDigestBtn: string;
+  fbDownloadTxtBtn: string;
+  fbRecentTitle: string;
+  fbNoEntriesYet: string;
   supportLetterTitle: string;
   supportLetterParagraphs: string[];
   supportPillars: SupportPillar[];
   supportLegalLinkLabel: string;
+  supportBackLabel: string;
+  supportVoluntaryItalicPrefix: string;
+  supportVoluntaryLegalLink: string;
+  supportVoluntaryItalicSuffix: string;
+  supportOpenShowcaseBtn: string;
   changelogSectionTitle: string;
   changelogSubtitle: string;
   changelogCurrentTag: string;
@@ -182,6 +260,9 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     searchSubmitAria: 'Avvia ricerca',
     clearHistoryLabel: 'Cancella cronologia',
     settingsAria: 'Apri impostazioni',
+    menuButtonAria: 'Apri menu principale',
+    menuSettingsItem: 'Impostazioni',
+    menuSupportItem: 'Buy me a coffee',
     settingsTitle: 'Impostazioni Orbit',
     settingsBreadcrumbLabel: 'impostazioni',
     settingsSubtitle: 'Personalizza aspetto, esperienza d’avvio, collegamenti rapidi e privacy.',
@@ -190,6 +271,8 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabQuickLinks: 'Link rapidi',
     settingsTabAi: 'Features AI',
     settingsTabAccessibility: 'Accessibilità',
+    settingsTabDiagnostics: 'Diagnostica',
+    settingsTabFeedback: 'Feedback',
     settingsTabChangelog: 'Changelog',
     settingsTabSupport: 'Supporta Orb',
     settingsTabPrivacy: 'Privacy',
@@ -308,6 +391,74 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     a11yFocusRingsLabel: 'Indicatori di focus evidenti',
     a11yFocusRingsDesc: 'Evidenzia con contorno ad alto contrasto l’elemento selezionato tramite tasto Tab.',
     a11yKeyboardHint: 'Ordine di tabulazione semantico (tabindex) attivo su tutta la pagina, barra, collegamenti e pannelli.',
+    a11yTextScaleLabel: 'Scala tipografica',
+    a11yTextScaleNormal: 'Standard',
+    a11yTextScaleLarge: 'Grande',
+    a11yTextScaleXLarge: 'Extra grande',
+    a11yReduceTransparencyLabel: 'Riduci trasparenze ed effetti vetro',
+    a11yReduceTransparencyDesc: 'Sostituisce sfocature e sfondi traslucidi con superfici opache ad alta leggibilità.',
+    a11yUnderlineLinksLabel: 'Sottolinea sempre i link',
+    a11yUnderlineLinksDesc: 'Rende immediatamente riconoscibili tutti i collegamenti testuali e legali.',
+    a11yDyslexiaFontLabel: 'Tipografia facilitata per dislessia',
+    a11yDyslexiaFontDesc: 'Applica carattere lineare uniforme con maggiore spaziatura tra lettere e parole.',
+    a11yRelaxedSpacingLabel: 'Spaziatura e interlinea ampie',
+    a11yRelaxedSpacingDesc: 'Aumenta il respiro verticale e orizzontale nei testi e nelle risposte chat.',
+    a11yLargeTargetsLabel: 'Aree cliccabili ingrandite',
+    a11yLargeTargetsDesc: 'Estende l’altezza minima dei controlli interattivi per facilitare tocco e puntatore.',
+    a11yReadingGuideLabel: 'Riga guida alla lettura',
+    a11yReadingGuideDesc: 'Mostra una linea guida discreta che segue la posizione verticale del puntatore.',
+    a11yScreenReaderHintsLabel: 'Annunci vocali screen reader (aria-live)',
+    a11yScreenReaderHintsDesc: 'Comunica i cambi di tema, lingua, stato e pannelli ai lettori di schermo.',
+    a11yColorFilterLabel: 'Filtro visione colori',
+    a11yColorFilterNone: 'Standard',
+    a11yColorFilterGrayscale: 'Scala grigi',
+    a11yColorFilterProtanopia: 'Protanopia',
+    a11yColorFilterDeuteranopia: 'Deuteranopia',
+    a11yColorFilterTritanopia: 'Tritanopia',
+    a11yResetAllBtn: 'Ripristina accessibilità',
+    diagSectionTitle: 'Diagnostica di Sistema & Log Reali',
+    diagSubtitle: 'Eventi reali di server, latenza API ed errori runtime del client (nessuna chiave o dato personale registrato).',
+    diagRunHealthBtn: 'Esegui controllo sistema',
+    diagRunningHealth: 'Verifica in corso...',
+    diagRefreshBtn: 'Aggiorna',
+    diagClearBtn: 'Pulisci log',
+    diagExportBtn: 'Esporta JSON',
+    diagFilterAll: 'Tutti',
+    diagFilterInfo: 'Info',
+    diagFilterWarn: 'Avvisi',
+    diagFilterError: 'Errori',
+    diagMetricUptime: 'Uptime server',
+    diagMetricMemory: 'Memoria heap',
+    diagMetricTotal: 'Eventi registrati',
+    diagEmptyLogs: 'Nessun evento registrato per il filtro selezionato.',
+    fbSectionTitle: 'Feedback & Riepilogo Giornaliero',
+    fbSubtitle: 'Invia segnalazioni, idee o valutazioni: ogni voce entra nel riepilogo giornaliero destinato allo sviluppatore.',
+    fbCategoryLabel: 'Categoria',
+    fbCategoryBug: 'Bug',
+    fbCategoryIdea: 'Idea',
+    fbCategoryUx: 'Esperienza',
+    fbCategoryPraise: 'Apprezzamento',
+    fbRatingLabel: 'Valutazione',
+    fbMessagePlaceholder: 'Racconta cosa ti piace o cosa possiamo migliorare su Orbit...',
+    fbEmailLabel: 'Email di contatto (opzionale)',
+    fbEmailPlaceholder: 'nome@esempio.com',
+    fbSubmitBtn: 'Invia feedback',
+    fbSubmitting: 'Invio...',
+    fbSuccessBanner: 'Grazie! Feedback salvato e aggiunto al riepilogo giornaliero di oggi.',
+    fbValidationError: 'Scrivi un messaggio di almeno 5 caratteri prima di inviare.',
+    fbDigestTitle: 'Riepilogo giornaliero automatico',
+    fbDigestDesc: 'I feedback raccolti vengono aggregati per giorno con feed RSS giornaliero, esportazione diretta e invio mail/webhook ogni 24 ore.',
+    fbTodayCountLabel: 'Oggi',
+    fbAvgRatingLabel: 'Media',
+    fbAutoStatusReady: 'Invio automatico 24h attivo verso',
+    fbAutoStatusArchive: 'Archivio + Feed RSS giornaliero pronti per',
+    fbSendEmailDigestBtn: 'Invia riepilogo di oggi via email',
+    fbCopyRssBtn: 'Copia URL Feed RSS giornaliero',
+    fbCopiedRss: 'URL RSS copiato',
+    fbTriggerServerDigestBtn: 'Esegui invio server ora',
+    fbDownloadTxtBtn: 'Scarica TXT oggi',
+    fbRecentTitle: 'Voci raccolte nel riepilogo',
+    fbNoEntriesYet: 'Nessun feedback ancora registrato.',
     supportLetterTitle: 'Un messaggio da Orb',
     supportLetterParagraphs: [
       'Ehi, allora...',
@@ -317,30 +468,34 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
       'Offrimi un caffè e aiutami a finanziare la mia discutibile esistenza, così posso continuare a essere un piccolo Orb vivente.',
       'Resta orb-some. 💜',
     ],
-    supportPillars: [
-      {
-        title: 'Zero pubblicità',
-        desc: 'Nessun tracker invasivo o banner: l’interfaccia resta leggera e tua.',
-      },
-      {
-        title: 'Mascotte vivente',
-        desc: 'Animazioni fluide, audio procedurale e nuove espressioni interattive.',
-      },
-      {
-        title: 'Futuro Orb AI',
-        desc: 'Finanzia ricerca, sviluppo e futuri server dedicati al progetto.',
-      },
-    ],
+    supportPillars: [],
     supportLegalLinkLabel: 'Leggi la sezione legale sulle donazioni volontarie',
+    supportBackLabel: 'Torna ad Orbit',
+    supportVoluntaryItalicPrefix: 'Ogni contributo è una donazione puramente volontaria e liberale, senza alcun obbligo né acquisto di beni o servizi. Per maggiori informazioni,',
+    supportVoluntaryLegalLink: 'consulta la sezione legale sulle donazioni volontarie',
+    supportVoluntaryItalicSuffix: '.',
+    supportOpenShowcaseBtn: 'Apri schermata Supporta Orb',
     changelogSectionTitle: 'Cronologia delle versioni',
     changelogSubtitle: 'Scopri cosa è stato aggiunto e migliorato in Orbit nel tempo.',
     changelogCurrentTag: 'Attuale',
     changelogEntries: [
       {
+        version: 'v2.6.0',
+        dateLabel: 'Novembre 2026',
+        title: 'Menu Hamburger, Supporta Orb a Schermo Intero, Diagnostica & Feedback',
+        isCurrent: true,
+        items: [
+          'Nuovo menu dropdown a hamburger in alto a destra con accesso rapido a Impostazioni e Buy me a coffee.',
+          'Schermata Supporta Orb a tutto schermo su sfondo animato con Orb felice sulla destra rivolto verso la lettera, nota volontaria in corsivo con collegamento legale e pulsante Buy me a coffee.',
+          'Sistema reale di Diagnostica server + client con controllo salute API, filtri livello ed esportazione JSON.',
+          'Nuova sezione Feedback con raccolta giornaliera, feed RSS 24h e riepilogo pronto per l’invio via email.',
+          'Accessibilità potenziata con 12 controlli avanzati tra scala testi, daltonismo, font facilitato, guida alla lettura e trasparenza ridotta.',
+        ],
+      },
+      {
         version: 'v2.5.0',
         dateLabel: 'Novembre 2026',
         title: 'Gemini Studio Multi-Modello, VFX & Smart Home',
-        isCurrent: true,
         items: [
           'Chatbot multi-turno con selezione ruolo/modello: Gemini 4 Carbon (ragionamento), Gemini 4 Neon (interattivo), Gemini 4 Hydrogen (generale) e Gemini 3.1 Flash Lite (veloce).',
           'Creazione e modifica immagini direttamente in chat con Gemini Nano Banana 2.1 usando esclusivamente la tua API key personale.',
@@ -402,6 +557,9 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     searchSubmitAria: 'Submit search',
     clearHistoryLabel: 'Clear history',
     settingsAria: 'Open settings',
+    menuButtonAria: 'Open main menu',
+    menuSettingsItem: 'Settings',
+    menuSupportItem: 'Buy me a coffee',
     settingsTitle: 'Orbit Settings',
     settingsBreadcrumbLabel: 'settings',
     settingsSubtitle: 'Customize appearance, startup experience, quick links, and privacy.',
@@ -410,6 +568,8 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabQuickLinks: 'Quick Links',
     settingsTabAi: 'AI Features',
     settingsTabAccessibility: 'Accessibility',
+    settingsTabDiagnostics: 'Diagnostics',
+    settingsTabFeedback: 'Feedback',
     settingsTabChangelog: 'Changelog',
     settingsTabSupport: 'Support Orb',
     settingsTabPrivacy: 'Privacy',
@@ -528,6 +688,74 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     a11yFocusRingsLabel: 'Enhanced focus indicators',
     a11yFocusRingsDesc: 'Displays high-visibility accent focus rings when navigating via keyboard Tab.',
     a11yKeyboardHint: 'Logical tabindex ordering is enabled across controls, links, settings, and dialogs.',
+    a11yTextScaleLabel: 'Typography scale',
+    a11yTextScaleNormal: 'Standard',
+    a11yTextScaleLarge: 'Large',
+    a11yTextScaleXLarge: 'Extra large',
+    a11yReduceTransparencyLabel: 'Reduce transparency & glass blur',
+    a11yReduceTransparencyDesc: 'Replaces translucent blur surfaces with solid high-clarity panels.',
+    a11yUnderlineLinksLabel: 'Always underline links',
+    a11yUnderlineLinksDesc: 'Adds permanent underlines to all inline links and legal controls.',
+    a11yDyslexiaFontLabel: 'Dyslexia-friendly font & tracking',
+    a11yDyslexiaFontDesc: 'Applies even sans-serif glyph geometry with wider character and word spacing.',
+    a11yRelaxedSpacingLabel: 'Relaxed line & letter spacing',
+    a11yRelaxedSpacingDesc: 'Adds breathing room across copy, search suggestions, and chat replies.',
+    a11yLargeTargetsLabel: 'Larger interactive targets',
+    a11yLargeTargetsDesc: 'Increases minimum button and link height for easier pointer and touch access.',
+    a11yReadingGuideLabel: 'Horizontal reading ruler',
+    a11yReadingGuideDesc: 'Shows a gentle horizontal line following vertical pointer movement.',
+    a11yScreenReaderHintsLabel: 'Screen reader status hints (aria-live)',
+    a11yScreenReaderHintsDesc: 'Announces theme, language, and panel transitions to assistive readers.',
+    a11yColorFilterLabel: 'Color vision profile',
+    a11yColorFilterNone: 'Default',
+    a11yColorFilterGrayscale: 'Grayscale',
+    a11yColorFilterProtanopia: 'Protanopia',
+    a11yColorFilterDeuteranopia: 'Deuteranopia',
+    a11yColorFilterTritanopia: 'Tritanopia',
+    a11yResetAllBtn: 'Reset accessibility',
+    diagSectionTitle: 'System Diagnostics & Live Logs',
+    diagSubtitle: 'Real server events, API latency, and client runtime telemetry (never logs keys or personal data).',
+    diagRunHealthBtn: 'Run system health check',
+    diagRunningHealth: 'Checking...',
+    diagRefreshBtn: 'Refresh',
+    diagClearBtn: 'Clear logs',
+    diagExportBtn: 'Export JSON',
+    diagFilterAll: 'All',
+    diagFilterInfo: 'Info',
+    diagFilterWarn: 'Warnings',
+    diagFilterError: 'Errors',
+    diagMetricUptime: 'Server uptime',
+    diagMetricMemory: 'Heap memory',
+    diagMetricTotal: 'Events recorded',
+    diagEmptyLogs: 'No diagnostic events recorded for the selected severity filter.',
+    fbSectionTitle: 'Feedback & Daily Digest',
+    fbSubtitle: 'Send bug reports, ideas, or ratings — collected into a daily digest for the developer.',
+    fbCategoryLabel: 'Category',
+    fbCategoryBug: 'Bug',
+    fbCategoryIdea: 'Idea',
+    fbCategoryUx: 'Experience',
+    fbCategoryPraise: 'Praise',
+    fbRatingLabel: 'Rating',
+    fbMessagePlaceholder: 'Share what you love or what we should improve in Orbit...',
+    fbEmailLabel: 'Contact email (optional)',
+    fbEmailPlaceholder: 'name@example.com',
+    fbSubmitBtn: 'Send feedback',
+    fbSubmitting: 'Sending...',
+    fbSuccessBanner: 'Thank you! Feedback saved and included in today’s daily digest.',
+    fbValidationError: 'Please write at least 5 characters before submitting.',
+    fbDigestTitle: 'Daily digest delivery',
+    fbDigestDesc: 'Submitted entries roll into a daily digest with a live RSS feed, TXT download, and 24-hour email/webhook dispatch.',
+    fbTodayCountLabel: 'Today',
+    fbAvgRatingLabel: 'Avg',
+    fbAutoStatusReady: '24h auto-delivery active to',
+    fbAutoStatusArchive: 'Archive + Daily RSS feed active for',
+    fbSendEmailDigestBtn: 'Email today’s digest',
+    fbCopyRssBtn: 'Copy daily RSS feed URL',
+    fbCopiedRss: 'RSS URL copied',
+    fbTriggerServerDigestBtn: 'Dispatch server digest now',
+    fbDownloadTxtBtn: 'Download TXT',
+    fbRecentTitle: 'Collected digest entries',
+    fbNoEntriesYet: 'No feedback entries yet.',
     supportLetterTitle: 'A note from Orb',
     supportLetterParagraphs: [
       'Heyyyy, sooo...',
@@ -537,30 +765,34 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
       'So, buy me a coffee and help me fund my questionable existence. Help me continue being a living Orb being.',
       'Stay orb-some. 💜',
     ],
-    supportPillars: [
-      {
-        title: 'Zero Ads',
-        desc: 'No intrusive trackers or banners — your startpage stays clean and fast.',
-      },
-      {
-        title: 'Living Mascot',
-        desc: 'Fluid animations, procedural audio cues, and expressive reactions.',
-      },
-      {
-        title: 'Future Orb AI',
-        desc: 'Supports ongoing research, polish, and future dedicated AI hosting.',
-      },
-    ],
+    supportPillars: [],
     supportLegalLinkLabel: 'Read legal notice on voluntary donations',
+    supportBackLabel: 'Back to Orbit',
+    supportVoluntaryItalicPrefix: 'Contributions are purely voluntary and liberal donations with zero obligation or commercial purchase. For more details,',
+    supportVoluntaryLegalLink: 'read the voluntary donations legal section',
+    supportVoluntaryItalicSuffix: '.',
+    supportOpenShowcaseBtn: 'Open Support Orb view',
     changelogSectionTitle: 'Version Changelog',
     changelogSubtitle: 'Track every Orbit release, new feature, and refinement.',
     changelogCurrentTag: 'Current',
     changelogEntries: [
       {
+        version: 'v2.6.0',
+        dateLabel: 'November 2026',
+        title: 'Hamburger Menu, Full-Screen Support Orb, Diagnostics & Feedback',
+        isCurrent: true,
+        items: [
+          'New top-right hamburger dropdown menu with Settings and Buy me a coffee.',
+          'Full-screen Support Orb showcase over the live animated background with happy Orb on the right looking at the letter and you, italic voluntary summary + legal hyperlink, and zero clutter boxes.',
+          'Real server + client Diagnostics logging with active health probes, severity filters, and JSON export.',
+          'Feedback section with persistent daily digest archive, RSS 24h feed, and one-click email/webhook dispatch.',
+          'Expanded Accessibility panel with 12+ controls including typography scales, color-vision profiles, dyslexia spacing, reading ruler, and reduced transparency.',
+        ],
+      },
+      {
         version: 'v2.5.0',
         dateLabel: 'November 2026',
         title: 'Multi-Model Gemini Studio, VFX & Smart Home Polish',
-        isCurrent: true,
         items: [
           'Multi-turn chatbot with role & model routing across Gemini 4 Carbon (deep reasoning), Gemini 4 Neon (complex interactive), Gemini 4 Hydrogen (general), and Gemini 3.1 Flash Lite (fast).',
           'Text-to-image creation and image editing with Gemini Nano Banana 2.1 powered strictly by your own personal API key.',
@@ -622,6 +854,9 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     searchSubmitAria: 'Lancer la recherche',
     clearHistoryLabel: 'Effacer l’historique',
     settingsAria: 'Ouvrir les paramètres',
+    menuButtonAria: 'Ouvrir le menu principal',
+    menuSettingsItem: 'Paramètres',
+    menuSupportItem: 'Buy me a coffee',
     settingsTitle: 'Paramètres Orbit',
     settingsBreadcrumbLabel: 'paramètres',
     settingsSubtitle: 'Personnalisez l’apparence, le démarrage, vos raccourcis et la confidentialité.',
@@ -630,6 +865,8 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabQuickLinks: 'Accès rapides',
     settingsTabAi: 'Fonctionnalités IA',
     settingsTabAccessibility: 'Accessibilité',
+    settingsTabDiagnostics: 'Diagnostics',
+    settingsTabFeedback: 'Feedback',
     settingsTabChangelog: 'Nouveautés',
     settingsTabSupport: 'Soutenir Orb',
     settingsTabPrivacy: 'Confidentialité',
@@ -748,6 +985,74 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     a11yFocusRingsLabel: 'Contours de focus visibles',
     a11yFocusRingsDesc: 'Met en évidence l’élément ciblé lors de la navigation au clavier (Tab).',
     a11yKeyboardHint: 'Ordre de tabulation logique (tabindex) actif sur toute l’interface.',
+    a11yTextScaleLabel: 'Échelle typographique',
+    a11yTextScaleNormal: 'Standard',
+    a11yTextScaleLarge: 'Grand',
+    a11yTextScaleXLarge: 'Très grand',
+    a11yReduceTransparencyLabel: 'Réduire la transparence',
+    a11yReduceTransparencyDesc: 'Remplace les effets de flou par des surfaces opaques à forte lisibilité.',
+    a11yUnderlineLinksLabel: 'Souligner toujours les liens',
+    a11yUnderlineLinksDesc: 'Ajoute un soulignement permanent sur tous les liens et mentions légales.',
+    a11yDyslexiaFontLabel: 'Police adaptée dyslexie',
+    a11yDyslexiaFontDesc: 'Utilise une typographie régulière avec espacement accru des lettres et mots.',
+    a11yRelaxedSpacingLabel: 'Espacement et interligne aérés',
+    a11yRelaxedSpacingDesc: 'Améliore le confort de lecture dans les panneaux, suggestions et discussions.',
+    a11yLargeTargetsLabel: 'Zones cliquables élargies',
+    a11yLargeTargetsDesc: 'Augmente la hauteur minimale des boutons et liens pour plus de précision.',
+    a11yReadingGuideLabel: 'Règle guide de lecture',
+    a11yReadingGuideDesc: 'Affiche une ligne discrète suivant la position verticale du pointeur.',
+    a11yScreenReaderHintsLabel: 'Annonces lecteur d’écran (aria-live)',
+    a11yScreenReaderHintsDesc: 'Signale vocalement les changements de thème, langue et panneaux.',
+    a11yColorFilterLabel: 'Filtre vision des couleurs',
+    a11yColorFilterNone: 'Standard',
+    a11yColorFilterGrayscale: 'Niveaux de gris',
+    a11yColorFilterProtanopia: 'Protanopie',
+    a11yColorFilterDeuteranopia: 'Deutéranopie',
+    a11yColorFilterTritanopia: 'Tritanopie',
+    a11yResetAllBtn: 'Réinitialiser l’accessibilité',
+    diagSectionTitle: 'Diagnostics Système & Journaux Réels',
+    diagSubtitle: 'Événements serveur réels, latence API et erreurs client (aucune clé ou donnée privée enregistrée).',
+    diagRunHealthBtn: 'Tester l’état du système',
+    diagRunningHealth: 'Vérification...',
+    diagRefreshBtn: 'Actualiser',
+    diagClearBtn: 'Effacer',
+    diagExportBtn: 'Exporter JSON',
+    diagFilterAll: 'Tous',
+    diagFilterInfo: 'Info',
+    diagFilterWarn: 'Alertes',
+    diagFilterError: 'Erreurs',
+    diagMetricUptime: 'Disponibilité',
+    diagMetricMemory: 'Mémoire heap',
+    diagMetricTotal: 'Événements',
+    diagEmptyLogs: 'Aucun événement enregistré pour ce filtre.',
+    fbSectionTitle: 'Feedback & Synthèse Quotidienne',
+    fbSubtitle: 'Partagez un bug, une idée ou un avis pour la synthèse quotidienne développeur.',
+    fbCategoryLabel: 'Catégorie',
+    fbCategoryBug: 'Bug',
+    fbCategoryIdea: 'Idée',
+    fbCategoryUx: 'Expérience',
+    fbCategoryPraise: 'Bravo',
+    fbRatingLabel: 'Note',
+    fbMessagePlaceholder: 'Dites-nous ce que vous aimez ou ce qu’on peut améliorer...',
+    fbEmailLabel: 'Email de contact (optionnel)',
+    fbEmailPlaceholder: 'nom@exemple.com',
+    fbSubmitBtn: 'Envoyer le feedback',
+    fbSubmitting: 'Envoi...',
+    fbSuccessBanner: 'Merci ! Votre retour est enregistré dans le résumé du jour.',
+    fbValidationError: 'Écrivez au moins 5 caractères avant d’envoyer.',
+    fbDigestTitle: 'Envoi quotidien',
+    fbDigestDesc: 'Les retours sont agrégés chaque jour avec flux RSS dédié, export TXT et envoi automatique 24h.',
+    fbTodayCountLabel: 'Aujourd’hui',
+    fbAvgRatingLabel: 'Moyenne',
+    fbAutoStatusReady: 'Envoi 24h actif vers',
+    fbAutoStatusArchive: 'Archive + Flux RSS quotidien actifs pour',
+    fbSendEmailDigestBtn: 'Envoyer le résumé par email',
+    fbCopyRssBtn: 'Copier l’URL du flux RSS',
+    fbCopiedRss: 'URL RSS copiée',
+    fbTriggerServerDigestBtn: 'Envoyer via serveur maintenant',
+    fbDownloadTxtBtn: 'Télécharger TXT',
+    fbRecentTitle: 'Retours enregistrés',
+    fbNoEntriesYet: 'Aucun retour enregistré pour le moment.',
     supportLetterTitle: 'Un mot d’Orb',
     supportLetterParagraphs: [
       'Coucouuu, alors...',
@@ -757,30 +1062,33 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
       'Alors offre-moi un café pour soutenir mon existence douteuse et m’aider à rester un petit Orb bien vivant.',
       'Reste orb-some. 💜',
     ],
-    supportPillars: [
-      {
-        title: 'Zéro publicité',
-        desc: 'Aucun traceur ni bannière : votre page reste rapide et épurée.',
-      },
-      {
-        title: 'Mascotte vivante',
-        desc: 'Animations fluides, sons subtils et réactions interactives.',
-      },
-      {
-        title: 'Futur Orb IA',
-        desc: 'Soutient la R&D et l’arrivée future de serveurs IA dédiés.',
-      },
-    ],
+    supportPillars: [],
     supportLegalLinkLabel: 'Lire la section légale sur les dons volontaires',
+    supportBackLabel: 'Retour à Orbit',
+    supportVoluntaryItalicPrefix: 'Toute contribution constitue un don purement volontaire sans obligation ni achat commercial. Pour en savoir plus,',
+    supportVoluntaryLegalLink: 'consultez la section légale sur les dons volontaires',
+    supportVoluntaryItalicSuffix: '.',
+    supportOpenShowcaseBtn: 'Ouvrir l’écran Soutenir Orb',
     changelogSectionTitle: 'Historique des versions',
     changelogSubtitle: 'Découvrez les nouveautés et améliorations ajoutées à Orbit.',
     changelogCurrentTag: 'Actuelle',
     changelogEntries: [
       {
+        version: 'v2.6.0',
+        dateLabel: 'Novembre 2026',
+        title: 'Menu Hamburger, Écran Soutenir Orb, Diagnostics & Feedback',
+        isCurrent: true,
+        items: [
+          'Menu déroulant hamburger en haut à droite avec Paramètres et Buy me a coffee.',
+          'Écran géant Soutenir Orb avec fond animé, Orb joyeux à droite tourné vers le texte, mention légale en italique et zéro encadré superflu.',
+          'Système de diagnostics réels serveur/client et section Feedback avec flux RSS quotidien.',
+          'Accessibilité étendue avec profils daltoniens, échelle de texte, police dyslexie et guide de lecture.',
+        ],
+      },
+      {
         version: 'v2.5.0',
         dateLabel: 'Novembre 2026',
         title: 'Studio Gemini Multi-Modèles, VFX & Écrans Connectés',
-        isCurrent: true,
         items: [
           'Chat multi-tours avec rôles dédiés : Gemini 4 Carbon (raisonnement profond), Gemini 4 Neon (interactif), Gemini 4 Hydrogen (général) et Gemini 3.1 Flash Lite (rapide).',
           'Création et édition d’images avec Gemini Nano Banana 2.1 uniquement via votre clé API personnelle.',
@@ -831,6 +1139,9 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     searchSubmitAria: 'Suche starten',
     clearHistoryLabel: 'Verlauf löschen',
     settingsAria: 'Einstellungen öffnen',
+    menuButtonAria: 'Hauptmenü öffnen',
+    menuSettingsItem: 'Einstellungen',
+    menuSupportItem: 'Buy me a coffee',
     settingsTitle: 'Orbit-Einstellungen',
     settingsBreadcrumbLabel: 'einstellungen',
     settingsSubtitle: 'Design, Start-Erlebnis, Schnellzugriffe und Datenschutz anpassen.',
@@ -839,6 +1150,8 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabQuickLinks: 'Schnellzugriffe',
     settingsTabAi: 'KI-Funktionen',
     settingsTabAccessibility: 'Barrierefreiheit',
+    settingsTabDiagnostics: 'Diagnose',
+    settingsTabFeedback: 'Feedback',
     settingsTabChangelog: 'Changelog',
     settingsTabSupport: 'Orbit unterstützen',
     settingsTabPrivacy: 'Datenschutz',
@@ -957,6 +1270,74 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     a11yFocusRingsLabel: 'Deutliche Fokus-Ringe',
     a11yFocusRingsDesc: 'Hebt das per Tab-Taste gewählte Element kontraststark hervor.',
     a11yKeyboardHint: 'Logische Tab-Reihenfolge (tabindex) ist auf allen Bedienelementen aktiv.',
+    a11yTextScaleLabel: 'Schriftgröße',
+    a11yTextScaleNormal: 'Standard',
+    a11yTextScaleLarge: 'Groß',
+    a11yTextScaleXLarge: 'Sehr groß',
+    a11yReduceTransparencyLabel: 'Transparenz reduzieren',
+    a11yReduceTransparencyDesc: 'Ersetzt Glas-Unschärfen durch klare, deckende Oberflächen.',
+    a11yUnderlineLinksLabel: 'Links immer unterstreichen',
+    a11yUnderlineLinksDesc: 'Hebt alle Text- und Rechtshinweis-Links dauerhaft mit Unterstrich hervor.',
+    a11yDyslexiaFontLabel: 'Legasthenie-freundliche Schrift',
+    a11yDyslexiaFontDesc: 'Nutzt gleichmäßige Sans-Serif-Schrift mit größerem Buchstaben- und Wortabstand.',
+    a11yRelaxedSpacingLabel: 'Erweiterter Zeilenabstand',
+    a11yRelaxedSpacingDesc: 'Sorgt für mehr Luftraum in Texten, Vorschlägen und Chat-Antworten.',
+    a11yLargeTargetsLabel: 'Größere Klickflächen',
+    a11yLargeTargetsDesc: 'Vergrößert Schaltflächen und Links für einfachere Bedienung.',
+    a11yReadingGuideLabel: 'Leselineal-Führung',
+    a11yReadingGuideDesc: 'Zeigt eine dezente horizontale Leselinie entlang des Mauszeigers.',
+    a11yScreenReaderHintsLabel: 'Screenreader-Statushinweise (aria-live)',
+    a11yScreenReaderHintsDesc: 'Meldet Design-, Sprach- und Menüwechsel an Bildschirmleser.',
+    a11yColorFilterLabel: 'Farbseh-Profil',
+    a11yColorFilterNone: 'Standard',
+    a11yColorFilterGrayscale: 'Graustufen',
+    a11yColorFilterProtanopia: 'Protanopie',
+    a11yColorFilterDeuteranopia: 'Deuteranopie',
+    a11yColorFilterTritanopia: 'Tritanopie',
+    a11yResetAllBtn: 'Barrierefreiheit zurücksetzen',
+    diagSectionTitle: 'Systemdiagnose & Echtzeit-Logs',
+    diagSubtitle: 'Echte Server-Ereignisse, API-Latenzen und Client-Laufzeitlogs (ohne Schlüssel oder Privatdaten).',
+    diagRunHealthBtn: 'Systemcheck starten',
+    diagRunningHealth: 'Prüfe...',
+    diagRefreshBtn: 'Aktualisieren',
+    diagClearBtn: 'Logs leeren',
+    diagExportBtn: 'JSON exportieren',
+    diagFilterAll: 'Alle',
+    diagFilterInfo: 'Info',
+    diagFilterWarn: 'Warnung',
+    diagFilterError: 'Fehler',
+    diagMetricUptime: 'Server-Laufzeit',
+    diagMetricMemory: 'Heap-Speicher',
+    diagMetricTotal: 'Ereignisse',
+    diagEmptyLogs: 'Keine Diagnose-Einträge für diesen Filter vorhanden.',
+    fbSectionTitle: 'Feedback & Tagesbericht',
+    fbSubtitle: 'Sende Ideen, Fehlerberichte oder Bewertungen für den täglichen Entwickler-Überblick.',
+    fbCategoryLabel: 'Kategorie',
+    fbCategoryBug: 'Fehler',
+    fbCategoryIdea: 'Idee',
+    fbCategoryUx: 'Erlebnis',
+    fbCategoryPraise: 'Lob',
+    fbRatingLabel: 'Bewertung',
+    fbMessagePlaceholder: 'Was gefällt dir gut oder was sollen wir in Orbit verbessern?',
+    fbEmailLabel: 'Kontakt-E-Mail (optional)',
+    fbEmailPlaceholder: 'name@beispiel.de',
+    fbSubmitBtn: 'Feedback senden',
+    fbSubmitting: 'Sende...',
+    fbSuccessBanner: 'Danke! Dein Feedback wurde gespeichert und dem Tagesbericht hinzugefügt.',
+    fbValidationError: 'Bitte gib mindestens 5 Zeichen ein.',
+    fbDigestTitle: 'Täglicher Versand',
+    fbDigestDesc: 'Alle Einträge werden pro Tag gebündelt — mit RSS-Tagesfeed, TXT-Download und 24h-Mail/Webhook.',
+    fbTodayCountLabel: 'Heute',
+    fbAvgRatingLabel: 'Schnitt',
+    fbAutoStatusReady: '24h-Automatik aktiv an',
+    fbAutoStatusArchive: 'Archiv + RSS-Tagesfeed bereit für',
+    fbSendEmailDigestBtn: 'Heutigen Bericht per E-Mail senden',
+    fbCopyRssBtn: 'RSS-Feed-URL kopieren',
+    fbCopiedRss: 'RSS-URL kopiert',
+    fbTriggerServerDigestBtn: 'Server-Versand jetzt starten',
+    fbDownloadTxtBtn: 'TXT laden',
+    fbRecentTitle: 'Gesammelte Einträge',
+    fbNoEntriesYet: 'Noch kein Feedback vorhanden.',
     supportLetterTitle: 'Eine Nachricht von Orb',
     supportLetterParagraphs: [
       'Heyyyy, alsooo...',
@@ -966,30 +1347,33 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
       'Spendiere mir also einen Kaffee und hilf mir, meine fragwürdige Existenz zu finanzieren, damit ich ein lebendiger kleiner Orb bleiben kann.',
       'Bleib orb-some. 💜',
     ],
-    supportPillars: [
-      {
-        title: 'Keine Werbung',
-        desc: 'Keine Tracker oder Banner — deine Startseite bleibt sauber und schnell.',
-      },
-      {
-        title: 'Lebendiges Maskottchen',
-        desc: 'Flüssige Animationen, prozeduraler Sound und ausdrucksstarke Reaktionen.',
-      },
-      {
-        title: 'Zukunft von Orb KI',
-        desc: 'Unterstützt Weiterentwicklung und künftige eigene KI-Server.',
-      },
-    ],
+    supportPillars: [],
     supportLegalLinkLabel: 'Rechtliche Hinweise zu freiwilligen Spenden lesen',
+    supportBackLabel: 'Zurück zu Orbit',
+    supportVoluntaryItalicPrefix: 'Jeder Beitrag ist eine rein freiwillige Spende ohne Verpflichtung oder Kauf. Weitere Informationen findest du in den',
+    supportVoluntaryLegalLink: 'rechtlichen Hinweisen zu freiwilligen Spenden',
+    supportVoluntaryItalicSuffix: '.',
+    supportOpenShowcaseBtn: 'Große Support-Ansicht öffnen',
     changelogSectionTitle: 'Versionsverlauf',
     changelogSubtitle: 'Alle Orbit-Updates, neuen Funktionen und Verbesserungen.',
     changelogCurrentTag: 'Aktuell',
     changelogEntries: [
       {
+        version: 'v2.6.0',
+        dateLabel: 'November 2026',
+        title: 'Hamburger-Menü, Support-Vollbild, Diagnose & Feedback',
+        isCurrent: true,
+        items: [
+          'Neues Hamburger-Dropdown oben rechts mit Einstellungen und Buy me a coffee.',
+          'Vollbild-Ansicht für Orbit unterstützen mit glücklichem Orb rechts, kursivem Spendenhinweis + Rechtslink.',
+          'Echte Systemdiagnose und täglicher Feedback-Digest per RSS/E-Mail.',
+          'Erweiterte Barrierefreiheit mit Farbschwäche-Profilen, Leselineal und reduzierter Transparenz.',
+        ],
+      },
+      {
         version: 'v2.5.0',
         dateLabel: 'November 2026',
         title: 'Multi-Modell Gemini Studio, VFX & Smart Home',
-        isCurrent: true,
         items: [
           'Multi-Turn-Chatbot mit Rollenwahl: Gemini 4 Carbon, Gemini 4 Neon, Gemini 4 Hydrogen und Gemini 3.1 Flash Lite.',
           'Bilderstellung und -bearbeitung mit Gemini Nano Banana 2.1 ausschließlich mit eigenem API-Schlüssel.',
@@ -1039,6 +1423,9 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     searchSubmitAria: 'Iniciar búsqueda',
     clearHistoryLabel: 'Borrar historial',
     settingsAria: 'Abrir configuración',
+    menuButtonAria: 'Abrir menú principal',
+    menuSettingsItem: 'Configuración',
+    menuSupportItem: 'Buy me a coffee',
     settingsTitle: 'Configuración de Orbit',
     settingsBreadcrumbLabel: 'ajustes',
     settingsSubtitle: 'Personaliza el aspecto, el inicio, los enlaces rápidos y la privacidad.',
@@ -1047,6 +1434,8 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     settingsTabQuickLinks: 'Enlaces rápidos',
     settingsTabAi: 'Funciones IA',
     settingsTabAccessibility: 'Accesibilidad',
+    settingsTabDiagnostics: 'Diagnóstico',
+    settingsTabFeedback: 'Feedback',
     settingsTabChangelog: 'Changelog',
     settingsTabSupport: 'Apoyar a Orb',
     settingsTabPrivacy: 'Privacidad',
@@ -1165,6 +1554,74 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
     a11yFocusRingsLabel: 'Indicadores de foco visibles',
     a11yFocusRingsDesc: 'Destaca con mayor claridad el elemento seleccionado con la tecla Tab.',
     a11yKeyboardHint: 'Orden de tabulación lógico (tabindex) activo en toda la interfaz.',
+    a11yTextScaleLabel: 'Escala tipográfica',
+    a11yTextScaleNormal: 'Estándar',
+    a11yTextScaleLarge: 'Grande',
+    a11yTextScaleXLarge: 'Extra grande',
+    a11yReduceTransparencyLabel: 'Reducir transparencias',
+    a11yReduceTransparencyDesc: 'Sustituye el desenfoque por superficies sólidas de alta claridad.',
+    a11yUnderlineLinksLabel: 'Subrayar siempre los enlaces',
+    a11yUnderlineLinksDesc: 'Muestra subrayado permanente en todos los enlaces y textos legales.',
+    a11yDyslexiaFontLabel: 'Tipografía adaptada para dislexia',
+    a11yDyslexiaFontDesc: 'Aplica tipografía uniforme con mayor espacio entre letras y palabras.',
+    a11yRelaxedSpacingLabel: 'Espaciado e interlineado amplios',
+    a11yRelaxedSpacingDesc: 'Añade aire vertical y horizontal en textos, sugerencias y respuestas.',
+    a11yLargeTargetsLabel: 'Áreas táctiles ampliadas',
+    a11yLargeTargetsDesc: 'Aumenta la altura mínima de botones y enlaces para mayor comodidad.',
+    a11yReadingGuideLabel: 'Regla guía de lectura',
+    a11yReadingGuideDesc: 'Muestra una línea horizontal suave siguiendo la posición vertical del cursor.',
+    a11yScreenReaderHintsLabel: 'Avisos para lector de pantalla (aria-live)',
+    a11yScreenReaderHintsDesc: 'Comunica cambios de tema, idioma y paneles a lectores de pantalla.',
+    a11yColorFilterLabel: 'Filtro de visión cromática',
+    a11yColorFilterNone: 'Estándar',
+    a11yColorFilterGrayscale: 'Escala de grises',
+    a11yColorFilterProtanopia: 'Protanopía',
+    a11yColorFilterDeuteranopia: 'Deuteranopía',
+    a11yColorFilterTritanopia: 'Tritanopía',
+    a11yResetAllBtn: 'Restablecer accesibilidad',
+    diagSectionTitle: 'Diagnóstico del Sistema y Registros Reales',
+    diagSubtitle: 'Eventos reales de servidor, latencia API y errores del cliente (sin guardar claves ni datos privados).',
+    diagRunHealthBtn: 'Comprobar sistema',
+    diagRunningHealth: 'Comprobando...',
+    diagRefreshBtn: 'Actualizar',
+    diagClearBtn: 'Limpiar',
+    diagExportBtn: 'Exportar JSON',
+    diagFilterAll: 'Todos',
+    diagFilterInfo: 'Info',
+    diagFilterWarn: 'Avisos',
+    diagFilterError: 'Errores',
+    diagMetricUptime: 'Tiempo activo',
+    diagMetricMemory: 'Memoria heap',
+    diagMetricTotal: 'Eventos',
+    diagEmptyLogs: 'No hay registros para el nivel seleccionado.',
+    fbSectionTitle: 'Feedback y Resumen Diario',
+    fbSubtitle: 'Envía sugerencias, fallos o valoraciones para el resumen diario del desarrollador.',
+    fbCategoryLabel: 'Categoría',
+    fbCategoryBug: 'Error',
+    fbCategoryIdea: 'Idea',
+    fbCategoryUx: 'Experiencia',
+    fbCategoryPraise: 'Elogio',
+    fbRatingLabel: 'Valoración',
+    fbMessagePlaceholder: 'Cuéntanos qué te gusta o qué podemos mejorar en Orbit...',
+    fbEmailLabel: 'Correo de contacto (opcional)',
+    fbEmailPlaceholder: 'nombre@ejemplo.com',
+    fbSubmitBtn: 'Enviar feedback',
+    fbSubmitting: 'Enviando...',
+    fbSuccessBanner: '¡Gracias! Tu feedback se guardó en el resumen diario de hoy.',
+    fbValidationError: 'Escribe al menos 5 caracteres antes de enviar.',
+    fbDigestTitle: 'Entrega diaria',
+    fbDigestDesc: 'Los mensajes se agrupan por día con feed RSS diario, descarga TXT y envío 24h por correo o webhook.',
+    fbTodayCountLabel: 'Hoy',
+    fbAvgRatingLabel: 'Media',
+    fbAutoStatusReady: 'Envío automático 24h activo para',
+    fbAutoStatusArchive: 'Archivo + Feed RSS diario listos para',
+    fbSendEmailDigestBtn: 'Enviar resumen de hoy por email',
+    fbCopyRssBtn: 'Copiar URL del feed RSS',
+    fbCopiedRss: 'URL RSS copiada',
+    fbTriggerServerDigestBtn: 'Enviar desde servidor ahora',
+    fbDownloadTxtBtn: 'Descargar TXT',
+    fbRecentTitle: 'Entradas recogidas',
+    fbNoEntriesYet: 'Aún no hay comentarios registrados.',
     supportLetterTitle: 'Un mensaje de Orb',
     supportLetterParagraphs: [
       'Holaaaa, verás...',
@@ -1174,30 +1631,33 @@ const DICTIONARIES: Record<LanguageCode, UiDictionary> = {
       'Así que invítame a un café y ayúdame a financiar mi cuestionable existencia para seguir siendo un pequeño Orb vivo.',
       'Sigue siendo orb-some. 💜',
     ],
-    supportPillars: [
-      {
-        title: 'Cero anuncios',
-        desc: 'Sin rastreadores ni banners: tu página de inicio sigue limpia y rápida.',
-      },
-      {
-        title: 'Mascota viva',
-        desc: 'Animaciones fluidas, audio procedural y reacciones expresivas.',
-      },
-      {
-        title: 'Futuro Orb IA',
-        desc: 'Impulsa el desarrollo y futuros servidores dedicados para Orb.',
-      },
-    ],
+    supportPillars: [],
     supportLegalLinkLabel: 'Leer nota legal sobre donaciones voluntarias',
+    supportBackLabel: 'Volver a Orbit',
+    supportVoluntaryItalicPrefix: 'Cualquier aportación es una donación puramente voluntaria sin obligación ni compra comercial. Para más información,',
+    supportVoluntaryLegalLink: 'lee la sección legal sobre donaciones voluntarias',
+    supportVoluntaryItalicSuffix: '.',
+    supportOpenShowcaseBtn: 'Abrir pantalla Apoyar a Orb',
     changelogSectionTitle: 'Historial de versiones',
     changelogSubtitle: 'Descubre qué se ha añadido y mejorado en cada versión.',
     changelogCurrentTag: 'Actual',
     changelogEntries: [
       {
+        version: 'v2.6.0',
+        dateLabel: 'Noviembre 2026',
+        title: 'Menú Hamburguesa, Apoyar a Orb a Pantalla Completa, Diagnóstico y Feedback',
+        isCurrent: true,
+        items: [
+          'Nuevo menú desplegable hamburguesa arriba a la derecha con Configuración y Buy me a coffee.',
+          'Pantalla completa de Apoyar a Orb con fondo animado, Orb feliz a la derecha mirando al texto, nota en cursiva y enlace legal.',
+          'Sistema real de Diagnóstico y sección Feedback con feed RSS y envío diario.',
+          'Accesibilidad ampliada con filtros de color, guía de lectura y menor transparencia.',
+        ],
+      },
+      {
         version: 'v2.5.0',
         dateLabel: 'Noviembre 2026',
         title: 'Estudio Gemini Multi-Modelo, VFX y Smart Home',
-        isCurrent: true,
         items: [
           'Chat multi-turno con roles y modelos: Gemini 4 Carbon, Gemini 4 Neon, Gemini 4 Hydrogen y Gemini 3.1 Flash Lite.',
           'Creación y edición de imágenes con Gemini Nano Banana 2.1 usando exclusivamente tu clave API personal.',
@@ -1297,7 +1757,7 @@ export function getInitialLocaleOption(): LocaleRegionOption {
 }
 
 export function getCachedDictionary(lang: LanguageCode, jurisdiction: JurisdictionCode): UiDictionary {
-  const cacheKey = `${lang}:${jurisdiction}:v11`;
+  const cacheKey = `${lang}:${jurisdiction}:v12`;
   const memHit = memoryCache.get(cacheKey);
   if (memHit) return memHit;
 
@@ -1317,7 +1777,7 @@ export function getCachedDictionary(lang: LanguageCode, jurisdiction: Jurisdicti
 export function prewarmTranslationCache(): void {
   const bundle: Record<string, UiDictionary> = {};
   for (const opt of LOCALE_REGION_OPTIONS) {
-    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v11`;
+    const cacheKey = `${opt.lang}:${opt.jurisdiction}:v12`;
     const dict = DICTIONARIES[opt.lang] ?? DICTIONARIES.en;
     memoryCache.set(cacheKey, dict);
     bundle[cacheKey] = dict;
