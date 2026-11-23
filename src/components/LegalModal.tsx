@@ -8,11 +8,13 @@ import { LiveOrbMark } from './LiveOrbMark';
 
 interface LegalModalProps {
   open: boolean;
+  initialSectionId?: string | null;
   lang: LanguageCode;
   jurisdiction: JurisdictionCode;
   jurisdictionLabel: string;
   dict: UiDictionary;
   consent: ConsentState;
+  reduceMotion?: boolean;
   reactionSignal?: { type: BotReactionType; nonce: number } | null;
   onClose: () => void;
   onUpdateConsent: (next: ConsentState) => void;
@@ -51,11 +53,13 @@ function renderHighlightedText(text: string, query: string) {
 
 export const LegalModal = memo(function LegalModal({
   open,
+  initialSectionId = null,
   lang,
   jurisdiction,
   jurisdictionLabel,
   dict,
   consent,
+  reduceMotion = false,
   reactionSignal = null,
   onClose,
   onUpdateConsent,
@@ -107,6 +111,25 @@ export const LegalModal = memo(function LegalModal({
       cancelled = true;
     };
   }, [open, lang, jurisdiction]);
+
+  useEffect(() => {
+    if (!open || !initialSectionId || allSections.length === 0) return;
+    if (!allSections.some((sec) => sec.id === initialSectionId)) return;
+    setSearchQuery('');
+    setActiveSectionId(initialSectionId);
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = bodyRef.current?.querySelector(`#legal-sec-${initialSectionId}`);
+        el?.scrollIntoView({ behavior: 'auto', block: 'start' });
+        setActiveSectionId(initialSectionId);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [open, initialSectionId, allSections]);
 
   useEffect(() => {
     if (!open) {
@@ -222,6 +245,7 @@ export const LegalModal = memo(function LegalModal({
               <div className="flex items-center gap-4 min-w-0">
                 <LiveOrbMark
                   size={38}
+                  reduceMotion={reduceMotion}
                   reactionSignal={reactionSignal}
                   ariaLabel={dict.botAriaLabel}
                 />
@@ -238,6 +262,7 @@ export const LegalModal = memo(function LegalModal({
               {/* Mobile Close Button */}
               <BubbleButton
                 variant="glass"
+                tabIndex={0}
                 data-testid="legal-close-btn-mobile"
                 onClick={onClose}
                 aria-label={dict.closeModal}
@@ -264,6 +289,8 @@ export const LegalModal = memo(function LegalModal({
                   <button
                     key={sec.id}
                     type="button"
+                    tabIndex={0}
+                    data-testid={`legal-toc-${sec.id}`}
                     onClick={() => jumpToSection(sec.id)}
                     aria-current={isActive ? 'location' : undefined}
                     className="h-9 md:min-h-[38px] md:h-auto px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 text-[13px] cursor-pointer shrink-0 md:shrink text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
@@ -311,6 +338,7 @@ export const LegalModal = memo(function LegalModal({
                   <Search className="w-4 h-4 shrink-0 opacity-60" aria-hidden="true" />
                   <input
                     type="search"
+                    tabIndex={0}
                     data-testid="legal-search-input"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -329,6 +357,7 @@ export const LegalModal = memo(function LegalModal({
                       </span>
                       <button
                         type="button"
+                        tabIndex={0}
                         onClick={() => setSearchQuery('')}
                         aria-label={dict.legalSearchClear}
                         className="w-7 h-7 rounded-full grid place-items-center cursor-pointer hover:bg-[var(--glass2)]"
@@ -342,6 +371,7 @@ export const LegalModal = memo(function LegalModal({
 
               <BubbleButton
                 variant="glass"
+                tabIndex={0}
                 data-testid="legal-close-btn"
                 onClick={onClose}
                 aria-label={dict.closeModal}

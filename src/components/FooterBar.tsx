@@ -2,12 +2,14 @@ import { memo } from 'react';
 import { Globe } from 'lucide-react';
 import { LOCALE_REGION_OPTIONS, UiDictionary } from '../i18n/translations';
 import { LocaleRegionOption } from '../types/orbit';
+import { BuyMeCoffeeButton } from './BuyMeCoffeeButton';
 
 interface FooterBarProps {
   visible: boolean;
   localeOption: LocaleRegionOption;
   dict: UiDictionary;
   onOpenLegal: () => void;
+  onDonateClick?: () => void;
   onSelectLocaleRegion: (optionId: string) => void;
 }
 
@@ -16,6 +18,7 @@ export const FooterBar = memo(function FooterBar({
   localeOption,
   dict,
   onOpenLegal,
+  onDonateClick,
   onSelectLocaleRegion,
 }: FooterBarProps) {
   return (
@@ -30,11 +33,12 @@ export const FooterBar = memo(function FooterBar({
           'opacity 340ms cubic-bezier(0.16, 1, 0.3, 1), transform 420ms cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-center text-xs sm:text-[13px]">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-xs sm:text-[13px]">
         <p className="m-0 leading-relaxed" style={{ color: 'var(--mut)' }}>
           {dict.footerPrefix}{' '}
           <button
             type="button"
+            tabIndex={visible ? 0 : -1}
             data-testid="footer-legal-link"
             onClick={onOpenLegal}
             className="underline underline-offset-4 font-semibold cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
@@ -47,11 +51,12 @@ export const FooterBar = memo(function FooterBar({
         <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--glass)' }}>
           <Globe className="w-3.5 h-3.5 opacity-60 shrink-0" aria-hidden="true" />
           <select
+            tabIndex={visible ? 0 : -1}
             data-testid="locale-region-select"
             aria-label={dict.regionSelectorAria}
             value={localeOption.id}
             onChange={(e) => onSelectLocaleRegion(e.target.value)}
-            className="bg-transparent border-0 outline-none text-xs sm:text-[13px] font-medium cursor-pointer pr-1"
+            className="bg-transparent border-0 outline-none text-xs sm:text-[13px] font-medium cursor-pointer pr-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
             style={{ color: 'var(--fg)' }}
           >
             {LOCALE_REGION_OPTIONS.map((opt) => (
@@ -65,6 +70,8 @@ export const FooterBar = memo(function FooterBar({
             ))}
           </select>
         </label>
+
+        <BuyMeCoffeeButton compact variant="glass" testId="footer-coffee-btn" onClick={onDonateClick} />
       </div>
     </footer>
   );

@@ -35,9 +35,31 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.settingsTabExperience.length > 0, `Missing settingsTabExperience for ${lang}`);
     assert.ok(d.settingsTabQuickLinks.length > 0, `Missing settingsTabQuickLinks for ${lang}`);
     assert.ok(d.settingsTabAi.length > 0, `Missing settingsTabAi for ${lang}`);
+    assert.ok(d.settingsTabAccessibility.length > 0, `Missing settingsTabAccessibility for ${lang}`);
+    assert.ok(d.settingsTabChangelog.length > 0, `Missing settingsTabChangelog for ${lang}`);
+    assert.ok(d.settingsTabSupport.length > 0, `Missing settingsTabSupport for ${lang}`);
     assert.ok(d.settingsTabPrivacy.length > 0, `Missing settingsTabPrivacy for ${lang}`);
     assert.equal(d.aiComingSoonTitle, 'coming soon...');
     assert.ok(d.aiComingSoonDesc.length > 20, `Missing aiComingSoonDesc for ${lang}`);
+    assert.ok(d.aiServerDisclaimer.length > 20, `Missing aiServerDisclaimer for ${lang}`);
+    assert.ok(d.aiGuideTitle.length > 5, `Missing aiGuideTitle for ${lang}`);
+    assert.ok(d.aiKeySecurityLayers.length > 20, `Missing aiKeySecurityLayers for ${lang}`);
+    assert.ok(d.aiChatTitle.length > 0, `Missing aiChatTitle for ${lang}`);
+    assert.ok(d.aiChatBackToSearch.length > 0, `Missing aiChatBackToSearch for ${lang}`);
+    assert.ok(d.aiChatInputPlaceholder.length > 0, `Missing aiChatInputPlaceholder for ${lang}`);
+    assert.ok(d.aiChatSendAria.length > 0, `Missing aiChatSendAria for ${lang}`);
+    assert.ok(d.aiChatModeChat.length > 0, `Missing aiChatModeChat for ${lang}`);
+    assert.ok(d.aiChatModeImage.length > 0, `Missing aiChatModeImage for ${lang}`);
+    assert.ok(d.aiRoleAuto.length > 0 && d.aiRoleReasoning.length > 0, `Missing role labels for ${lang}`);
+    assert.ok(d.aiImageUploadLabel.length > 0 && d.aiImagePlaceholder.length > 0, `Missing image keys for ${lang}`);
+    assert.ok(d.a11yMotionLabel.length > 0, `Missing a11yMotionLabel for ${lang}`);
+    assert.ok(d.supportLetterTitle.length > 5, `Missing supportLetterTitle for ${lang}`);
+    assert.ok(d.supportLetterParagraphs.length >= 5, `Missing supportLetterParagraphs for ${lang}`);
+    assert.equal(d.supportPillars.length, 3, `Expected 3 supportPillars for ${lang}`);
+    assert.ok(d.supportLegalLinkLabel.length > 5, `Missing supportLegalLinkLabel for ${lang}`);
+    assert.ok(d.changelogEntries.length >= 3, `Expected >= 3 changelog entries for ${lang}`);
+    assert.ok(d.changelogEntries[0].version.startsWith('v'), `Invalid version format for ${lang}`);
+    assert.ok(d.donationPopupTitle.length > 5, `Missing donationPopupTitle for ${lang}`);
     assert.ok(d.standbyButtonLabel.length > 0, `Missing standbyButtonLabel for ${lang}`);
     assert.ok(d.weatherClear.length > 0, `Missing weatherClear for ${lang}`);
     assert.ok(d.themeSystem.length > 0, `Missing themeSystem for ${lang}`);
@@ -45,11 +67,12 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.betaTag.length > 0, `Missing betaTag for ${lang}`);
     assert.ok(d.standbyExitHint.length > 0, `Missing standbyExitHint for ${lang}`);
   }
+  assert.ok(itDict.supportLetterParagraphs.some((p) => p.toLowerCase().includes('caffè')));
   assert.ok(itDict.standbyExitHint.toLowerCase().includes('clicca'));
   assert.ok(getCachedDictionary('en', 'EU').standbyExitHint.toLowerCase().includes('click'));
 });
 
-test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, accurate private open-source attribution, and keyword filtering', () => {
+test('2026 legal sections contain all 11 blocks (0..10), zero bullet points, accurate private attribution & voluntary donation citations, and keyword filtering', () => {
   for (const [lang, jur] of [
     ['it', 'IT'],
     ['en', 'EU'],
@@ -58,20 +81,28 @@ test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, accu
     ['es', 'EU'],
   ] as const) {
     const sections = getLegalSections(lang, jur);
-    assert.equal(sections.length, 10);
+    assert.equal(sections.length, 11);
     const joined = sections.map((s) => `${s.title} ${s.body}`).join(' ');
     assert.ok(joined.includes('Daniele Mastrorilli'), `Expected Daniele Mastrorilli in ${lang}`);
     assert.ok(joined.includes('GitHub'), `Expected GitHub in ${lang}`);
     assert.ok(!joined.includes('Orbit Digital S.r.l.'), `Unexpected S.r.l. in ${lang}`);
     assert.ok(!joined.includes('IT12345678901'), `Unexpected fake VAT in ${lang}`);
     assert.ok(!joined.includes('orbitdigital@pec.it'), `Unexpected fake PEC in ${lang}`);
+
+    const donationsSec = sections.find((s) => s.id === 'donazioni-volontarie');
+    assert.ok(donationsSec, `Expected donazioni-volontarie section for ${lang}`);
+    assert.equal(donationsSec.number, '10');
+    assert.ok(donationsSec.body.includes('769'), `Expected Art. 769 c.c. in ${lang}`);
+    assert.ok(donationsSec.body.includes('783'), `Expected Art. 783 c.c. in ${lang}`);
+    assert.ok(donationsSec.body.includes('2011/83'), `Expected Directive 2011/83 in ${lang}`);
+
+    for (const sec of sections) {
+      assert.ok(!sec.body.includes('•'), `Bullet character found in ${sec.id} (${lang})`);
+      assert.ok(!/^\s*[-*]\s+/m.test(sec.body), `Markdown bullet list found in ${sec.id} (${lang})`);
+    }
   }
 
   const itSections = getLegalSections('it', 'IT');
-  for (const sec of itSections) {
-    assert.ok(!sec.body.includes('•'), `Bullet character found in ${sec.id}`);
-    assert.ok(!/^\s*[-*]\s+/m.test(sec.body), `Markdown bullet list found in ${sec.id}`);
-  }
 
   const githubMatches = filterLegalSections(itSections, 'GitHub');
   assert.ok(githubMatches.some((s) => s.id === 'contatti-diretti'));
@@ -81,4 +112,7 @@ test('2026 legal sections contain all 10 blocks (0..9), zero bullet points, accu
 
   const ccpaMatches = filterLegalSections(itSections, 'CCPA');
   assert.ok(ccpaMatches.some((s) => s.id === 'requisiti-usa'));
+
+  const donationMatches = filterLegalSections(itSections, '783');
+  assert.ok(donationMatches.some((s) => s.id === 'donazioni-volontarie'));
 });

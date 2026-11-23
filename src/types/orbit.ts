@@ -157,6 +157,7 @@ export interface OrbStepRequest {
   pointerDy: number;
   lastActivityAgoMs: number;
   lastPtrAgoMs: number;
+  lastTypedAgoMs?: number;
   event?: OrbStepEvent | null;
 }
 
@@ -178,3 +179,93 @@ export interface WeatherData {
   conditionKey: WeatherConditionKey;
   isDay: boolean;
 }
+
+export type MotionPreference = 'system' | 'reduce' | 'full';
+
+export interface AccessibilityPreferences {
+  motionMode: MotionPreference;
+  highContrast: boolean;
+  largeText: boolean;
+  focusRings: boolean;
+}
+
+export type GeminiChatModelId =
+  | 'gemini-4-hydrogen'
+  | 'gemini-3.1-flash-lite'
+  | 'gemini-4-neon'
+  | 'gemini-4-carbon';
+
+export type GeminiRoleId = 'auto' | 'assistant' | 'fast' | 'interactive' | 'reasoning';
+
+export type ImageAspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+
+export interface AiStatusResponse {
+  connected: boolean;
+  maskedHint: string | null;
+  layersActive: number;
+}
+
+export interface AiAskResponse {
+  answer: string;
+  model: GeminiChatModelId;
+  roleUsed: Exclude<GeminiRoleId, 'auto'>;
+}
+
+export interface AiImageResponse {
+  imageUrl: string;
+  text?: string;
+  model: 'gemini-nano-banana-2.1';
+}
+
+export interface AiChatTurn {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'error';
+  text: string;
+  needKey?: boolean;
+  model?: string;
+  roleBadge?: Exclude<GeminiRoleId, 'auto'>;
+  imageUrl?: string;
+  sourceImageUrl?: string;
+  mode?: 'chat' | 'image';
+}
+
+export interface ChangelogEntry {
+  version: string;
+  dateLabel: string;
+  title: string;
+  isCurrent?: boolean;
+  items: string[];
+}
+
+export interface SupportPillar {
+  title: string;
+  desc: string;
+}
+
+export interface DonationPromptState {
+  dismissedCount: number;
+  neverShow: boolean;
+  lastShownAt: number;
+  donatedClicked: boolean;
+}
+
+export interface AmbientGlowState {
+  x1Pct: number;
+  y1Pct: number;
+  x2Pct: number;
+  y2Pct: number;
+  cxPct: number;
+  cyPct: number;
+  alpha1Light: number;
+  alpha2Light: number;
+  alphaCenterLight: number;
+  alpha1Dark: number;
+  alpha2Dark: number;
+  alphaCenterDark: number;
+}
+

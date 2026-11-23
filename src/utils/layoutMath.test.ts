@@ -3,12 +3,16 @@ import assert from 'node:assert/strict';
 import { computeStageLayout, ORB_RING_OUTER_RADIUS_RATIO } from './layoutMath';
 import {
   DEFAULT_QUICK_LINKS,
+  DONATION_COOLDOWN_MS,
   getInitialTheme,
   isValidQuickLinkInput,
   normalizeUrl,
+  resolveEffectiveReducedMotion,
   resolveThemeMode,
+  sanitizeAccessibilityPreferences,
   sanitizeQuickLinks,
   shouldShowBootIntro,
+  shouldTriggerDonationPrompt,
   STORAGE_KEYS,
 } from './storage';
 import { ACCENT_PRESETS, hexToRgb, normalizeHexColor, resolveAccentTokens } from '../constants/accents';
@@ -571,3 +575,195 @@ test('shouldShowBootIntro shows on first visit before cookie decision, disables 
   );
 });
 
+test('Orb fires idle reactions during passive empty focus and animates typing cadence when user types', () => {
+  const sid = 'idle-typing-test';
+  // Boot tick
+  stepOrbEngine({
+    sessionId: sid,
+    variant: 'main',
+    nowMs: 100,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: false,
+    isFocused: true,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: 0,
+    pointerDy: 0,
+    lastActivityAgoMs: 5000,
+    lastPtrAgoMs: 5000,
+    lastTypedAgoMs: 999999,
+  });
+
+  // After initial idle wait (> 2600ms) while search bar is empty-focused on desktop -> random idle reaction fires
+  const idleStep = stepOrbEngine({
+    sessionId: sid,
+    variant: 'main',
+    nowMs: 3600,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: false,
+    isFocused: true,
+    caretRatio: 0,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: 0,
+    pointerDy: 0,
+    lastActivityAgoMs: 3500,
+    lastPtrAgoMs: 5000,
+    lastTypedAgoMs: 999999,
+  });
+  assert.notEqual(idleStep.activeReaction, 'idle', 'Expected Orb to trigger an idle animation during passive empty focus');
+
+  // Actively typing with query -> tracks caret + produces typing keystroke bob & tilt
+  const typingStep = stepOrbEngine({
+    sessionId: 'typing-pulse-test',
+    variant: 'main',
+    nowMs: 5000,
+    botSize: 180,
+    bootReady: true,
+    menuOpen: false,
+    standbyMode: false,
+    hasQuery: true,
+    isFocused: true,
+    caretRatio: 0.65,
+    drag: false,
+    reduceMotion: false,
+    isTouchMode: false,
+    pointerOutside: false,
+    pointerDx: -0.9,
+    pointerDy: -0.9,
+    lastActivityAgoMs: 120,
+    lastPtrAgoMs: 8000,
+    lastTypedAgoMs: 120,
+  });
+  assert.equal(typingStep.poseTarget.followPointerLive, false);
+  assert.ok(typingStep.poseTarget.dx > 0.35, 'Typing gaze should follow text caret rather than idle pointer');
+  assert.ok(typingStep.poseTarget.tRot > 2.5, 'Typing pose should tilt attentively toward caret');
+});
+
+test('accessibility preferences sanitize safely and resolve reduced motion overrides cleanly', () => {
+  const clean = sanitizeAccessibilityPreferences({
+    motionMode: 'reduce',
+    highContrast: 1,
+    largeText: true,
+    focusRings: true,
+  });
+  assert.deepEqual(clean, {
+    motionMode: 'reduce',
+    highContrast: true,
+    largeText: true,
+    focusRings: true,
+  });
+
+  const fallback = sanitizeAccessibilityPreferences({ motionMode: 'invalid' });
+  assert.equal(fallback.motionMode, 'system');
+
+  assert.equal(resolveEffectiveReducedMotion('reduce', false), true);
+  assert.equal(resolveEffectiveReducedMotion('full', true), false);
+  assert.equal(resolveEffectiveReducedMotion('system', true), true);
+  assert.equal(resolveEffectiveReducedMotion('system', false), false);
+});
+
+test('donation prompt respects consent, cooldown, neverShow, and preview flag', () => {
+  const now = 1_000_000_000;
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: false, lastShownAt: 0, donatedClicked: false },
+      nowMs: now,
+      consentDecided: false,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: false, lastShownAt: now - 1000, donatedClicked: false },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: {
+        dismissedCount: 1,
+        neverShow: false,
+        lastShownAt: now - DONATION_COOLDOWN_MS - 1,
+        donatedClicked: false,
+      },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    true
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 0, neverShow: true, lastShownAt: 0, donatedClicked: false },
+      nowMs: now,
+      consentDecided: true,
+      isMenuOpen: false,
+      standbyMode: false,
+    }),
+    false
+  );
+  assert.equal(
+    shouldTriggerDonationPrompt({
+      state: { dismissedCount: 3, neverShow: true, lastShownAt: now, donatedClicked: true },
+      nowMs: now,
+      consentDecided: false,
+      isMenuOpen: false,
+      standbyMode: false,
+      forcePreview: true,
+    }),
+    true
+  );
+});
+
+test('smart home compact landscape displays (1024x600 and 800x480) keep Orb ring, search bar, links, and footer unclipped', () => {
+  for (const [w, h] of [
+    [1024, 600],
+    [800, 480],
+  ] as const) {
+    const layout = computeStageLayout({
+      viewportWidth: w,
+      viewportHeight: h,
+      fullHeight: h,
+      safeTop: 0,
+      safeBottom: 0,
+      isMobile: false,
+      isFocused: false,
+      hasQuickLinks: true,
+      suggestionCount: 2,
+    });
+
+    const ringBottom = layout.botCenterY + layout.botSize * ORB_RING_OUTER_RADIUS_RATIO;
+    const barAndLinksBottom = layout.uiTopY + 58 + 52;
+    assert.ok(
+      layout.botCenterY - layout.botSize * ORB_RING_OUTER_RADIUS_RATIO >= 12,
+      `Smart Home ${w}x${h} Orb ring clipped top`
+    );
+    assert.ok(
+      layout.uiTopY - ringBottom >= 14,
+      `Smart Home ${w}x${h} insufficient ring-to-search gap (${layout.uiTopY - ringBottom}px)`
+    );
+    assert.ok(
+      h - barAndLinksBottom >= 44,
+      `Smart Home ${w}x${h} insufficient footer clearance (${h - barAndLinksBottom}px)`
+    );
+  }
+});

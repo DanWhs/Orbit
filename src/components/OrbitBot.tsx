@@ -26,6 +26,8 @@ interface OrbitBotProps {
   isFocused: boolean;
   hasQuery?: boolean;
   caretRatio: number;
+  lastTypedTimestamp?: number;
+  reduceMotion?: boolean;
   reactionSignal: { type: BotReactionType; nonce: number } | null;
   ariaLabel: string;
   onBotClick?: () => void;
@@ -69,6 +71,8 @@ export const OrbitBot = memo(function OrbitBot({
   isFocused,
   hasQuery = false,
   caretRatio,
+  lastTypedTimestamp = 0,
+  reduceMotion,
   reactionSignal,
   ariaLabel,
   onBotClick,
@@ -98,6 +102,8 @@ export const OrbitBot = memo(function OrbitBot({
     isFocused,
     hasQuery,
     caretRatio,
+    lastTypedTimestamp,
+    reduceMotion,
     menuOpen,
     paused,
     standbyMode,
@@ -111,6 +117,8 @@ export const OrbitBot = memo(function OrbitBot({
     isFocused,
     hasQuery,
     caretRatio,
+    lastTypedTimestamp,
+    reduceMotion,
     menuOpen,
     paused,
     standbyMode,
@@ -188,7 +196,7 @@ export const OrbitBot = memo(function OrbitBot({
   useEffect(() => {
     let tx = 0;
     let ty = 0;
-    let lastPtr = 0;
+    let lastPtr = -10000;
     let drag = false;
     let lastTime = performance.now();
     let thinkOn = false;
@@ -199,6 +207,8 @@ export const OrbitBot = memo(function OrbitBot({
     let pointerOutside = false;
     let isTouchMode = window.matchMedia?.('(pointer: coarse) and (hover: none)')?.matches ?? false;
     let lastActivityAt = performance.now();
+    let lastTypedAt = -10000;
+    let prevTypedTs = propsRef.current.lastTypedTimestamp;
 
     let serverPose: OrbPoseTarget = { ...DEFAULT_POSE };
     let serverPresence: OrbPresenceState = 'awake';
@@ -238,6 +248,12 @@ export const OrbitBot = memo(function OrbitBot({
 
       const cur = propsRef.current;
       const now = performance.now();
+      if (cur.lastTypedTimestamp > prevTypedTs) {
+        prevTypedTs = cur.lastTypedTimestamp;
+        lastTypedAt = now;
+        lastActivityAt = now;
+      }
+      const effectiveReduceMotion = cur.reduceMotion ?? Boolean(reducedMotionMq?.matches);
       try {
         const res = await fetch('/api/orb/step', {
           method: 'POST',
@@ -254,13 +270,14 @@ export const OrbitBot = memo(function OrbitBot({
             isFocused: cur.isFocused,
             caretRatio: cur.caretRatio,
             drag,
-            reduceMotion: Boolean(reducedMotionMq?.matches),
+            reduceMotion: effectiveReduceMotion,
             isTouchMode,
             pointerOutside,
             pointerDx: tx,
             pointerDy: ty,
             lastActivityAgoMs: Math.max(0, now - lastActivityAt),
             lastPtrAgoMs: Math.max(0, now - lastPtr),
+            lastTypedAgoMs: lastTypedAt > 0 ? Math.max(0, now - lastTypedAt) : 999999,
             event: eventToSend,
           }),
         });
@@ -737,6 +754,8 @@ export const OrbitBot = memo(function OrbitBot({
           <button
             ref={botRef}
             type="button"
+            tabIndex={hidden ? -1 : 0}
+            aria-hidden={hidden || undefined}
             data-reaction={activeReactionLabel}
             data-presence={presenceState}
             data-standby={standbyMode ? 'true' : 'false'}

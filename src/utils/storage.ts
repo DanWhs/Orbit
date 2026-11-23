@@ -1,4 +1,12 @@
-import { AccentValue, ConsentState, QuickLink, ResolvedTheme, ThemeMode } from '../types/orbit';
+import {
+  AccentValue,
+  AccessibilityPreferences,
+  ConsentState,
+  DonationPromptState,
+  QuickLink,
+  ResolvedTheme,
+  ThemeMode,
+} from '../types/orbit';
 
 export const STORAGE_KEYS = {
   theme: 'orbit_theme_v1',
@@ -9,6 +17,9 @@ export const STORAGE_KEYS = {
   i18nCache: 'orbit_i18n_cache_v1',
   consent: 'orbit_consent_v1',
   intro: 'orbit_intro_v1',
+  accessibility: 'orbit_accessibility_v1',
+  donationPrompt: 'orbit_support_prompt_v1',
+  aiDeviceVault: 'orbit_ai_vault_v1',
 } as const;
 
 export const MAX_QUICK_LINKS = 4;
@@ -21,6 +32,13 @@ export const DEFAULT_QUICK_LINKS: QuickLink[] = [
 ];
 
 const LEGACY_FACTORY_QUICK_LINK_IDS = ['ql-youtube', 'ql-gmail', 'ql-maps', 'ql-wikipedia'] as const;
+
+export const DEFAULT_ACCESSIBILITY_PREFS: AccessibilityPreferences = {
+  motionMode: 'system',
+  highContrast: false,
+  largeText: false,
+  focusRings: false,
+};
 
 export function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -113,6 +131,72 @@ export function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): Resolve
 
 export function getInitialAccent(): AccentValue {
   return readStorage<AccentValue>(STORAGE_KEYS.accent, 'neon-orange');
+}
+
+export function sanitizeAccessibilityPreferences(raw: unknown): AccessibilityPreferences {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_ACCESSIBILITY_PREFS };
+  const candidate = raw as Partial<AccessibilityPreferences>;
+  const motionMode =
+    candidate.motionMode === 'reduce' || candidate.motionMode === 'full' || candidate.motionMode === 'system'
+      ? candidate.motionMode
+      : 'system';
+  return {
+    motionMode,
+    highContrast: Boolean(candidate.highContrast),
+    largeText: Boolean(candidate.largeText),
+    focusRings: Boolean(candidate.focusRings),
+  };
+}
+
+export function getInitialAccessibility(): AccessibilityPreferences {
+  return sanitizeAccessibilityPreferences(readStorage(STORAGE_KEYS.accessibility, null));
+}
+
+export function resolveEffectiveReducedMotion(
+  motionMode: AccessibilityPreferences['motionMode'],
+  osPrefersReduced: boolean
+): boolean {
+  if (motionMode === 'reduce') return true;
+  if (motionMode === 'full') return false;
+  return osPrefersReduced;
+}
+
+export const DONATION_COOLDOWN_MS = 1000 * 60 * 60 * 72; // 72 hours between gentle nudges
+
+export function getDonationPromptState(): DonationPromptState {
+  const raw = readStorage<Partial<DonationPromptState> | null>(STORAGE_KEYS.donationPrompt, null);
+  if (raw && typeof raw === 'object') {
+    return {
+      dismissedCount: Math.max(0, Number(raw.dismissedCount) || 0),
+      neverShow: Boolean(raw.neverShow),
+      lastShownAt: Math.max(0, Number(raw.lastShownAt) || 0),
+      donatedClicked: Boolean(raw.donatedClicked),
+    };
+  }
+  return {
+    dismissedCount: 0,
+    neverShow: false,
+    lastShownAt: 0,
+    donatedClicked: false,
+  };
+}
+
+export function shouldTriggerDonationPrompt(input: {
+  state: DonationPromptState;
+  nowMs: number;
+  consentDecided: boolean;
+  isMenuOpen: boolean;
+  standbyMode: boolean;
+  forcePreview?: boolean;
+}): boolean {
+  if (input.forcePreview) return !input.isMenuOpen && !input.standbyMode;
+  if (!input.consentDecided || input.isMenuOpen || input.standbyMode) return false;
+  if (input.state.neverShow || input.state.donatedClicked) return false;
+  if (input.state.dismissedCount >= 3) return false;
+  if (input.state.lastShownAt > 0 && input.nowMs - input.state.lastShownAt < DONATION_COOLDOWN_MS) {
+    return false;
+  }
+  return true;
 }
 
 export interface IntroPreferences {

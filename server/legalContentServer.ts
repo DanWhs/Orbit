@@ -78,6 +78,13 @@ function buildItalianLegalSections(jurisdiction: JurisdictionCode): LegalSection
       body:
         'Per gli utenti residenti nel Regno Unito e nelle principali giurisdizioni internazionali extra-SEE: (1) Regno Unito (UK GDPR e Data Protection Act 2018): il trattamento locale rispetta i principi di liceità e minimizzazione supervisionati dall’Information Commissioner’s Office (ICO, ico.org.uk), garantendo agli interessati UK i medesimi diritti di accesso, rettifica, cancellazione e portabilità; (2) Brasile (LGPD — Lei Geral de Proteção de Dados n. 13.709/2018): sono garantiti i diritti di conferma dell’esistenza del trattamento, revoca del consenso e anonimizzazione sotto vigilanza dell’ANPD; (3) Canada (PIPEDA) e altre aree internazionali: il consenso alle richieste esterne facoltative è sempre espresso, informato e revocabile, con eventuale trasferimento internazionale verso motori di ricerca scelti dall’utente eseguito unicamente su sua richiesta diretta o mediante adeguate garanzie contrattuali (Clausole Contrattuali Standard UE e UK IDTA).',
     },
+    {
+      id: 'donazioni-volontarie',
+      number: '10',
+      title: 'Donazioni Volontarie e Assenza di Rapporto Commerciale (Normativa Italiana e Internazionale)',
+      body:
+        'Eventuali contributi inviati tramite il pulsante Buy Me a Coffee (buymeacoffee.com/OrbitHome) costituiscono esclusivamente atti spontanei di liberalità e sostegno allo sviluppo del progetto open-source Orbit, e NON costituiscono in alcun caso vendita di beni, prestazione di servizi, abbonamento o corrispettivo commerciale. (1) Normativa italiana: tali elargizioni rientrano nella disciplina della donazione per spirito di liberalità di cui all’Art. 769 del Codice Civile italiano e, trattandosi di contributi spontanei di entità proporzionata alla libera discrezione del donante, nella fattispecie delle donazioni di modico valore ai sensi dell’Art. 783 c.c. (esenti dalle formalità dell’Art. 782 c.c.), con conseguente inapplicabilità del Codice del Consumo (D.Lgs. 206/2005, Artt. 45–67) e degli obblighi di commercio elettronico (D.Lgs. 70/2003) proprio per l’assenza di contratto a prestazioni corrispettive; nessuna funzionalità di Orbit è subordinata o sbloccata tramite pagamento. (2) Normativa europea e internazionale: nell’Unione Europea la Direttiva (UE) 2011/83 sui diritti dei consumatori (Art. 3) esclude gli atti gratuiti privi di prezzo o corrispettivo contrattuale, così come la Direttiva IVA 2006/112/CE (Art. 2) distingue le mere liberalità dalle cessioni onerose; nel Regno Unito tali contributi rappresentano gratuitous gifts privi di consideration contrattuale al di fuori del Consumer Rights Act 2015; negli Stati Uniti costituiscono contributi volontari senza alcun quid pro quo né garanzia commerciale sotto la disciplina FTC/UCC (e non configurano donazioni deducibili 501(c)(3)). I trasferimenti sono elaborati su piattaforma esterna Buy Me a Coffee Inc. secondo i relativi standard di sicurezza PCI-DSS / PSD2.',
+    },
   ];
 }
 
@@ -138,14 +145,14 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       number: '6',
       title: 'AI Transparency Disclosure (EU AI Act 2024/1689)',
       body:
-        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic server-assisted procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and in its current release is NOT an autonomous generative Large Language Model (LLM); (2) Third-Party AI Search Engines: any query you choose to send to an external search provider that displays AI-generated summaries is governed by that provider’s own AI Act transparency disclosures.',
+        'Pursuant to Article 50 of Regulation (EU) 2024/1689 (EU AI Act): (1) Explicit System Notice: the animated Orbit mascot at the center of the page is powered purely by deterministic server-assisted procedural math (cursor and text-caret eye tracking, click-triggered reactions, and damped spring physics) and also lets users optionally connect their own Google Gemini API key (encrypted end-to-end) because Orbit has no self-hosted model server; (2) Third-Party AI Models: any AI response generated using your personal Gemini API key or external search engine is governed by the provider’s own AI Act disclosures.',
     },
     {
       id: 'sicurezza',
       number: '7',
       title: 'Security Measures (HTTPS/TLS Encryption & Local Isolation)',
       body:
-        'Orbit protects session integrity through layered technical safeguards: (1) Encrypted Transport: all connections and authorized external lookups use HTTPS/TLS (SSL) encryption in transit; (2) Zero Central Profiling Database: preferences stay isolated in your browser storage, removing central server breach exposure; (3) URL Sanitization: user-configured quick links are validated to permit only safe http:// and https:// protocols.',
+        'Orbit protects session integrity through layered technical safeguards: (1) Encrypted Transport: all connections and authorized external lookups use HTTPS/TLS (SSL) encryption in transit; (2) Multi-Layer Key Protection: personal Gemini API keys supplied optionally by users are protected via HKDF-SHA256 + AES-256-GCM double envelopes inside HttpOnly Partitioned cookies and Web Crypto non-extractable keys; (3) URL Sanitization: user-configured quick links are validated to permit only safe http:// and https:// protocols.',
     },
     {
       id: 'requisiti-usa',
@@ -161,6 +168,13 @@ function buildEnglishLegalSections(jurisdiction: JurisdictionCode): LegalSection
       title: 'UK (UK GDPR / ICO) & Non-EU International Requirements (LGPD / PIPEDA)',
       body:
         'For users in the United Kingdom and jurisdictions outside the European Economic Area: (1) United Kingdom: Orbit aligns with the UK GDPR and Data Protection Act 2018 overseen by the ICO, granting UK residents equivalent data access, rectification, and erasure rights; (2) Brazil (LGPD Law No. 13.709/2018) and Canada (PIPEDA): users retain clear consent control, transparency over technical storage, and complaint avenues before ANPD or the Office of the Privacy Commissioner of Canada; (3) Cross-Border Transfers: any international data routing triggered by user-initiated searches relies on user-directed navigation or Standard Contractual Clauses (EU SCCs / UK IDTA).',
+    },
+    {
+      id: 'donazioni-volontarie',
+      number: '10',
+      title: 'Voluntary Donations & Non-Commercial Gift Notice (Italian & International Law)',
+      body:
+        'Any contribution made via the Buy Me a Coffee button (buymeacoffee.com/OrbitHome) is strictly a spontaneous act of generosity to support ongoing open-source development of Orbit and does NOT constitute a sale of goods, paid service, subscription, or commercial transaction of any kind. (1) Italian Law: voluntary contributions qualify as non-commercial acts of liberality under Article 769 of the Italian Civil Code (Codice Civile) and specifically as modest-value gifts (donazioni di modico valore) under Article 783 c.c. (exempt from notarial form under Article 782 c.c.), falling outside consumer sales contracts under Legislative Decree 206/2005 (Codice del Consumo, Arts. 45–67) and e-commerce rules (D.Lgs. 70/2003); zero features or access depend on payment. (2) European & International Law: under EU Consumer Rights Directive 2011/83/EU (Art. 3) and EU VAT Directive 2006/112/EC (Art. 2), gratuitous transfers without contractual consideration are not consumer sales; under UK law, voluntary gifts lack contractual consideration outside the Consumer Rights Act 2015; under US law, optional developer tips without quid pro quo carry no commercial warranty under UCC/FTC rules and are personal gifts rather than 501(c)(3) tax-deductible charity. Transfers are processed externally by Buy Me a Coffee Inc. under PCI-DSS and PSD2 compliance.',
     },
   ];
 }
@@ -182,6 +196,7 @@ function buildLocalizedSummaryLegalSections(
       '7. Sécurité (HTTPS/TLS)',
       '8. Exigences États-Unis (CCPA/CPRA, GPC, COPPA)',
       '9. Exigences Royaume-Uni (UK GDPR / ICO) et Hors-UE (LGPD / PIPEDA)',
+      '10. Dons Volontaires et Absence de Vente Commerciale (Droit Italien & International)',
     ];
     return base.map((sec, idx) => ({
       ...sec,
@@ -195,7 +210,9 @@ function buildLocalizedSummaryLegalSections(
               ? `Pour toute question relative à la confidentialité, à l’accessibilité ou au projet open-source, vous pouvez contacter directement Daniele Mastrorilli via le dépôt public sur GitHub.`
               : idx === 3
                 ? `Architecture sans dark pattern conforme 2026 : (1) Blocage préventif des API de suggestions tierces avant consentement ; (2) Boutons Accepter, Refuser et Personnaliser de visibilité strictement égale ; (3) Modification possible à tout moment ci-dessous.`
-                : sec.body,
+                : idx === 10
+                  ? `Toute contribution via Buy Me a Coffee (buymeacoffee.com/OrbitHome) est un don purement volontaire et gratuit, sans aucune contrepartie commerciale, ni vente de biens ou abonnement. En droit italien, il s’agit de libéralités de valeur modique au sens des articles 769, 782 et 783 du Code civil italien (hors champ du Code de la consommation D.Lgs. 206/2005) ; en droit européen et international, la directive (UE) 2011/83 (art. 3) et la directive TVA 2006/112/CE (art. 2), ainsi que les règles du Royaume-Uni (absence de consideration) et des États-Unis (dons sans quid pro quo), confirment qu’il ne s’agit ni d’une vente ni d’un contrat commercial. Les paiements sont traités par Buy Me a Coffee Inc.`
+                  : sec.body,
     }));
   }
   if (lang === 'de') {
@@ -210,6 +227,7 @@ function buildLocalizedSummaryLegalSections(
       '7. Sicherheit (HTTPS/TLS)',
       '8. US-Anforderungen (CCPA/CPRA, GPC, COPPA)',
       '9. UK- (UK GDPR / ICO) & Nicht-EU-Anforderungen (LGPD / PIPEDA)',
+      '10. Freiwillige Spenden & Kein Kaufvertrag (Italienisches & Internationales Recht)',
     ];
     return base.map((sec, idx) => ({
       ...sec,
@@ -223,7 +241,9 @@ function buildLocalizedSummaryLegalSections(
               ? `Für Datenschutzanfragen, Barrierefreiheits-Feedback oder Fehlerberichte wenden Sie sich bitte direkt über das öffentliche GitHub-Repository an Daniele Mastrorilli.`
               : idx === 3
                 ? `Cookie- und Einwilligungsmanagement ohne Dark Patterns (2026): (1) Präventive Blockierung nicht notwendiger externer Anfragen; (2) Gleichwertige Schaltflächen für Akzeptieren, Ablehnen und Anpassen; (3) Jederzeitige Widerrufsmöglichkeit unten.`
-                : sec.body,
+                : idx === 10
+                  ? `Beiträge über Buy Me a Coffee (buymeacoffee.com/OrbitHome) sind rein freiwillige, unentgeltliche Zuwendungen zur Unterstützung der Open-Source-Entwicklung und stellen keinerlei Warenverkauf, kostenpflichtige Dienstleistung oder Abonnement dar. Nach italienischem Recht fallen sie unter Art. 769, 782 und 783 Codice Civile (Schenkung geringen Werts, außerhalb des Verbraucherschutzgesetzes D.Lgs. 206/2005); nach EU-Recht (Richtlinie 2011/83/EU Art. 3, MwSt-Richtlinie 2006/112/EG Art. 2) sowie britischem (fehlende consideration) und US-Recht (Spende ohne quid pro quo) liegt kein Kaufvertrag vor. Die Abwicklung erfolgt extern über Buy Me a Coffee Inc.`
+                  : sec.body,
     }));
   }
   const titles = [
@@ -237,6 +257,7 @@ function buildLocalizedSummaryLegalSections(
     '7. Seguridad (HTTPS/TLS)',
     '8. Requisitos EE. UU. (CCPA/CPRA, GPC, COPPA)',
     '9. Requisitos Reino Unido (UK GDPR / ICO) y Fuera de la UE (LGPD / PIPEDA)',
+    '10. Donaciones Voluntarias y Ausencia de Venta Comercial (Derecho Italiano e Internacional)',
   ];
   return base.map((sec, idx) => ({
     ...sec,
@@ -250,7 +271,9 @@ function buildLocalizedSummaryLegalSections(
             ? `Para consultas de privacidad, accesibilidad o avisos sobre el proyecto open-source, puedes contactar directamente con Daniele Mastrorilli a través del repositorio público en GitHub.`
             : idx === 3
               ? `Gestión de consentimiento sin patrones oscuros (2026): (1) Bloqueo preventivo de APIs externas no esenciales; (2) Botones de igual visibilidad para Aceptar, Rechazar y Personalizar; (3) Modificación disponible en cualquier instante abajo.`
-              : sec.body,
+              : idx === 10
+                ? `Las aportaciones mediante Buy Me a Coffee (buymeacoffee.com/OrbitHome) son donaciones puramente voluntarias y gratuitas de apoyo al desarrollo open-source de Orbit, y NO constituyen venta de bienes, servicio de pago, suscripción ni operación comercial alguna. Conforme al derecho italiano (Arts. 769, 782 y 783 del Código Civil italiano sobre donaciones de módico valor, excluidas del Código de Consumo D.Lgs. 206/2005) y al derecho europeo e internacional (Directiva 2011/83/UE Art. 3, Directiva IVA 2006/112/CE Art. 2, derecho británico sin consideration y normativa estadounidense sin quid pro quo), estas liberalidades carecen de contraprestación contractual. El procesamiento externo corresponde a Buy Me a Coffee Inc.`
+                : sec.body,
   }));
 }
 

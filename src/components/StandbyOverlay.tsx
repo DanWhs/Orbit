@@ -120,11 +120,11 @@ export const StandbyOverlay = memo(function StandbyOverlay({
               opacity: 0,
               x: 18,
               scale: 0.99,
-              transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+              transition: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
             }}
-            transition={{ duration: 0.56, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.56, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
             style={{ willChange: 'transform, opacity' }}
-            className="absolute left-[50%] right-8 lg:right-16 top-1/2 -translate-y-1/2 flex flex-col items-start justify-center pl-4 md:pl-8 select-none"
+            className="absolute left-[46%] md:left-[50%] right-5 sm:right-8 lg:right-16 top-1/2 -translate-y-1/2 flex flex-col items-start justify-center pl-2 sm:pl-4 md:pl-8 select-none"
           >
             {/* Giant primary time that Orbit gazes directly at */}
             <time
@@ -132,7 +132,7 @@ export const StandbyOverlay = memo(function StandbyOverlay({
               dateTime={now.toISOString()}
               className="font-display font-bold tabular-nums leading-[0.94] tracking-[-0.045em]"
               style={{
-                fontSize: 'clamp(74px, 11.5vw, 156px)',
+                fontSize: 'clamp(54px, min(11vw, 21vh), 156px)',
                 color: 'var(--fg)',
               }}
             >
@@ -142,7 +142,7 @@ export const StandbyOverlay = memo(function StandbyOverlay({
             {/* Smaller date + local weather right below (time is not repeated) */}
             <div
               data-testid="standby-subinfo"
-              className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[15px] md:text-[17px] font-medium"
+              className="mt-2.5 sm:mt-4 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13.5px] sm:text-[15px] md:text-[17px] font-medium"
               style={{ color: 'var(--mut)' }}
             >
               <span data-testid="standby-date-sub" className="capitalize">
@@ -174,7 +174,7 @@ export const StandbyOverlay = memo(function StandbyOverlay({
             </div>
 
             <p
-              className="mt-7 text-xs font-medium tracking-[0.02em] opacity-55"
+              className="mt-4 sm:mt-7 text-xs font-medium tracking-[0.02em] opacity-55"
               style={{ color: 'var(--mut)' }}
             >
               {dict.standbyExitHint}

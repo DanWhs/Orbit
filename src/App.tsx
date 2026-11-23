@@ -3,12 +3,14 @@ import { AnimatePresence, motion } from 'motion/react';
 import { MoonStar, Settings } from 'lucide-react';
 import { BootSplash } from './components/BootSplash';
 import { CookieNoticeModal } from './components/CookieNoticeModal';
+import { DonationPopup } from './components/DonationPopup';
 import { FooterBar } from './components/FooterBar';
 import { LegalModal } from './components/LegalModal';
 import { BubbleButton } from './components/LiquidBubble';
 import { OrbitBot } from './components/OrbitBot';
+import { AttachedReferenceImage, OrbChatPanel } from './components/OrbChatPanel';
 import { SearchBlock } from './components/SearchBlock';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, SettingsTabId } from './components/SettingsModal';
 import { StandbyOverlay } from './components/StandbyOverlay';
 import { resolveAccentTokens, hexToRgb } from './constants/accents';
 import {
@@ -19,15 +21,31 @@ import {
 } from './i18n/translations';
 import {
   AccentValue,
+  AccessibilityPreferences,
+  AiAskResponse,
+  AiChatMessage,
+  AiChatTurn,
+  AiImageResponse,
+  AiStatusResponse,
   BootPhase,
   BotReactionType,
   ConsentState,
+  DonationPromptState,
+  GeminiRoleId,
+  ImageAspectRatio,
   LocaleRegionOption,
   QuickLink,
   ResolvedTheme,
   SearchSuggestion,
   ThemeMode,
 } from './types/orbit';
+import {
+  clearClientVault,
+  hasEncryptedClientBackup,
+  loadEncryptedClientBackup,
+  packClientTransportEnvelope,
+  saveEncryptedClientBackup,
+} from './utils/clientVault';
 import { computeStageLayout } from './utils/layoutMath';
 import { playUiSound, unlockOrbitAudio } from './utils/orbSounds';
 import {
@@ -41,15 +59,20 @@ import {
 } from './utils/searchEngine';
 import {
   DEFAULT_QUICK_LINKS,
+  getDonationPromptState,
   getInitialAccent,
+  getInitialAccessibility,
   getInitialConsent,
   getInitialIntroPreferences,
   getInitialTheme,
   IntroPreferences,
   readStorage,
+  resolveEffectiveReducedMotion,
   resolveThemeMode,
+  sanitizeAccessibilityPreferences,
   sanitizeQuickLinks,
   shouldShowBootIntro,
+  shouldTriggerDonationPrompt,
   STORAGE_KEYS,
   writeStorage,
 } from './utils/storage';
@@ -68,20 +91,29 @@ export default function App() {
   const [localeOption, setLocaleOption] = useState<LocaleRegionOption>(getInitialLocaleOption);
   const [consent, setConsent] = useState<ConsentState>(getInitialConsent);
   const [introPrefs, setIntroPrefs] = useState<IntroPreferences>(getInitialIntroPreferences);
+  const [accessibilityPrefs, setAccessibilityPrefs] = useState<AccessibilityPreferences>(
+    getInitialAccessibility
+  );
+  const [osPrefersReduced, setOsPrefersReduced] = useState<boolean>(() =>
+    typeof window !== 'undefined'
+      ? Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+      : false
+  );
 
   const [bootPhase, setBootPhase] = useState<BootPhase>(() => {
     const autostart =
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('autostart') === '1';
-    const reducedMotion =
-      typeof window !== 'undefined' &&
-      Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    const initialReduced = resolveEffectiveReducedMotion(
+      accessibilityPrefs.motionMode,
+      osPrefersReduced
+    );
     const shouldPlay = shouldShowBootIntro({
       introSeen: introPrefs.introSeen,
       alwaysShowIntro: introPrefs.alwaysShowIntro,
       consentDecided: consent.decided,
       autostart,
-      reducedMotion,
+      reducedMotion: initialReduced,
     });
     return shouldPlay ? 'word' : 'ready';
   });
@@ -90,13 +122,35 @@ export default function App() {
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>(() => getHistorySuggestions());
   const [caretRatio, setCaretRatio] = useState(0);
+  const [lastTypedTimestamp, setLastTypedTimestamp] = useState(0);
   const [reactionSignal, setReactionSignal] = useState<{ type: BotReactionType; nonce: number } | null>(
     null
   );
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
+  const [legalInitialSectionId, setLegalInitialSectionId] = useState<string | null>(null);
   const [standbyMode, setStandbyMode] = useState(false);
+
+  // Gemini BYOK AI chat + Nano Banana 2.1 image studio state
+  const [aiStatus, setAiStatus] = useState<AiStatusResponse>({
+    connected: false,
+    maskedHint: null,
+    layersActive: 0,
+  });
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiMode, setAiMode] = useState<'chat' | 'image'>('chat');
+  const [aiRole, setAiRole] = useState<GeminiRoleId>('auto');
+  const [imageAspectRatio, setImageAspectRatio] = useState<ImageAspectRatio>('1:1');
+  const [attachedImage, setAttachedImage] = useState<AttachedReferenceImage | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessages, setAiMessages] = useState<AiChatMessage[]>([]);
+
+  // Periodic donation prompt state
+  const [donationState, setDonationState] = useState<DonationPromptState>(getDonationPromptState);
+  const [donationPopupOpen, setDonationPopupOpen] = useState(false);
+  const [donationPreviewDismissed, setDonationPreviewDismissed] = useState(false);
 
   const [viewportMetrics, setViewportMetrics] = useState(() => {
     const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
@@ -133,11 +187,20 @@ export default function App() {
 
   const cookieNoticeOpen =
     bootPhase === 'ready' && !consent.decided && !settingsOpen && !legalOpen;
-  const overlayBackdropOpen = cookieNoticeOpen;
-  const isMenuOpen = settingsOpen || legalOpen || cookieNoticeOpen;
+  const otherModalOpen = settingsOpen || legalOpen || cookieNoticeOpen;
   const isDesktop = viewportMetrics.width >= 768;
-  const canUseDesktopStandby = isDesktop && !viewportMetrics.isMobile;
+  const canUseDesktopStandby = isDesktop;
+  const showDonationOverlay =
+    donationPopupOpen && !otherModalOpen && !(standbyMode && canUseDesktopStandby && bootPhase === 'ready');
+  const overlayBackdropOpen = cookieNoticeOpen || showDonationOverlay;
+  const isMenuOpen = otherModalOpen || showDonationOverlay;
   const activeStandby = standbyMode && canUseDesktopStandby && !isMenuOpen && bootPhase === 'ready';
+  const activeChatMode = aiChatOpen && !isMenuOpen && !activeStandby && bootPhase === 'ready';
+
+  const effectiveReducedMotion = useMemo(
+    () => resolveEffectiveReducedMotion(accessibilityPrefs.motionMode, osPrefersReduced),
+    [accessibilityPrefs.motionMode, osPrefersReduced]
+  );
 
   // Trigger judging or perplexed face whenever user modifies settings or preferences
   const triggerModifyReaction = useCallback(() => {
@@ -151,25 +214,79 @@ export default function App() {
     prewarmTranslationCache();
   }, []);
 
+  // Hydrate encrypted Gemini vault status (with encrypted client vault fallback re-seal if cookie expired)
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateAiVault = async () => {
+      try {
+        const res = await fetch('/api/ai/status');
+        if (!res.ok || cancelled) return;
+        const status = (await res.json()) as AiStatusResponse;
+        if (status.connected) {
+          if (!cancelled) setAiStatus(status);
+          return;
+        }
+        if (hasEncryptedClientBackup()) {
+          const recovered = await loadEncryptedClientBackup();
+          if (recovered && !cancelled) {
+            const clientEnvelope = await packClientTransportEnvelope(recovered);
+            const reseal = await fetch('/api/ai/key', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'OrbitSearch',
+              },
+              body: JSON.stringify(
+                clientEnvelope ? { clientEnvelope } : { apiKey: recovered }
+              ),
+            });
+            if (reseal.ok && !cancelled) {
+              setAiStatus((await reseal.json()) as AiStatusResponse);
+            }
+          }
+        }
+      } catch {
+        // Ignore offline errors cleanly
+      }
+    };
+    void hydrateAiVault();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Resolve active translation dictionary synchronously (zero flicker)
   const dict = useMemo(
     () => getCachedDictionary(localeOption.lang, localeOption.jurisdiction),
     [localeOption.lang, localeOption.jurisdiction]
   );
 
-  // Follow OS prefers-color-scheme live when theme is set to 'system'
+  // Follow OS prefers-color-scheme and prefers-reduced-motion live
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    setPrefersDark(mq.matches);
-    const handleChange = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', handleChange);
-      return () => mq.removeEventListener('change', handleChange);
-    }
-    mq.addListener(handleChange);
-    return () => mq.removeListener(handleChange);
+    const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+    const motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersDark(darkMq.matches);
+    setOsPrefersReduced(motionMq.matches);
+    const handleDark = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
+    const handleMotion = (e: MediaQueryListEvent) => setOsPrefersReduced(e.matches);
+    darkMq.addEventListener?.('change', handleDark);
+    motionMq.addEventListener?.('change', handleMotion);
+    return () => {
+      darkMq.removeEventListener?.('change', handleDark);
+      motionMq.removeEventListener?.('change', handleMotion);
+    };
   }, []);
+
+  // Apply Accessibility DOM attributes to <html>
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.reduceMotion = effectiveReducedMotion ? 'reduce' : 'full';
+    root.dataset.highContrast = accessibilityPrefs.highContrast ? 'true' : 'false';
+    root.dataset.largeText = accessibilityPrefs.largeText ? 'true' : 'false';
+    root.dataset.focusRings = accessibilityPrefs.focusRings ? 'true' : 'false';
+    writeStorage(STORAGE_KEYS.accessibility, accessibilityPrefs);
+  }, [accessibilityPrefs, effectiveReducedMotion]);
 
   const resolvedTheme: ResolvedTheme = useMemo(
     () => resolveThemeMode(theme, prefersDark),
@@ -325,6 +442,49 @@ export default function App() {
     };
   }, [activeStandby]);
 
+  // Periodic voluntary support prompt after active usage (or ?promptDonation=1 preview)
+  useEffect(() => {
+    const rawPreview =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('promptDonation') === '1';
+    const forcePreview = rawPreview && !donationPreviewDismissed;
+    if (!bootPhase || bootPhase !== 'ready') return;
+    if (
+      !shouldTriggerDonationPrompt({
+        state: donationState,
+        nowMs: Date.now(),
+        consentDecided: consent.decided,
+        isMenuOpen: otherModalOpen || donationPopupOpen,
+        standbyMode: activeStandby,
+        forcePreview,
+      })
+    ) {
+      return;
+    }
+
+    const delayMs = forcePreview ? 450 : 45000;
+    const timer = setTimeout(() => {
+      setDonationPopupOpen(true);
+      if (!forcePreview) {
+        setDonationState((prev) => {
+          const next = { ...prev, lastShownAt: Date.now() };
+          writeStorage(STORAGE_KEYS.donationPrompt, next);
+          return next;
+        });
+      }
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [
+    bootPhase,
+    consent.decided,
+    otherModalOpen,
+    donationPopupOpen,
+    donationPreviewDismissed,
+    activeStandby,
+    donationState,
+  ]);
+
   const stageLayout = useMemo(() => {
     const layout = computeStageLayout({
       viewportWidth: viewportMetrics.width,
@@ -338,22 +498,41 @@ export default function App() {
       suggestionCount: suggestions.length,
     });
 
+    const isCompactHeight = viewportMetrics.height <= 620;
     const standbyBotSize = Math.round(
-      Math.max(300, Math.min(viewportMetrics.width * 0.41, viewportMetrics.height * 0.66, 520))
+      Math.max(190, Math.min(viewportMetrics.width * 0.36, viewportMetrics.height * 0.56, 500))
+    );
+    const chatBotSize = Math.round(
+      Math.max(
+        164,
+        Math.min(
+          viewportMetrics.width * 0.24,
+          viewportMetrics.height * (isCompactHeight ? 0.34 : 0.42),
+          320
+        )
+      )
     );
 
     const desiredBotSize = activeStandby
       ? standbyBotSize
-      : cookieNoticeOpen && viewportMetrics.width < 768
-        ? Math.min(layout.botSize, Math.max(82, viewportMetrics.height * 0.15))
-        : layout.botSize;
+      : activeChatMode
+        ? isDesktop
+          ? chatBotSize
+          : Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.13))
+        : overlayBackdropOpen && viewportMetrics.width < 768
+          ? Math.min(layout.botSize, Math.max(76, viewportMetrics.height * 0.14))
+          : layout.botSize;
     const desiredBotCenterY = activeStandby
       ? viewportMetrics.height * 0.5
-      : overlayBackdropOpen && viewportMetrics.width >= 768
-        ? viewportMetrics.height * 0.5
-        : cookieNoticeOpen && viewportMetrics.width < 768
-          ? Math.max(90, viewportMetrics.safeTop + Math.min(132, viewportMetrics.height * 0.175))
-          : layout.botCenterY;
+      : activeChatMode
+        ? isDesktop
+          ? viewportMetrics.height * 0.5
+          : Math.max(66, viewportMetrics.safeTop + Math.min(84, viewportMetrics.height * 0.11))
+        : overlayBackdropOpen && viewportMetrics.width >= 768
+          ? viewportMetrics.height * 0.5
+          : overlayBackdropOpen && viewportMetrics.width < 768
+            ? Math.max(82, viewportMetrics.safeTop + Math.min(120, viewportMetrics.height * 0.165))
+            : layout.botCenterY;
 
     return {
       ...layout,
@@ -366,8 +545,9 @@ export default function App() {
     isFocused,
     isMenuOpen,
     activeStandby,
+    activeChatMode,
+    isDesktop,
     overlayBackdropOpen,
-    cookieNoticeOpen,
     quickLinks.length,
     suggestions.length,
   ]);
@@ -510,9 +690,11 @@ export default function App() {
     setSuggestions(trimmed ? buildSuggestions(trimmed, []) : []);
   }, [query]);
 
-  const handleOpenSettings = useCallback(() => {
+  const handleOpenSettings = useCallback((initialTab: SettingsTabId | null = null) => {
     inputRef.current?.blur();
     setStandbyMode(false);
+    setDonationPopupOpen(false);
+    setSettingsInitialTab(initialTab);
     playUiSound('menu-open');
     setSettingsOpen(true);
   }, []);
@@ -529,22 +711,370 @@ export default function App() {
   const handleCloseSettings = useCallback(() => {
     playUiSound('menu-close');
     setSettingsOpen(false);
+    setSettingsInitialTab(null);
   }, []);
   const handleCloseLegal = useCallback(() => {
     playUiSound('menu-close');
     setLegalOpen(false);
+    setLegalInitialSectionId(null);
   }, []);
   const handleOpenLegalFromFooter = useCallback(() => {
     inputRef.current?.blur();
+    setLegalInitialSectionId(null);
     playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
   const handleOpenLegalFromNotice = useCallback(() => {
+    setLegalInitialSectionId(null);
     playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
-  const handleOpenLegalFromSettings = useCallback(() => {
+  const handleOpenLegalFromSettings = useCallback((sectionId?: string) => {
     setSettingsOpen(false);
+    setSettingsInitialTab(null);
+    setLegalInitialSectionId(sectionId ?? null);
+    setLegalOpen(true);
+  }, []);
+
+  const handleQueryChange = useCallback((nextVal: string) => {
+    setQuery(nextVal);
+    setLastTypedTimestamp(performance.now());
+  }, []);
+
+  const handleSaveAiKey = useCallback(
+    async (apiKey: string, rememberDevice: boolean): Promise<{ ok: boolean; error?: string }> => {
+      try {
+        const clientEnvelope = await packClientTransportEnvelope(apiKey);
+        const res = await fetch('/api/ai/key', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'OrbitSearch',
+          },
+          body: JSON.stringify(clientEnvelope ? { clientEnvelope } : { apiKey }),
+        });
+        if (!res.ok) {
+          const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+          return { ok: false, error: errBody.error || dict.aiKeyInvalidError };
+        }
+        const status = (await res.json()) as AiStatusResponse;
+        setAiStatus(status);
+        if (rememberDevice) {
+          await saveEncryptedClientBackup(apiKey);
+        } else {
+          await clearClientVault();
+        }
+        return { ok: true };
+      } catch {
+        return { ok: false, error: dict.aiKeyInvalidError };
+      }
+    },
+    [dict.aiKeyInvalidError]
+  );
+
+  const handleDisconnectAiKey = useCallback(async () => {
+    try {
+      await fetch('/api/ai/key', {
+        method: 'DELETE',
+        headers: { 'X-Requested-With': 'OrbitSearch' },
+      });
+    } catch {
+      // Proceed clearing local state cleanly
+    }
+    await clearClientVault();
+    setAiStatus({ connected: false, maskedHint: null, layersActive: 0 });
+  }, []);
+
+  const sendChatPrompt = useCallback(
+    async (rawPrompt: string) => {
+      const prompt = rawPrompt.trim();
+      if (!prompt || aiLoading) return;
+
+      const userMsg: AiChatMessage = {
+        id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: 'user',
+        text: prompt,
+        mode: 'chat',
+      };
+      const priorHistory: AiChatTurn[] = aiMessages
+        .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text.trim().length > 0)
+        .slice(-8)
+        .map((m) => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          text: m.text,
+        }));
+
+      setAiMessages((prev) => [...prev, userMsg]);
+      setAiChatOpen(true);
+
+      if (!aiStatus.connected) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'error',
+            text: dict.aiAnswerNeedKey,
+            needKey: true,
+          },
+        ]);
+        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+        return;
+      }
+
+      setAiLoading(true);
+      setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
+
+      try {
+        const res = await fetch('/api/ai/ask', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'OrbitSearch',
+          },
+          body: JSON.stringify({
+            prompt,
+            lang: localeOption.lang,
+            role: aiRole,
+            history: priorHistory,
+          }),
+        });
+        if (!res.ok) {
+          const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+          const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
+          setAiMessages((prev) => [
+            ...prev,
+            {
+              id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              role: 'error',
+              text:
+                errData.code === 'KEY_MISSING'
+                  ? dict.aiAnswerNeedKey
+                  : errData.error || dict.aiAnswerNeedKey,
+              needKey,
+            },
+          ]);
+          setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+          return;
+        }
+        const data = (await res.json()) as AiAskResponse;
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'assistant',
+            text: data.answer,
+            model: data.model,
+            roleBadge: data.roleUsed,
+            mode: 'chat',
+          },
+        ]);
+        setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
+      } catch {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'error',
+            text: dict.aiAnswerNeedKey,
+            needKey: !aiStatus.connected,
+          },
+        ]);
+        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+      } finally {
+        setAiLoading(false);
+      }
+    },
+    [aiLoading, aiMessages, aiRole, aiStatus.connected, dict.aiAnswerNeedKey, localeOption.lang]
+  );
+
+  const sendImagePrompt = useCallback(
+    async (rawPrompt: string) => {
+      const prompt = rawPrompt.trim();
+      if (!prompt || aiLoading) return;
+
+      const sourceImg = attachedImage;
+      const userMsg: AiChatMessage = {
+        id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        role: 'user',
+        text: prompt,
+        sourceImageUrl: sourceImg?.dataUrl,
+        mode: 'image',
+      };
+
+      setAiMessages((prev) => [...prev, userMsg]);
+      setAiChatOpen(true);
+
+      if (!aiStatus.connected) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'error',
+            text: dict.aiAnswerNeedKey,
+            needKey: true,
+          },
+        ]);
+        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+        return;
+      }
+
+      setAiLoading(true);
+      setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
+
+      try {
+        const res = await fetch('/api/ai/image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'OrbitSearch',
+          },
+          body: JSON.stringify({
+            prompt,
+            aspectRatio: imageAspectRatio,
+            imageBase64: sourceImg?.base64,
+            mimeType: sourceImg?.mimeType,
+          }),
+        });
+        if (!res.ok) {
+          const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+          const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
+          setAiMessages((prev) => [
+            ...prev,
+            {
+              id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              role: 'error',
+              text:
+                errData.code === 'KEY_MISSING'
+                  ? dict.aiAnswerNeedKey
+                  : errData.error || dict.aiAnswerNeedKey,
+              needKey,
+            },
+          ]);
+          setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+          return;
+        }
+        const data = (await res.json()) as AiImageResponse;
+        setAttachedImage(null);
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'assistant',
+            text: data.text || '',
+            imageUrl: data.imageUrl,
+            model: data.model,
+            mode: 'image',
+          },
+        ]);
+        setReactionSignal({ type: 'happy', nonce: Date.now() + Math.random() });
+      } catch {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            role: 'error',
+            text: dict.aiAnswerNeedKey,
+            needKey: !aiStatus.connected,
+          },
+        ]);
+        setReactionSignal({ type: 'perplexed', nonce: Date.now() + Math.random() });
+      } finally {
+        setAiLoading(false);
+      }
+    },
+    [aiLoading, aiStatus.connected, attachedImage, dict.aiAnswerNeedKey, imageAspectRatio]
+  );
+
+  const handleDispatchAiPrompt = useCallback(
+    (rawPrompt: string) => {
+      if (aiMode === 'image') {
+        void sendImagePrompt(rawPrompt);
+      } else {
+        void sendChatPrompt(rawPrompt);
+      }
+    },
+    [aiMode, sendChatPrompt, sendImagePrompt]
+  );
+
+  const handleStartEditGeneratedImage = useCallback((imageUrl: string) => {
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(imageUrl);
+    if (!match) return;
+    setAttachedImage({
+      dataUrl: imageUrl,
+      mimeType: match[1] as AttachedReferenceImage['mimeType'],
+      base64: match[2],
+    });
+    setAiMode('image');
+  }, []);
+
+  const handleAskAi = useCallback(() => {
+    const prompt = query.trim();
+    if (!prompt) return;
+    inputRef.current?.blur();
+    setAiMode('chat');
+    void sendChatPrompt(prompt);
+  }, [query, sendChatPrompt]);
+
+  const handleExitAiChat = useCallback(() => {
+    setAiChatOpen(false);
+    playUiSound('menu-close');
+  }, []);
+
+  const handleAccessibilityChange = useCallback((next: AccessibilityPreferences) => {
+    setAccessibilityPrefs(sanitizeAccessibilityPreferences(next));
+  }, []);
+
+  const handleDonationLater = useCallback(() => {
+    setDonationPreviewDismissed(true);
+    setDonationPopupOpen(false);
+    setDonationState((prev) => {
+      const next: DonationPromptState = {
+        ...prev,
+        dismissedCount: prev.dismissedCount + 1,
+        lastShownAt: Date.now(),
+      };
+      writeStorage(STORAGE_KEYS.donationPrompt, next);
+      return next;
+    });
+  }, []);
+
+  const handleDonationNever = useCallback(() => {
+    setDonationPreviewDismissed(true);
+    setDonationPopupOpen(false);
+    setDonationState((prev) => {
+      const next: DonationPromptState = {
+        ...prev,
+        neverShow: true,
+        lastShownAt: Date.now(),
+      };
+      writeStorage(STORAGE_KEYS.donationPrompt, next);
+      return next;
+    });
+  }, []);
+
+  const handleDonateClick = useCallback(() => {
+    setDonationPreviewDismissed(true);
+    setDonationPopupOpen(false);
+    setDonationState((prev) => {
+      const next: DonationPromptState = {
+        ...prev,
+        donatedClicked: true,
+        lastShownAt: Date.now(),
+      };
+      writeStorage(STORAGE_KEYS.donationPrompt, next);
+      return next;
+    });
+  }, []);
+
+  const handleOpenSupportSection = useCallback(() => {
+    handleOpenSettings('support');
+  }, [handleOpenSettings]);
+
+  const handleOpenDonationsLegal = useCallback(() => {
+    setDonationPopupOpen(false);
+    setSettingsOpen(false);
+    setLegalInitialSectionId('donazioni-volontarie');
+    playUiSound('menu-open');
     setLegalOpen(true);
   }, []);
 
@@ -571,7 +1101,11 @@ export default function App() {
   }, []);
 
   const isUiReady = bootPhase === 'ready';
-  const botHorizontalPercent = activeStandby ? 27 : overlayBackdropOpen && isDesktop ? 24 : 50;
+  const botHorizontalPercent = activeStandby
+    ? 27
+    : (overlayBackdropOpen || activeChatMode) && isDesktop
+      ? 24
+      : 50;
 
   return (
     <div
@@ -582,6 +1116,7 @@ export default function App() {
       data-keyboard-active={stageLayout.keyboardActive ? 'true' : 'false'}
       data-menu-open={isMenuOpen ? 'true' : 'false'}
       data-standby={activeStandby ? 'true' : 'false'}
+      data-ai-chat={activeChatMode ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
       className="fixed left-0 top-0 w-full overflow-hidden select-none"
       style={{
@@ -639,6 +1174,7 @@ export default function App() {
         {canUseDesktopStandby && (
           <BubbleButton
             variant="glass"
+            tabIndex={isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 0 : -1}
             data-testid="standby-btn"
             aria-label={dict.standbyAriaLabel}
             onClick={handleEnterStandby}
@@ -657,9 +1193,10 @@ export default function App() {
 
         <BubbleButton
           variant="glass"
+          tabIndex={isUiReady && !stageLayout.keyboardActive && !isMenuOpen && !activeStandby ? 0 : -1}
           data-testid="settings-btn"
           aria-label={dict.settingsAria}
-          onClick={handleOpenSettings}
+          onClick={() => handleOpenSettings(null)}
           contentClassName="grid place-items-center w-full h-full"
           className="pointer-events-auto w-11 h-11 rounded-full backdrop-blur-lg cursor-pointer hover:bg-[var(--glass2)] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acc)]"
           style={{
@@ -695,7 +1232,7 @@ export default function App() {
       {/* Boot Splash Sequence */}
       <BootSplash phase={bootPhase} centerY={stageLayout.botCenterY} />
 
-      {/* Central Mascot with Single Crisp Orbital Ring (stays z-40 above backdrop blur on PC, grows huge in Standby, fades cleanly behind Settings) */}
+      {/* Central Mascot with Single Crisp Orbital Ring */}
       <main>
         <OrbitBot
           bootPhase={bootPhase}
@@ -705,7 +1242,7 @@ export default function App() {
           horizontalPercent={botHorizontalPercent}
           viewportWidth={viewportMetrics.width}
           scale={stageLayout.scale}
-          animateStageTransition={animateStageTransition}
+          animateStageTransition={animateStageTransition && !effectiveReducedMotion}
           menuOpen={isMenuOpen}
           paused={settingsOpen || legalOpen}
           hidden={settingsOpen || legalOpen}
@@ -713,6 +1250,8 @@ export default function App() {
           isFocused={isFocused && !isMenuOpen && !activeStandby}
           hasQuery={query.trim().length > 0}
           caretRatio={caretRatio}
+          lastTypedTimestamp={lastTypedTimestamp}
+          reduceMotion={effectiveReducedMotion}
           reactionSignal={reactionSignal}
           ariaLabel={dict.botAriaLabel}
         />
@@ -727,31 +1266,63 @@ export default function App() {
 
         {/* Search Bar + Width-Matched Quick Links + Suggestions */}
         <SearchBlock
-          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen}
+          visible={isUiReady && !activeStandby && !settingsOpen && !legalOpen && !activeChatMode}
           uiTopY={stageLayout.uiTopY}
-          animateStageTransition={animateStageTransition}
+          animateStageTransition={animateStageTransition && !effectiveReducedMotion}
           query={query}
-          isFocused={isFocused && !isMenuOpen && !activeStandby}
+          isFocused={isFocused && !isMenuOpen && !activeStandby && !activeChatMode}
           quickLinks={quickLinks}
           suggestions={suggestions}
           visibleSuggestions={stageLayout.visibleSuggestions}
           dict={dict}
           inputRef={inputRef}
-          onQueryChange={setQuery}
+          aiStatus={aiStatus}
+          onQueryChange={handleQueryChange}
           onFocus={handleSearchFocus}
           onBlur={handleSearchBlur}
           onSubmit={handleSubmit}
+          onAskAi={handleAskAi}
           onCaretMove={measureCaret}
           onClearHistory={handleClearHistory}
         />
+
+        {/* Gemini Multi-Model Chatbot & Nano Banana 2.1 Image Studio */}
+        <OrbChatPanel
+          open={activeChatMode}
+          mode={aiMode}
+          role={aiRole}
+          aspectRatio={imageAspectRatio}
+          attachedImage={attachedImage}
+          messages={aiMessages}
+          loading={aiLoading}
+          aiStatus={aiStatus}
+          dict={dict}
+          onModeChange={setAiMode}
+          onRoleChange={setAiRole}
+          onAspectRatioChange={setImageAspectRatio}
+          onAttachImage={setAttachedImage}
+          onSendMessage={handleDispatchAiPrompt}
+          onStartEditGeneratedImage={handleStartEditGeneratedImage}
+          onBackToSearch={handleExitAiChat}
+          onOpenAiSettings={() => handleOpenSettings('ai')}
+        />
       </main>
 
-      {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector */}
+      {/* Minimal Discreet Footer with Accent Legal Link + Language/Region Selector + Support Coffee */}
       <FooterBar
-        visible={isUiReady && !stageLayout.keyboardActive && !activeStandby && !settingsOpen && !legalOpen}
+        visible={
+          isUiReady &&
+          !stageLayout.keyboardActive &&
+          !activeStandby &&
+          !settingsOpen &&
+          !legalOpen &&
+          !showDonationOverlay &&
+          !activeChatMode
+        }
         localeOption={localeOption}
         dict={dict}
         onOpenLegal={handleOpenLegalFromFooter}
+        onDonateClick={handleDonateClick}
         onSelectLocaleRegion={handleLocaleChange}
       />
 
@@ -765,9 +1336,21 @@ export default function App() {
         onUserModify={triggerModifyReaction}
       />
 
+      {/* Periodic Experience & Voluntary Support Popup */}
+      <DonationPopup
+        open={showDonationOverlay}
+        dict={dict}
+        onLater={handleDonationLater}
+        onNever={handleDonationNever}
+        onDonateClick={handleDonateClick}
+        onOpenSupportSection={handleOpenSupportSection}
+        onOpenDonationsLegal={handleOpenDonationsLegal}
+      />
+
       {/* Full-Screen Settings Panel */}
       <SettingsModal
         open={settingsOpen}
+        initialTab={settingsInitialTab}
         theme={theme}
         resolvedTheme={resolvedTheme}
         accentId={accentId}
@@ -776,6 +1359,9 @@ export default function App() {
         dict={dict}
         consent={consent}
         alwaysShowIntro={introPrefs.alwaysShowIntro}
+        accessibilityPrefs={accessibilityPrefs}
+        reduceMotion={effectiveReducedMotion}
+        aiStatus={aiStatus}
         reactionSignal={reactionSignal}
         onClose={handleCloseSettings}
         onThemeChange={setTheme}
@@ -784,18 +1370,24 @@ export default function App() {
         onUpdateConsent={handleUpdateConsent}
         onToggleAlwaysShowIntro={handleToggleAlwaysShowIntro}
         onSelectLocaleRegion={handleLocaleChange}
+        onAccessibilityChange={handleAccessibilityChange}
+        onSaveAiKey={handleSaveAiKey}
+        onDisconnectAiKey={handleDisconnectAiKey}
         onOpenLegal={handleOpenLegalFromSettings}
+        onDonateClick={handleDonateClick}
         onUserModify={triggerModifyReaction}
       />
 
-      {/* Full-Screen Legal & Privacy 2026 Panel (mirrors Settings layout) */}
+      {/* Full-Screen Legal & Privacy 2026 Panel */}
       <LegalModal
         open={legalOpen}
+        initialSectionId={legalInitialSectionId}
         lang={localeOption.lang}
         jurisdiction={localeOption.jurisdiction}
         jurisdictionLabel={localeOption.fullLabel}
         dict={dict}
         consent={consent}
+        reduceMotion={effectiveReducedMotion}
         reactionSignal={reactionSignal}
         onClose={handleCloseLegal}
         onUpdateConsent={handleUpdateConsent}
