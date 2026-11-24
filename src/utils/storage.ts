@@ -22,7 +22,6 @@ export const STORAGE_KEYS = {
   accessibility: 'orbit_accessibility_v1',
   donationPrompt: 'orbit_support_prompt_v1',
   aiDeviceVault: 'orbit_ai_vault_v1',
-  diagnosticsLog: 'orbit_diag_v1',
 } as const;
 
 export const MAX_QUICK_LINKS = 4;

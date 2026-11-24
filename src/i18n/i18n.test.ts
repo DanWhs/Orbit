@@ -43,7 +43,9 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.aiComingSoonDesc.length > 20, `Missing aiComingSoonDesc for ${lang}`);
     assert.ok(d.aiServerDisclaimer.length > 20, `Missing aiServerDisclaimer for ${lang}`);
     assert.ok(d.aiGuideTitle.length > 5, `Missing aiGuideTitle for ${lang}`);
-    assert.ok(d.aiKeySecurityLayers.length > 20, `Missing aiKeySecurityLayers for ${lang}`);
+    assert.ok(d.aiKeySecurityLayers.length > 12, `Missing aiKeySecurityLayers for ${lang}`);
+    assert.ok(!/Split-XOR|AES-256-GCM|ChaCha20|PBKDF2/i.test(d.aiKeySecurityLayers), `Exposed crypto internals in aiKeySecurityLayers for ${lang}`);
+    assert.ok(!/Split-XOR|AES-256-GCM|ChaCha20|PBKDF2/i.test(d.aiGuideStep3), `Exposed crypto internals in aiGuideStep3 for ${lang}`);
     assert.ok(d.aiChatTitle.length > 0, `Missing aiChatTitle for ${lang}`);
     assert.ok(d.aiChatBackToSearch.length > 0, `Missing aiChatBackToSearch for ${lang}`);
     assert.ok(d.aiChatInputPlaceholder.length > 0, `Missing aiChatInputPlaceholder for ${lang}`);
@@ -55,10 +57,8 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.menuButtonAria.length > 0, `Missing menuButtonAria for ${lang}`);
     assert.ok(d.menuSettingsItem.length > 0, `Missing menuSettingsItem for ${lang}`);
     assert.ok(d.menuSupportItem.length > 0, `Missing menuSupportItem for ${lang}`);
-    assert.ok(d.settingsTabDiagnostics.length > 0, `Missing settingsTabDiagnostics for ${lang}`);
-    assert.ok(d.settingsTabFeedback.length > 0, `Missing settingsTabFeedback for ${lang}`);
-    assert.ok(d.diagSectionTitle.length > 0, `Missing diagSectionTitle for ${lang}`);
-    assert.ok(d.fbSectionTitle.length > 0, `Missing fbSectionTitle for ${lang}`);
+    assert.ok(d.error404Title.length > 0, `Missing error404Title for ${lang}`);
+    assert.ok(d.errorBackHomeBtn.length > 0, `Missing errorBackHomeBtn for ${lang}`);
     assert.ok(d.a11yMotionLabel.length > 0, `Missing a11yMotionLabel for ${lang}`);
     assert.ok(d.a11yColorFilterLabel.length > 0, `Missing a11yColorFilterLabel for ${lang}`);
     assert.ok(d.a11yReduceTransparencyLabel.length > 0, `Missing a11yReduceTransparencyLabel for ${lang}`);
@@ -69,7 +69,7 @@ test('translation cache returns synchronous dictionaries without network calls',
     assert.ok(d.supportVoluntaryLegalLink.length > 3, `Missing supportVoluntaryLegalLink for ${lang}`);
     assert.ok(d.supportLegalLinkLabel.length > 5, `Missing supportLegalLinkLabel for ${lang}`);
     assert.ok(d.changelogEntries.length >= 4, `Expected >= 4 changelog entries for ${lang}`);
-    assert.equal(d.changelogEntries[0].version, 'v2.6.0', `Expected latest v2.6.0 changelog for ${lang}`);
+    assert.equal(d.changelogEntries[0].version, 'v2.7.0', `Expected latest v2.7.0 changelog for ${lang}`);
     assert.ok(d.donationPopupTitle.length > 5, `Missing donationPopupTitle for ${lang}`);
     assert.ok(d.standbyButtonLabel.length > 0, `Missing standbyButtonLabel for ${lang}`);
     assert.ok(d.weatherClear.length > 0, `Missing weatherClear for ${lang}`);

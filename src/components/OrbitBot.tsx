@@ -5,9 +5,14 @@ import type {
   OrbPoseTarget,
   OrbPresenceState,
   OrbStepEvent,
-  OrbStepResponse,
 } from '../types/orbit';
 import { damp, ORB_RING_RADIUS_VB, ORB_RING_STROKE_VB } from '../utils/layoutMath';
+import { OrbPollController } from '../utils/orbClientSync';
+import {
+  computeLocalOrbPose,
+  getReactionDuration,
+  type LocalReactionState,
+} from '../utils/orbPoseFallback';
 import { playPresenceSound, playReactionSound, unlockOrbitAudio } from '../utils/orbSounds';
 
 interface OrbitBotProps {
@@ -33,28 +38,6 @@ interface OrbitBotProps {
   ariaLabel: string;
   onBotClick?: () => void;
 }
-
-const DEFAULT_POSE: OrbPoseTarget = {
-  dx: 0,
-  dy: 0,
-  tRot: 0,
-  tScX: 1,
-  tScY: 1,
-  tLW: 1,
-  tLH: 1,
-  tRW: 1,
-  tRH: 1,
-  tLY: 0,
-  tRY: 0,
-  tArcBottom: 0,
-  tLFlatTop: 0,
-  tRFlatTop: 0,
-  tLTBias: 0,
-  tRTBias: 0,
-  tBobY: 0,
-  followPointerLive: true,
-  allowNaturalBlink: true,
-};
 
 export const OrbitBot = memo(function OrbitBot({
   bootPhase,
@@ -131,24 +114,23 @@ export const OrbitBot = memo(function OrbitBot({
   const sessionIdRef = useRef<string>(
     `main-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
   );
-  const pendingEventRef = useRef<OrbStepEvent | null>(null);
+  const triggerLocalReactionRef = useRef<(event: OrbStepEvent) => void>(() => {});
   const urgentSyncRef = useRef<() => void>(() => {});
   const resumeLoopRef = useRef<() => void>(() => {});
   const bootWinkTriggeredRef = useRef(false);
 
-  // Trigger boot wink via backend step engine
+  // Trigger boot wink cleanly (both local 60fps and backend sync)
   useEffect(() => {
     if (bootPhase === 'pop' && !bootWinkTriggeredRef.current) {
       bootWinkTriggeredRef.current = true;
       const timer = setTimeout(() => {
-        pendingEventRef.current = {
+        triggerLocalReactionRef.current({
           kind: 'signal',
           reactionType: 'wink',
           dir: 1,
           silent: true,
           nonce: Date.now() + Math.random(),
-        };
-        urgentSyncRef.current();
+        });
       }, 240);
       return () => clearTimeout(timer);
     }
@@ -157,18 +139,17 @@ export const OrbitBot = memo(function OrbitBot({
   // Trigger external reaction signals (e.g. happy on submit, judge/perplexed on settings edit)
   useEffect(() => {
     if (reactionSignal) {
-      pendingEventRef.current = {
+      triggerLocalReactionRef.current({
         kind: 'signal',
         reactionType: reactionSignal.type,
         dir: 1,
         silent: false,
         nonce: reactionSignal.nonce,
-      };
-      urgentSyncRef.current();
+      });
     }
   }, [reactionSignal]);
 
-  // Immediate backend sync on structural mode transitions (Standby / Menu / BootReady)
+  // Immediate sync on structural mode transitions (Standby / Support / Menu / BootReady)
   useEffect(() => {
     if (!paused) {
       resumeLoopRef.current();
@@ -214,11 +195,28 @@ export const OrbitBot = memo(function OrbitBot({
     let lastTypedAt = -10000;
     let prevTypedTs = propsRef.current.lastTypedTimestamp;
 
-    let serverPose: OrbPoseTarget = { ...DEFAULT_POSE };
+    let serverPose: OrbPoseTarget | null = null;
+    let serverSyncedAt = 0;
     let serverPresence: OrbPresenceState = 'awake';
     let serverReactionLabel = 'idle';
-    let inFlight = false;
-    let lastSyncSentAt = 0;
+    let lastClickIdx = -1;
+    const localReaction: LocalReactionState = {
+      on: false,
+      type: 'wink',
+      t0: 0,
+      dur: 680,
+      dir: 1,
+    };
+    const CLICK_POOL: BotReactionType[] = ['wink', 'surprise', 'glance', 'sleepy'];
+    const IDLE_POOL: BotReactionType[] = ['peek', 'curious', 'glance', 'content', 'wink'];
+    let idleIdx = 0;
+    let nextLocalIdleAt = performance.now() + 4200;
+
+    const pollController = new OrbPollController({
+      endpoint: '/api/orb/step',
+      baseIntervalMs: 2200,
+      maxBackoffMs: 30000,
+    });
 
     const GX = { p: 0, v: 0 };
     const GY = { p: 0, v: 0 };
@@ -242,27 +240,43 @@ export const OrbitBot = memo(function OrbitBot({
     const ELFLAT = { p: 0, v: 0 };
     const ERFLAT = { p: 0, v: 0 };
 
-    const syncWithBackend = async () => {
-      if (isDisposed || inFlight || propsRef.current.paused) return;
-      inFlight = true;
-      lastSyncSentAt = performance.now();
-
-      const eventToSend = pendingEventRef.current;
-      pendingEventRef.current = null;
-
-      const cur = propsRef.current;
+    const startLocalReaction = (ev: OrbStepEvent) => {
       const now = performance.now();
-      if (cur.lastTypedTimestamp > prevTypedTs) {
-        prevTypedTs = cur.lastTypedTimestamp;
-        lastTypedAt = now;
-        lastActivityAt = now;
+      const dir = ev.dir && ev.dir < 0 ? -1 : 1;
+      let chosen: BotReactionType = 'wink';
+      if (ev.kind === 'click') {
+        let idx = Math.floor(Math.random() * CLICK_POOL.length);
+        if (idx === lastClickIdx) idx = (idx + 1) % CLICK_POOL.length;
+        lastClickIdx = idx;
+        chosen = CLICK_POOL[idx];
+      } else if (ev.kind === 'signal' && ev.reactionType) {
+        chosen = ev.reactionType;
       }
-      const effectiveReduceMotion = cur.reduceMotion ?? Boolean(reducedMotionMq?.matches);
-      try {
-        const res = await fetch('/api/orb/step', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      localReaction.on = true;
+      localReaction.type = chosen;
+      localReaction.t0 = now;
+      localReaction.dur = getReactionDuration(chosen, 'main');
+      localReaction.dir = dir;
+      if (!ev.silent) {
+        playReactionSound(chosen, false);
+      }
+    };
+
+    const syncWithBackend = async (urgent = false) => {
+      if (isDisposed || propsRef.current.paused) return;
+      if (urgent) pollController.markUrgent();
+
+      const data = await pollController.step(
+        (eventToSend) => {
+          const cur = propsRef.current;
+          const now = performance.now();
+          if (cur.lastTypedTimestamp > prevTypedTs) {
+            prevTypedTs = cur.lastTypedTimestamp;
+            lastTypedAt = now;
+            lastActivityAt = now;
+          }
+          const effectiveReduceMotion = cur.reduceMotion ?? Boolean(reducedMotionMq?.matches);
+          return {
             sessionId: sessionIdRef.current,
             variant: 'main',
             nowMs: now,
@@ -284,46 +298,50 @@ export const OrbitBot = memo(function OrbitBot({
             lastPtrAgoMs: Math.max(0, now - lastPtr),
             lastTypedAgoMs: lastTypedAt > 0 ? Math.max(0, now - lastTypedAt) : 999999,
             event: eventToSend,
-          }),
-        });
-        if (!res.ok || isDisposed) return;
-        const data = (await res.json()) as OrbStepResponse;
-        serverPose = data.poseTarget;
+          };
+        },
+        { urgent }
+      );
 
-        if (data.presenceState !== serverPresence) {
-          serverPresence = data.presenceState;
-          setPresenceState(data.presenceState);
-        }
-        if (data.activeReaction !== serverReactionLabel) {
-          serverReactionLabel = data.activeReaction;
-          setActiveReactionLabel(data.activeReaction);
-        }
-        if (data.thinkActive !== thinkOn) {
-          thinkOn = data.thinkActive;
-          thinkRef.current?.classList.toggle('on', thinkOn);
-        }
-        if (data.stopAllAnimations && BL.on) {
-          BL.on = false;
-        }
-        if (data.soundCue) {
-          if (data.soundCue.channel === 'presence') {
-            playPresenceSound(data.soundCue.id as OrbPresenceState);
-          } else if (data.soundCue.channel === 'reaction') {
-            playReactionSound(data.soundCue.id as BotReactionType, data.soundCue.ambient);
-          }
-        }
-      } catch {
-        // Ignore transient offline errors gracefully
-      } finally {
-        inFlight = false;
-        if (pendingEventRef.current && !isDisposed) {
-          void syncWithBackend();
-        }
+      if (!data || isDisposed) return;
+
+      serverPose = data.poseTarget;
+      serverSyncedAt = performance.now();
+
+      if (data.presenceState !== serverPresence) {
+        serverPresence = data.presenceState;
+        setPresenceState(data.presenceState);
+      }
+      if (data.activeReaction !== serverReactionLabel) {
+        serverReactionLabel = data.activeReaction;
+        setActiveReactionLabel(data.activeReaction);
+      }
+      if (data.thinkActive !== thinkOn) {
+        thinkOn = data.thinkActive;
+        thinkRef.current?.classList.toggle('on', thinkOn);
+      }
+      if (data.stopAllAnimations) {
+        localReaction.on = false;
+        if (BL.on) BL.on = false;
+      }
+      if (data.soundCue && data.soundCue.channel === 'presence') {
+        playPresenceSound(data.soundCue.id as OrbPresenceState);
+      } else if (data.soundCue && data.soundCue.channel === 'reaction' && data.soundCue.ambient) {
+        playReactionSound(data.soundCue.id as BotReactionType, true);
       }
     };
 
+    triggerLocalReactionRef.current = (ev: OrbStepEvent) => {
+      startLocalReaction(ev);
+      pollController.queueEvent({
+        ...ev,
+        reactionType: localReaction.type,
+      });
+      void syncWithBackend(true);
+    };
+
     urgentSyncRef.current = () => {
-      void syncWithBackend();
+      void syncWithBackend(true);
     };
 
     const norm = () => Math.min(window.innerWidth, window.innerHeight) * 0.42;
@@ -532,7 +550,7 @@ export const OrbitBot = memo(function OrbitBot({
     };
 
     let lastBotTf = '';
-    void syncWithBackend();
+    void syncWithBackend(true);
 
     const tick = (now: number) => {
       if (isDisposed || propsRef.current.paused) {
@@ -542,12 +560,44 @@ export const OrbitBot = memo(function OrbitBot({
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      // Sync authoritative pose & presence periodically (~20Hz) without piling requests
-      if (!inFlight && now - lastSyncSentAt >= 48) {
-        void syncWithBackend();
+      const cur = propsRef.current;
+      if (cur.lastTypedTimestamp > prevTypedTs) {
+        prevTypedTs = cur.lastTypedTimestamp;
+        lastTypedAt = now;
+        lastActivityAt = now;
       }
 
-      const { renderSize: Draw } = propsRef.current;
+      // Controlled heartbeat sync (1.1s interval, backs off on 429/5xx, stops cleanly on 404)
+      if (pollController.shouldPollHeartbeat(Date.now())) {
+        void syncWithBackend(false);
+      }
+
+      const { renderSize: Draw } = cur;
+      const effectiveReduceMotion = cur.reduceMotion ?? Boolean(reducedMotionMq?.matches);
+
+      // Gentle local idle choreography fallback when controller is suspended (e.g. offline/static) or between heartbeats
+      if (
+        cur.bootPhase === 'ready' &&
+        serverPresence === 'awake' &&
+        !cur.menuOpen &&
+        !drag &&
+        !localReaction.on &&
+        !effectiveReduceMotion &&
+        (!cur.isFocused || !cur.hasQuery || cur.standbyMode || cur.supportMode) &&
+        (cur.standbyMode || cur.supportMode || now - lastPtr > 2400) &&
+        now > nextLocalIdleAt
+      ) {
+        const type = cur.supportMode
+          ? (['happy', 'content', 'wink'] as const)[idleIdx % 3]
+          : IDLE_POOL[idleIdx % IDLE_POOL.length];
+        idleIdx = (idleIdx + 1) % IDLE_POOL.length;
+        localReaction.on = true;
+        localReaction.type = type;
+        localReaction.t0 = now;
+        localReaction.dur = getReactionDuration(type, 'main');
+        localReaction.dir = cur.standbyMode || cur.supportMode ? 1 : idleIdx % 2 === 0 ? 1 : -1;
+        nextLocalIdleAt = now + localReaction.dur + 4600 + Math.random() * 2800;
+      }
 
       // Holiday snow rendering (paused while sleeping)
       if (snowCx && serverPresence !== 'sleeping' && document.documentElement.classList.contains('xmas')) {
@@ -569,8 +619,35 @@ export const OrbitBot = memo(function OrbitBot({
         snowCx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       }
 
-      const targetDx = serverPose.followPointerLive ? tx : serverPose.dx;
-      const targetDy = serverPose.followPointerLive ? ty : serverPose.dy;
+      const computed = computeLocalOrbPose({
+        now,
+        renderSize: Draw,
+        tx,
+        ty,
+        variant: 'main',
+        standbyMode: cur.standbyMode,
+        supportMode: cur.supportMode,
+        menuOpen: cur.menuOpen,
+        hasQuery: cur.hasQuery,
+        isFocused: cur.isFocused,
+        caretRatio: cur.caretRatio,
+        drag,
+        reduceMotion: effectiveReduceMotion,
+        lastTypedAgoMs: lastTypedAt > 0 ? Math.max(0, now - lastTypedAt) : 999999,
+        lastPtrAgoMs: Math.max(0, now - lastPtr),
+        presence: serverPresence,
+        reaction: localReaction,
+        basePoseFromServer: serverPose,
+        serverSyncedRecently: now - serverSyncedAt < 3200,
+      });
+      const activePose = computed.pose;
+      if (computed.thinkActive !== thinkOn) {
+        thinkOn = computed.thinkActive;
+        thinkRef.current?.classList.toggle('on', thinkOn);
+      }
+
+      const targetDx = activePose.followPointerLive ? tx : activePose.dx;
+      const targetDy = activePose.followPointerLive ? ty : activePose.dy;
 
       const sx = damp(GX, targetDx, 0.17, dt);
       const sy = damp(GY, targetDy, 0.17, dt);
@@ -582,25 +659,25 @@ export const OrbitBot = memo(function OrbitBot({
       const eH = D * 0.405;
       const baseGap = D * 0.278;
 
-      const tLT = -4.2 - sx * 6.5 + serverPose.tLTBias;
-      const tRT = 4.2 - sx * 6.5 + serverPose.tRTBias;
+      const tLT = -4.2 - sx * 6.5 + activePose.tLTBias;
+      const tRT = 4.2 - sx * 6.5 + activePose.tRTBias;
 
-      const rot = damp(EROT, serverPose.tRot, 0.14, dt);
-      const scX = damp(ESCX, serverPose.tScX, 0.14, dt);
-      const scY = damp(ESCY, serverPose.tScY, 0.14, dt);
-      let lW = damp(ELW, serverPose.tLW, 0.12, dt);
-      let lH = damp(ELH, serverPose.tLH, 0.12, dt);
-      let rW = damp(ERW, serverPose.tRW, 0.12, dt);
-      let rH = damp(ERH, serverPose.tRH, 0.12, dt);
-      const lY = damp(ELY, serverPose.tLY, 0.12, dt);
-      const rY = damp(ERY, serverPose.tRY, 0.12, dt);
+      const rot = damp(EROT, activePose.tRot, 0.14, dt);
+      const scX = damp(ESCX, activePose.tScX, 0.14, dt);
+      const scY = damp(ESCY, activePose.tScY, 0.14, dt);
+      let lW = damp(ELW, activePose.tLW, 0.12, dt);
+      let lH = damp(ELH, activePose.tLH, 0.12, dt);
+      let rW = damp(ERW, activePose.tRW, 0.12, dt);
+      let rH = damp(ERH, activePose.tRH, 0.12, dt);
+      const lY = damp(ELY, activePose.tLY, 0.12, dt);
+      const rY = damp(ERY, activePose.tRY, 0.12, dt);
       const lT = damp(ELT, tLT, 0.12, dt);
       const rT = damp(ERT, tRT, 0.12, dt);
-      const arcBottom = Math.max(0, damp(EARC, serverPose.tArcBottom, 0.12, dt));
-      const lFlatTop = Math.max(0, damp(ELFLAT, serverPose.tLFlatTop, 0.12, dt));
-      const rFlatTop = Math.max(0, damp(ERFLAT, serverPose.tRFlatTop, 0.12, dt));
+      const arcBottom = Math.max(0, damp(EARC, activePose.tArcBottom, 0.12, dt));
+      const lFlatTop = Math.max(0, damp(ELFLAT, activePose.tLFlatTop, 0.12, dt));
+      const rFlatTop = Math.max(0, damp(ERFLAT, activePose.tRFlatTop, 0.12, dt));
 
-      if (serverPose.allowNaturalBlink && !BL.on && now >= BL.next) {
+      if (activePose.allowNaturalBlink && !BL.on && now >= BL.next) {
         BL.on = true;
         BL.t0 = now;
         if (BL.doubleLeft === 0 && Math.random() < 0.28) {
@@ -646,7 +723,7 @@ export const OrbitBot = memo(function OrbitBot({
       const lh = Math.max(4, eH * lH * les * vfy);
       const rw = Math.max(4, eW * rW * res * rfx);
       const rh = Math.max(4, eH * rH * res * vfy);
-      const idleBobY = damp(BOB_Y, serverPose.tBobY, 0.24, dt);
+      const idleBobY = damp(BOB_Y, activePose.tBobY, 0.24, dt);
 
       if (botRef.current) {
         const botTf = `translate3d(${(bx * D * 0.038).toFixed(2)}px,${(by * D * 0.038 + idleBobY).toFixed(2)}px,0) rotate(${rot.toFixed(2)}deg) scale(${scX.toFixed(4)},${scY.toFixed(4)})`;
@@ -675,6 +752,7 @@ export const OrbitBot = memo(function OrbitBot({
 
     return () => {
       isDisposed = true;
+      pollController.dispose();
       if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
@@ -696,12 +774,11 @@ export const OrbitBot = memo(function OrbitBot({
     const botCenterX =
       (propsRef.current.horizontalPercent / 100) * (propsRef.current.viewportWidth || window.innerWidth);
     const dir = e.clientX < botCenterX ? -1 : 1;
-    pendingEventRef.current = {
+    triggerLocalReactionRef.current({
       kind: 'click',
       dir,
       nonce: Date.now() + Math.random(),
-    };
-    urgentSyncRef.current();
+    });
     onBotClick?.();
   };
 

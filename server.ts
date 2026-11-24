@@ -2,431 +2,15 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAudioProfilePayload } from './server/orbPersonality.ts';
-import { stepOrbEngine } from './server/orbMotionEngine.ts';
-import { fetchFreeUnlimitedSuggestions } from './server/suggestProxy.ts';
-import { getLocalWeather } from './server/weatherService.ts';
-import { getLegalSections } from './server/legalContentServer.ts';
-import {
-  clearDiagnostics,
-  diagnosticsMiddleware,
-  getDiagnosticsSnapshot,
-  isValidDiagnosticLevel,
-  isValidDiagnosticSource,
-  recordServerDiagnostic,
-} from './server/diagnostics.ts';
-import {
-  addFeedbackEntry,
-  buildFeedbackRssXml,
-  dispatchDailyFeedbackDigest,
-  getFeedbackDigestSummary,
-  getTodayDayKey,
-  listFeedbackEntries,
-  startDailyDigestScheduler,
-  validateFeedbackInput,
-} from './server/feedbackService.ts';
-import {
-  clearSealedVaultCookie,
-  isValidGeminiKeyFormat,
-  maskApiKey,
-  readVaultFromRequest,
-  sealApiKeyMultiLayer,
-  setSealedVaultCookie,
-  unpackClientTransportEnvelope,
-  verifySameOriginRequest,
-} from './server/aiVault.ts';
-import {
-  askOrbitGemini,
-  generateOrEditOrbitImage,
-  type GeminiAskError,
-} from './server/geminiService.ts';
-import type {
-  GeminiRoleId,
-  ImageAspectRatio,
-  LanguageCode,
-  OrbStepRequest,
-} from './src/types/orbit.ts';
+import { createApiApp } from './server/createApiApp.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 async function startServer() {
-  const app = express();
-  app.disable('x-powered-by');
-  app.set('trust proxy', 1);
-  startDailyDigestScheduler();
-
-  const defaultJson = express.json({ limit: '32kb' });
-  const imageJson = express.json({ limit: '10mb' });
-  app.use((req, res, next) => {
-    if (req.path === '/api/ai/image') {
-      imageJson(req, res, next);
-      return;
-    }
-    defaultJson(req, res, next);
-  });
-
-  // Basic security headers for backend responses
-  app.use((_req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    next();
-  });
-
-  app.use(diagnosticsMiddleware());
-
-  // Health & real diagnostics endpoints (strictly redacted; never expose keys or PII)
-  app.get('/api/health', (_req, res) => {
-    res.json({
-      ok: true,
-      uptimeSec: Math.round(process.uptime()),
-      serverTime: new Date().toISOString(),
-    });
-  });
-
-  app.get('/api/diagnostics', (_req, res) => {
-    res.json(getDiagnosticsSnapshot());
-  });
-
-  app.post('/api/diagnostics', (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    const body = req.body as {
-      level?: unknown;
-      source?: unknown;
-      event?: unknown;
-      message?: unknown;
-      statusCode?: unknown;
-      durationMs?: unknown;
-    } | null;
-    if (!body || typeof body !== 'object' || typeof body.message !== 'string') {
-      res.status(400).json({ error: 'Invalid diagnostic event payload' });
-      return;
-    }
-    const entry = recordServerDiagnostic({
-      level: isValidDiagnosticLevel(body.level) ? body.level : 'info',
-      source: isValidDiagnosticSource(body.source) ? body.source : 'client',
-      event: typeof body.event === 'string' ? body.event : 'client.event',
-      message: body.message,
-      statusCode: typeof body.statusCode === 'number' ? body.statusCode : undefined,
-      durationMs: typeof body.durationMs === 'number' ? body.durationMs : undefined,
-    });
-    res.status(201).json({ entry });
-  });
-
-  app.delete('/api/diagnostics', (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    clearDiagnostics();
-    res.json(getDiagnosticsSnapshot());
-  });
-
-  // Feedback collection & daily digest API
-  app.get('/api/feedback', async (_req, res) => {
-    try {
-      const summary = await getFeedbackDigestSummary();
-      res.json(summary);
-    } catch {
-      res.status(500).json({ error: 'Unable to load feedback summary' });
-    }
-  });
-
-  app.post('/api/feedback', async (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    const check = validateFeedbackInput(req.body);
-    if (!check.ok) {
-      res.status(400).json({ error: check.error });
-      return;
-    }
-    try {
-      const entry = await addFeedbackEntry(check.data);
-      const summary = await getFeedbackDigestSummary();
-      res.status(201).json({ entry, summary });
-    } catch (err) {
-      res.status(500).json({
-        error: err instanceof Error ? err.message : 'Unable to save feedback',
-      });
-    }
-  });
-
-  app.get('/api/feedback/digest', async (req, res) => {
-    const format = typeof req.query.format === 'string' ? req.query.format.toLowerCase() : 'json';
-    try {
-      if (format === 'rss') {
-        const store = await listFeedbackEntries();
-        const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-        const host = req.headers.host || 'localhost:3000';
-        const rss = buildFeedbackRssXml(store.entries, `${proto}://${host}`);
-        res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8');
-        res.send(rss);
-        return;
-      }
-      const dayKey =
-        typeof req.query.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.day)
-          ? req.query.day
-          : getTodayDayKey();
-      const summary = await getFeedbackDigestSummary(dayKey);
-      if (format === 'txt') {
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        res.send(summary.digestText);
-        return;
-      }
-      res.json(summary);
-    } catch {
-      res.status(500).json({ error: 'Unable to compile daily feedback digest' });
-    }
-  });
-
-  app.post('/api/feedback/digest/send', async (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    try {
-      const result = await dispatchDailyFeedbackDigest();
-      res.status(result.ok ? 200 : 502).json(result);
-    } catch (err) {
-      res.status(500).json({
-        ok: false,
-        channel: 'archive-only',
-        dispatchedCount: 0,
-        message: err instanceof Error ? err.message : 'Dispatch error',
-      });
-    }
-  });
-
-  // Proprietary Orb mascot audio recipes (not bundled in client JS)
-  app.get('/api/orb/audio-profile', (_req, res) => {
-    res.json(getAudioProfilePayload());
-  });
-
-  // Proprietary Orb mascot state machine & expression choreography step
-  app.post('/api/orb/step', (req, res) => {
-    const body = req.body as Partial<OrbStepRequest> | null;
-    if (!body || typeof body !== 'object') {
-      res.status(400).json({ error: 'Invalid payload' });
-      return;
-    }
-    const result = stepOrbEngine({
-      sessionId: typeof body.sessionId === 'string' ? body.sessionId : 'default',
-      variant: body.variant === 'mini' ? 'mini' : 'main',
-      nowMs: typeof body.nowMs === 'number' ? body.nowMs : Date.now(),
-      botSize: typeof body.botSize === 'number' ? body.botSize : 180,
-      bootReady: Boolean(body.bootReady),
-      menuOpen: Boolean(body.menuOpen),
-      standbyMode: Boolean(body.standbyMode),
-      supportMode: Boolean(body.supportMode),
-      hasQuery: Boolean(body.hasQuery),
-      isFocused: Boolean(body.isFocused),
-      caretRatio: typeof body.caretRatio === 'number' ? body.caretRatio : 0,
-      drag: Boolean(body.drag),
-      reduceMotion: Boolean(body.reduceMotion),
-      isTouchMode: Boolean(body.isTouchMode),
-      pointerOutside: Boolean(body.pointerOutside),
-      pointerDx: typeof body.pointerDx === 'number' ? body.pointerDx : 0,
-      pointerDy: typeof body.pointerDy === 'number' ? body.pointerDy : 0,
-      lastActivityAgoMs: typeof body.lastActivityAgoMs === 'number' ? body.lastActivityAgoMs : 0,
-      lastPtrAgoMs: typeof body.lastPtrAgoMs === 'number' ? body.lastPtrAgoMs : 0,
-      lastTypedAgoMs: typeof body.lastTypedAgoMs === 'number' ? body.lastTypedAgoMs : 999999,
-      event: body.event ?? null,
-    });
-    res.json(result);
-  });
-
-  // Encrypted Gemini BYOK status (never returns raw API key)
-  app.get('/api/ai/status', (req, res) => {
-    const entry = readVaultFromRequest(req);
-    res.json({
-      connected: Boolean(entry),
-      maskedHint: entry ? entry.maskedHint : null,
-      layersActive: entry ? 5 : 0,
-    });
-  });
-
-  // Seal user-supplied Gemini API key in 5-layer cascade (Split-XOR + AES-256-GCM + ChaCha20-Poly1305 + HMAC) HttpOnly cookie
-  app.post('/api/ai/key', (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    const body = req.body as { apiKey?: unknown; clientEnvelope?: unknown } | null;
-    const unpackedFromEnvelope = unpackClientTransportEnvelope(body?.clientEnvelope);
-    const candidate = unpackedFromEnvelope ?? body?.apiKey;
-    if (!isValidGeminiKeyFormat(candidate)) {
-      res.status(400).json({ error: 'Invalid API key format' });
-      return;
-    }
-    const clean = candidate.trim();
-    const sealed = sealApiKeyMultiLayer(clean);
-    setSealedVaultCookie(req, res, sealed);
-    res.json({
-      connected: true,
-      maskedHint: maskApiKey(clean),
-      layersActive: 5,
-    });
-  });
-
-  // Wipe sealed Gemini API key vault cookie
-  app.delete('/api/ai/key', (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    clearSealedVaultCookie(req, res);
-    res.json({
-      connected: false,
-      maskedHint: null,
-      layersActive: 0,
-    });
-  });
-
-  // Server-side @google/genai multi-turn chatbot endpoint using ONLY user's sealed Gemini key
-  app.post('/api/ai/ask', async (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    const vaultEntry = readVaultFromRequest(req);
-    if (!vaultEntry) {
-      res.status(401).json({
-        error: 'No Gemini API key connected yet.',
-        code: 'KEY_MISSING',
-      });
-      return;
-    }
-    const body = req.body as {
-      prompt?: unknown;
-      lang?: unknown;
-      role?: unknown;
-      history?: unknown;
-    } | null;
-    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-    if (!prompt) {
-      res.status(400).json({ error: 'Prompt is required', code: 'EMPTY_PROMPT' });
-      return;
-    }
-    const validLangs = new Set<LanguageCode>(['it', 'en', 'fr', 'de', 'es']);
-    const lang: LanguageCode =
-      typeof body?.lang === 'string' && validLangs.has(body.lang as LanguageCode)
-        ? (body.lang as LanguageCode)
-        : 'en';
-    const validRoles = new Set<GeminiRoleId>([
-      'auto',
-      'assistant',
-      'fast',
-      'interactive',
-      'reasoning',
-    ]);
-    const role: GeminiRoleId =
-      typeof body?.role === 'string' && validRoles.has(body.role as GeminiRoleId)
-        ? (body.role as GeminiRoleId)
-        : 'auto';
-    const history = Array.isArray(body?.history)
-      ? (body.history as Array<{ role: 'user' | 'model'; text: string }>)
-      : undefined;
-
-    try {
-      const result = await askOrbitGemini({
-        apiKey: vaultEntry.apiKey,
-        prompt,
-        lang,
-        role,
-        history,
-      });
-      res.json(result);
-    } catch (err: unknown) {
-      const geminiErr = err as Partial<GeminiAskError>;
-      res.status(geminiErr.statusCode || 502).json({
-        error: geminiErr.message || 'AI request failed',
-        code: geminiErr.code || 'UPSTREAM_ERROR',
-      });
-    }
-  });
-
-  // Server-side @google/genai Nano Banana 2.1 image create & edit endpoint using ONLY user's sealed Gemini key
-  app.post('/api/ai/image', async (req, res) => {
-    if (!verifySameOriginRequest(req)) {
-      res.status(403).json({ error: 'Invalid request origin' });
-      return;
-    }
-    const vaultEntry = readVaultFromRequest(req);
-    if (!vaultEntry) {
-      res.status(401).json({
-        error: 'No Gemini API key connected yet.',
-        code: 'KEY_MISSING',
-      });
-      return;
-    }
-    const body = req.body as {
-      prompt?: unknown;
-      aspectRatio?: unknown;
-      sourceImageBase64?: unknown;
-      sourceMimeType?: unknown;
-    } | null;
-    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-    if (!prompt) {
-      res.status(400).json({ error: 'Prompt is required', code: 'EMPTY_PROMPT' });
-      return;
-    }
-
-    const aspectRatio =
-      typeof body?.aspectRatio === 'string'
-        ? (body.aspectRatio as ImageAspectRatio)
-        : '1:1';
-    const sourceImageBase64 =
-      typeof body?.sourceImageBase64 === 'string' ? body.sourceImageBase64 : undefined;
-    const sourceMimeType =
-      typeof body?.sourceMimeType === 'string' ? body.sourceMimeType : undefined;
-
-    try {
-      const result = await generateOrEditOrbitImage({
-        apiKey: vaultEntry.apiKey,
-        prompt,
-        aspectRatio,
-        sourceImageBase64,
-        sourceMimeType,
-      });
-      res.json(result);
-    } catch (err: unknown) {
-      const geminiErr = err as Partial<GeminiAskError>;
-      res.status(geminiErr.statusCode || 502).json({
-        error: geminiErr.message || 'Image generation failed',
-        code: geminiErr.code || 'UPSTREAM_ERROR',
-      });
-    }
-  });
-
-  // Free unlimited keyless autocomplete suggestions (DuckDuckGo + Google Suggest)
-  app.get('/api/suggest', async (req, res) => {
-    const suggestions = await fetchFreeUnlimitedSuggestions(req.query.q, req.query.lang);
-    res.json({ suggestions });
-  });
-
-  // Free unlimited keyless local weather (Open-Meteo + GeoJS/timezone fallback)
-  app.get('/api/weather', async (req, res) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const clientIp =
-      typeof forwarded === 'string'
-        ? forwarded.split(',')[0].trim()
-        : req.socket.remoteAddress || '';
-    const weather = await getLocalWeather(clientIp, req.query.tz);
-    res.json(weather);
-  });
-
-  // Legal & Privacy 2026 sections served dynamically from backend
-  app.get('/api/legal', (req, res) => {
-    const sections = getLegalSections(req.query.lang, req.query.jurisdiction);
-    res.json({ sections });
-  });
+  const app = createApiApp();
 
   if (isProduction) {
     const distDir = path.resolve(__dirname, 'dist');
@@ -437,9 +21,86 @@ async function startServer() {
   } else {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        ws: false,
+      },
       appType: 'spa',
     });
+
+    // When HMR WebSockets are disabled, provide a clean /@vite/client ESM shim so CSS
+    // hot-injection & Vite dev imports work without failing WebSocket connection attempts.
+    app.get('/@vite/client', (_req, res) => {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(`
+const sheetsMap = new Map();
+const linkSheetsMap = new Map();
+if ("document" in globalThis) {
+  document.querySelectorAll("style[data-vite-dev-id]").forEach((el) => {
+    sheetsMap.set(el.getAttribute("data-vite-dev-id"), el);
+  });
+  document.querySelectorAll('link[rel="stylesheet"][data-vite-dev-id]').forEach((el) => {
+    linkSheetsMap.set(el.getAttribute("data-vite-dev-id"), el);
+  });
+}
+let lastInsertedStyle;
+export function updateStyle(id, content) {
+  if (linkSheetsMap.has(id)) return;
+  let style = sheetsMap.get(id);
+  if (!style) {
+    style = document.createElement("style");
+    style.setAttribute("type", "text/css");
+    style.setAttribute("data-vite-dev-id", id);
+    style.textContent = content;
+    if (!lastInsertedStyle) {
+      document.head.appendChild(style);
+      setTimeout(() => { lastInsertedStyle = void 0; }, 0);
+    } else {
+      lastInsertedStyle.insertAdjacentElement("afterend", style);
+    }
+    lastInsertedStyle = style;
+  } else if (style.textContent !== content) {
+    style.textContent = content;
+  }
+  sheetsMap.set(id, style);
+}
+export function removeStyle(id) {
+  if (linkSheetsMap.has(id)) {
+    document.querySelectorAll('link[rel="stylesheet"][data-vite-dev-id="' + CSS.escape(id) + '"]').forEach((el) => el.remove());
+    linkSheetsMap.delete(id);
+  }
+  const style = sheetsMap.get(id);
+  if (style) {
+    document.head.removeChild(style);
+    sheetsMap.delete(id);
+  }
+}
+export function createHotContext() {
+  return {
+    data: {},
+    accept() {},
+    acceptExports() {},
+    dispose() {},
+    prune() {},
+    decline() {},
+    invalidate() {},
+    on() {},
+    off() {},
+    send() {},
+  };
+}
+export function injectQuery(url, queryToInject) {
+  if (url[0] !== "." && url[0] !== "/") return url;
+  const pathname = url.replace(/[?#].*$/, "");
+  const { search, hash } = new URL(url, "http://vite.dev");
+  return pathname + "?" + queryToInject + (search ? "&" + search.slice(1) : "") + (hash || "");
+}
+export class ErrorOverlay extends HTMLElement {}
+`);
+    });
+
     app.use(vite.middlewares);
   }
 

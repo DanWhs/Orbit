@@ -4,6 +4,7 @@ import { Coffee, Menu, MoonStar, Settings } from 'lucide-react';
 import { BootSplash } from './components/BootSplash';
 import { CookieNoticeModal } from './components/CookieNoticeModal';
 import { DonationPopup } from './components/DonationPopup';
+import { ErrorScreen } from './components/ErrorScreen';
 import { FooterBar } from './components/FooterBar';
 import { LegalModal } from './components/LegalModal';
 import { BubbleButton } from './components/LiquidBubble';
@@ -47,7 +48,6 @@ import {
   packClientTransportEnvelope,
   saveEncryptedClientBackup,
 } from './utils/clientVault';
-import { installGlobalDiagnosticListeners, recordClientDiagnostic } from './utils/diagnostics';
 import { computeStageLayout } from './utils/layoutMath';
 import { playUiSound, unlockOrbitAudio } from './utils/orbSounds';
 import {
@@ -133,6 +133,11 @@ export default function App() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabId | null>(null);
   const [legalOpen, setLegalOpen] = useState(false);
   const [legalInitialSectionId, setLegalInitialSectionId] = useState<string | null>(null);
+  const [routeNotFound, setRouteNotFound] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const p = window.location.pathname;
+    return p !== '/' && p !== '/index.html';
+  });
   const [standbyMode, setStandbyMode] = useState(false);
   const [supportShowcaseOpen, setSupportShowcaseOpen] = useState(false);
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
@@ -226,10 +231,15 @@ export default function App() {
     setReactionSignal({ type, nonce: Date.now() + Math.random() });
   }, []);
 
-  // Prewarm local translation cache and install global diagnostics collectors
+  // Prewarm local translation cache & sync popstate for 404 route handling
   useEffect(() => {
     prewarmTranslationCache();
-    installGlobalDiagnosticListeners();
+    const onPopState = () => {
+      const p = window.location.pathname;
+      setRouteNotFound(p !== '/' && p !== '/index.html');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   // Hydrate encrypted Gemini vault status (with encrypted client vault fallback re-seal if cookie expired)
@@ -776,6 +786,17 @@ export default function App() {
     setSrAnnouncement(dict.settingsTitle);
   }, [dict.settingsTitle]);
 
+  const handleResetNotFound = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.history.pushState(null, '', '/');
+      } catch {
+        // Ignore restricted environments
+      }
+    }
+    setRouteNotFound(false);
+  }, []);
+
   const handleEnterStandby = useCallback(() => {
     if (!canUseDesktopStandby) return;
     inputRef.current?.blur();
@@ -865,6 +886,28 @@ export default function App() {
     setAiStatus({ connected: false, maskedHint: null, layersActive: 0 });
   }, []);
 
+  const resealKeyFromDeviceBackup = useCallback(async (): Promise<boolean> => {
+    if (!hasEncryptedClientBackup()) return false;
+    try {
+      const recovered = await loadEncryptedClientBackup();
+      if (!recovered) return false;
+      const clientEnvelope = await packClientTransportEnvelope(recovered);
+      const reseal = await fetch('/api/ai/key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'OrbitSearch',
+        },
+        body: JSON.stringify(clientEnvelope ? { clientEnvelope } : { apiKey: recovered }),
+      });
+      if (!reseal.ok) return false;
+      setAiStatus((await reseal.json()) as AiStatusResponse);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const sendChatPrompt = useCallback(
     async (rawPrompt: string) => {
       const prompt = rawPrompt.trim();
@@ -905,19 +948,29 @@ export default function App() {
       setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
 
       try {
-        const res = await fetch('/api/ai/ask', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'OrbitSearch',
-          },
-          body: JSON.stringify({
-            prompt,
-            lang: localeOption.lang,
-            role: aiRole,
-            history: priorHistory,
-          }),
-        });
+        const postAsk = () =>
+          fetch('/api/ai/ask', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'OrbitSearch',
+            },
+            body: JSON.stringify({
+              prompt,
+              lang: localeOption.lang,
+              role: aiRole,
+              history: priorHistory,
+            }),
+          });
+
+        let res = await postAsk();
+        if (res.status === 401) {
+          const errPeek = (await res.clone().json().catch(() => ({}))) as { code?: string };
+          if (errPeek.code === 'KEY_MISSING' && (await resealKeyFromDeviceBackup())) {
+            res = await postAsk();
+          }
+        }
+
         if (!res.ok) {
           const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
           const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
@@ -964,7 +1017,15 @@ export default function App() {
         setAiLoading(false);
       }
     },
-    [aiLoading, aiMessages, aiRole, aiStatus.connected, dict.aiAnswerNeedKey, localeOption.lang]
+    [
+      aiLoading,
+      aiMessages,
+      aiRole,
+      aiStatus.connected,
+      dict.aiAnswerNeedKey,
+      localeOption.lang,
+      resealKeyFromDeviceBackup,
+    ]
   );
 
   const sendImagePrompt = useCallback(
@@ -1002,19 +1063,29 @@ export default function App() {
       setReactionSignal({ type: 'think', nonce: Date.now() + Math.random() });
 
       try {
-        const res = await fetch('/api/ai/image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'OrbitSearch',
-          },
-          body: JSON.stringify({
-            prompt,
-            aspectRatio: imageAspectRatio,
-            imageBase64: sourceImg?.base64,
-            mimeType: sourceImg?.mimeType,
-          }),
-        });
+        const postImage = () =>
+          fetch('/api/ai/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'OrbitSearch',
+            },
+            body: JSON.stringify({
+              prompt,
+              aspectRatio: imageAspectRatio,
+              imageBase64: sourceImg?.base64,
+              mimeType: sourceImg?.mimeType,
+            }),
+          });
+
+        let res = await postImage();
+        if (res.status === 401) {
+          const errPeek = (await res.clone().json().catch(() => ({}))) as { code?: string };
+          if (errPeek.code === 'KEY_MISSING' && (await resealKeyFromDeviceBackup())) {
+            res = await postImage();
+          }
+        }
+
         if (!res.ok) {
           const errData = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
           const needKey = errData.code === 'KEY_MISSING' || errData.code === 'INVALID_KEY';
@@ -1062,7 +1133,14 @@ export default function App() {
         setAiLoading(false);
       }
     },
-    [aiLoading, aiStatus.connected, attachedImage, dict.aiAnswerNeedKey, imageAspectRatio]
+    [
+      aiLoading,
+      aiStatus.connected,
+      attachedImage,
+      dict.aiAnswerNeedKey,
+      imageAspectRatio,
+      resealKeyFromDeviceBackup,
+    ]
   );
 
   const handleDispatchAiPrompt = useCallback(
@@ -1158,12 +1236,6 @@ export default function App() {
     playUiSound('menu-open');
     setSupportShowcaseOpen(true);
     setSrAnnouncement(dict.settingsTabSupport);
-    recordClientDiagnostic({
-      level: 'info',
-      source: 'client',
-      event: 'support.showcase.open',
-      message: 'Opened full-screen Supporta Orb showcase.',
-    });
   }, [dict.settingsTabSupport]);
 
   const handleCloseSupportShowcase = useCallback(() => {
@@ -1231,11 +1303,7 @@ export default function App() {
       data-support-showcase={activeSupportShowcase ? 'true' : 'false'}
       data-ai-chat={activeChatMode ? 'true' : 'false'}
       data-cookie-notice-open={cookieNoticeOpen ? 'true' : 'false'}
-      className="fixed left-0 top-0 w-full overflow-hidden select-none"
-      style={{
-        height: `${viewportMetrics.height}px`,
-        transform: `translate3d(0, ${viewportMetrics.topOffset}px, 0)`,
-      }}
+      className="fixed inset-0 w-full h-[100dvh] overflow-hidden select-none"
       onPointerDown={(e) => {
         unlockOrbitAudio();
         const insideSearch = Boolean((e.target as HTMLElement).closest('#search-ui'));
@@ -1321,7 +1389,17 @@ export default function App() {
         aria-hidden="true"
       />
 
-      {/* Top-Right Desktop Standby Pill + Hamburger Menu Dropdown */}
+      {/* 404 Route Error Screen with Confused Orb */}
+      {routeNotFound ? (
+        <ErrorScreen
+          variant="404"
+          dict={dict}
+          reduceMotion={effectiveReducedMotion}
+          onReset={handleResetNotFound}
+        />
+      ) : (
+        <>
+      {/* Top Header: Standby & Hamburger Menu (Right) */}
       <header
         className="fixed left-0 right-0 top-0 z-30 flex items-center justify-end gap-2 px-4 pt-[calc(var(--st)+14px)] pointer-events-none"
         style={{
@@ -1331,6 +1409,8 @@ export default function App() {
             'opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+        {/* Right: Desktop Standby Pill + Hamburger Menu */}
+        <div className="flex items-center gap-2">
         {canUseDesktopStandby && (
           <BubbleButton
             variant="glass"
@@ -1424,6 +1504,7 @@ export default function App() {
             )}
           </AnimatePresence>
         </div>
+        </div>
       </header>
 
       {/* Smooth blurred background layer behind Orb when Legal or Cookie notice is open */}
@@ -1450,7 +1531,14 @@ export default function App() {
       <BootSplash phase={bootPhase} centerY={stageLayout.botCenterY} />
 
       {/* Central Mascot with Single Crisp Orbital Ring */}
-      <main>
+      <main
+        className="w-full h-full"
+        style={
+          viewportMetrics.topOffset && !isMenuOpen && !activeSupportShowcase && !activeStandby && !activeChatMode
+            ? { transform: `translate3d(0, ${viewportMetrics.topOffset}px, 0)` }
+            : undefined
+        }
+      >
         <OrbitBot
           bootPhase={bootPhase}
           botSize={stageLayout.botSize}
@@ -1634,6 +1722,8 @@ export default function App() {
         onUpdateConsent={handleUpdateConsent}
         onUserModify={triggerModifyReaction}
       />
+        </>
+      )}
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Accessibility,
-  Activity,
   ArrowUpRight,
   Bot,
   Check,
@@ -15,7 +14,6 @@ import {
   KeyRound,
   Link2,
   Lock,
-  MessageSquareHeart,
   MonitorSmartphone,
   Moon,
   Palette,
@@ -52,8 +50,6 @@ import {
 import { BuyMeCoffeeButton } from './BuyMeCoffeeButton';
 import { BubbleAnchor, BubbleButton } from './LiquidBubble';
 import { LiveOrbMark } from './LiveOrbMark';
-import { SettingsDiagnosticsPanel } from './SettingsDiagnosticsPanel';
-import { SettingsFeedbackPanel } from './SettingsFeedbackPanel';
 
 export type SettingsTabId =
   | 'appearance'
@@ -61,8 +57,6 @@ export type SettingsTabId =
   | 'quicklinks'
   | 'ai'
   | 'accessibility'
-  | 'diagnostics'
-  | 'feedback'
   | 'changelog'
   | 'support'
   | 'privacy';
@@ -342,8 +336,6 @@ export const SettingsModal = memo(function SettingsModal({
     },
     { id: 'ai', label: dict.settingsTabAi, icon: Bot, badge: dict.betaTag },
     { id: 'accessibility', label: dict.settingsTabAccessibility, icon: Accessibility },
-    { id: 'diagnostics', label: dict.settingsTabDiagnostics, icon: Activity },
-    { id: 'feedback', label: dict.settingsTabFeedback, icon: MessageSquareHeart },
     { id: 'changelog', label: dict.settingsTabChangelog, icon: History },
     { id: 'support', label: dict.settingsTabSupport, icon: Coffee, highlighted: true },
     { id: 'privacy', label: dict.settingsTabPrivacy, icon: ShieldCheck },
@@ -486,20 +478,6 @@ export const SettingsModal = memo(function SettingsModal({
                   );
                 })}
               </nav>
-
-              {/* Buy Me a Coffee relocated from Main Page Footer into Settings */}
-              <div
-                className="hidden md:flex items-center px-4 py-4 mt-auto border-t"
-                style={{ borderColor: 'var(--border-subtle)' }}
-              >
-                <BuyMeCoffeeButton
-                  compact
-                  variant="glass"
-                  className="w-full"
-                  testId="settings-sidebar-coffee-btn"
-                  onClick={onDonateClick}
-                />
-              </div>
             </aside>
 
           {/* Right Main Stage */}
@@ -1531,20 +1509,6 @@ export const SettingsModal = memo(function SettingsModal({
                       {dict.a11yKeyboardHint}
                     </p>
                   </section>
-                )}
-
-                {/* SUB-PANEL: REAL DIAGNOSTICS */}
-                {activeTab === 'diagnostics' && (
-                  <SettingsDiagnosticsPanel dict={dict} onUserModify={onUserModify} />
-                )}
-
-                {/* SUB-PANEL: FEEDBACK & DAILY DIGEST */}
-                {activeTab === 'feedback' && (
-                  <SettingsFeedbackPanel
-                    lang={localeOption.lang}
-                    dict={dict}
-                    onUserModify={onUserModify}
-                  />
                 )}
 
                 {/* SUB-PANEL 6: VERSION CHANGELOG */}
